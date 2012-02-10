@@ -9,6 +9,11 @@
 t_sample *samples[MAXSAMPLES];
 int sample_count = 0;
 
+int samplerate = 44100;
+
+extern void file_set_samplerate(int s) {
+  samplerate = s;
+}
 
 t_sample *find_sample (char *samplename) {
   int c;
@@ -25,13 +30,12 @@ t_sample *find_sample (char *samplename) {
 
 int wav_filter (const struct dirent *d) {
   if (strlen(d->d_name) > 4) {
-    printf("%s\n", d->d_name + strlen(d->d_name) - 4);
     return(strcmp(d->d_name + strlen(d->d_name) - 4, ".wav") == 0);
   }
   return(0);
 }
 
-void fix_samplerate (t_sample *sample, int samplerate) {
+void fix_samplerate (t_sample *sample) {
   SRC_DATA data;
   int max_output_frames;
   int channels = sample->info->channels;
@@ -56,7 +60,7 @@ void fix_samplerate (t_sample *sample, int samplerate) {
   sample->info->frames = data.output_frames_gen;
 }
 
-t_sample *get_sample(char *samplename, int samplerate) {
+extern t_sample *file_get(char *samplename) {
   SNDFILE *sndfile;
   char path[MAXPATHSIZE];
   char error[62];
@@ -68,6 +72,7 @@ t_sample *get_sample(char *samplename, int samplerate) {
   int set_n = 0;
   struct dirent **namelist;
 
+  printf("find %s\n", samplename);
   sample = find_sample(samplename);
   
   if (sample == NULL) {
@@ -98,11 +103,11 @@ t_sample *get_sample(char *samplename, int samplerate) {
     }
     else {
       frames = (float *) malloc(sizeof(float) * info->frames);
-      snprintf(error, (size_t) 61, "hm: %d\n", sf_error(sndfile));
-      perror(error);
+      /*snprintf(error, (size_t) 61, "hm: %d\n", sf_error(sndfile));
+      perror(error);*/
       count  = sf_read_float(sndfile, frames, info->frames);
-      snprintf(error, (size_t) 61, "hmm: %d vs %d %d\n", (int) count, (int) info->frames, sf_error(sndfile));
-      perror(error);
+      /* snprintf(error, (size_t) 61, "hmm: %d vs %d %d\n", (int) count, (int) info->frames, sf_error(sndfile)); 
+         perror(error);*/
       
       if (count == info->frames) {
         sample = (t_sample *) calloc(1, sizeof(t_sample));
@@ -118,7 +123,12 @@ t_sample *get_sample(char *samplename, int samplerate) {
         free(frames);
       }
     }
-    fix_samplerate(sample, samplerate);
+    if (sample == NULL) {
+      printf("failed.\n");
+    }
+    else {
+      fix_samplerate(sample);
+    }
   }
 
   return(sample);

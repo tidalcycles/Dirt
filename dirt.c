@@ -6,8 +6,10 @@
 #include "audio.h"
 
 int main (int argc, char **argv) {
-  int samplerate = jack_start(audio_callback);
-  
+  printf("init audio\n");
+  audio_init();
+  printf("init osc\n");
+  server_init();
   sleep(-1);
   return(0);
 }
