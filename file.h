@@ -10,6 +10,7 @@ typedef struct {
   char name[MAXPATHSIZE];
   SF_INFO *info;
   float *frames;
+  int *onsets;
 } t_sample;
 
 extern void file_set_samplerate(int s);

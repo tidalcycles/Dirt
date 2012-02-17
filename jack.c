@@ -9,13 +9,17 @@
 #include "jack.h"
 
 jack_client_t *client;
-jack_port_t output_ports[CHANNELS+1];
+jack_port_t *output_ports[CHANNELS+1];
 
 int process(jack_nframes_t nframes, void *arg) {
-  jack_default_audio_sample_t *out;
+  jack_default_audio_sample_t *out[CHANNELS+1];
   t_callback callback = (t_callback) arg;
+  int i;
 
-  out = jack_port_get_buffer(output_ports, nframes);
+  for (i = 0; i < CHANNELS; ++i) {
+    out[i] = jack_port_get_buffer(output_ports[i], nframes);
+  }
+  
   callback(nframes, out);
 
   return 0;      
@@ -62,7 +66,7 @@ extern jack_client_t *jack_start(t_callback callback) {
   printf("engine sample rate: %" PRIu32 "\n",
           jack_get_sample_rate(client));
 
-  for (int i = 0; i < CHANNELS; ++i) {
+  for (i = 0; i < CHANNELS; ++i) {
     sprintf(portname, "output_%d", i);
     output_ports[i] = jack_port_register(client, portname,
                                          JACK_DEFAULT_AUDIO_TYPE,
@@ -81,7 +85,7 @@ extern jack_client_t *jack_start(t_callback callback) {
 
   ports = jack_get_ports(client, NULL, NULL,
                          JackPortIsPhysical|JackPortIsInput);
-  for (int i = 0; i < CHANNELS; ++i) {
+  for (i = 0; i < CHANNELS; ++i) {
     if (ports[i] == NULL) {
       break;
     }

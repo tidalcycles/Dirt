@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "file.h"
+#include "segment.h"
 
 t_sample *samples[MAXSAMPLES];
 int sample_count = 0;
@@ -45,11 +46,10 @@ void fix_samplerate (t_sample *sample) {
   max_output_frames = sample->info->frames * data.src_ratio + 32;
 
   data.data_in = sample->frames;
-  data.input_frames = sample->info->frames;
+  data.input_frames = sample->info->frames / channels;
 
-  data.data_out = (float *) malloc(sizeof(float) 
-                                   * max_output_frames 
-                                   * channels
+  data.data_out = (float *) calloc(1, sizeof(float) 
+                                      * max_output_frames 
                                    );
   data.output_frames = max_output_frames;
 
@@ -58,6 +58,7 @@ void fix_samplerate (t_sample *sample) {
   sample->frames = data.data_out;
   sample->info->samplerate = samplerate;
   sample->info->frames = data.output_frames_gen;
+  
 }
 
 extern t_sample *file_get(char *samplename) {
@@ -72,7 +73,7 @@ extern t_sample *file_get(char *samplename) {
   int set_n = 0;
   struct dirent **namelist;
 
-  printf("find %s\n", samplename);
+  //printf("find %s\n", samplename);
   sample = find_sample(samplename);
   
   if (sample == NULL) {
@@ -102,7 +103,7 @@ extern t_sample *file_get(char *samplename) {
       free(info);
     }
     else {
-      frames = (float *) malloc(sizeof(float) * info->frames);
+      frames = (float *) calloc(1, sizeof(float) * info->frames);
       /*snprintf(error, (size_t) 61, "hm: %d\n", sf_error(sndfile));
       perror(error);*/
       count  = sf_read_float(sndfile, frames, info->frames);
@@ -128,6 +129,7 @@ extern t_sample *file_get(char *samplename) {
     }
     else {
       fix_samplerate(sample);
+      sample->onsets = segment_get_onsets(sample);
     }
   }
 

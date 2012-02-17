@@ -45,9 +45,10 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 
   /* lo_timetag ts = lo_message_get_timestamp(data); */
 
-  char *sample_name = strdup((char *) argv[0]);
+  double when = (double) argv[0]->d + ((double) argv[1]->d / 1000000.0);
+  char *sample_name = strdup((char *) argv[2]);
     
-  audio_play(//ts,
+  audio_play(when,
              sample_name
              );
   return 0;
@@ -58,9 +59,9 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 extern int server_init(void) {
   lo_server_thread st = lo_server_thread_new("7771", error);
 
-  lo_server_thread_add_method(st, NULL, NULL, generic_handler, NULL);
+  //lo_server_thread_add_method(st, NULL, NULL, generic_handler, NULL);
 
-  lo_server_thread_add_method(st, "/play", "s",
+  lo_server_thread_add_method(st, "/play", "dds",
                               play_handler, 
                               NULL
                              );

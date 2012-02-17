@@ -1,4 +1,8 @@
+#include <stdlib.h>
+#include <string.h>
+#include <sndfile.h>
 #include <aubio/aubio.h>
+#include "file.h"
 
 int overlap_size = 256;
 aubio_pvoc_t * pv;
@@ -41,17 +45,20 @@ void aubio_destruct() {
   del_fvec(onset);
 }
 
-int aubio_process(float *input, int nframes) {
+int *aubio_process(t_sample *sound, float *input, sf_count_t nframes) {
   unsigned int j, i;       /*frames*/
 
-  for (j=0;j<(unsigned)nframes;j++) {
+  int *result;
+  int actual_frames = nframes / channels;
+
+  for (j=0; j < actual_frames; j++) {
     for (i=0; i < channels; i++) {
       /* write input to datanew */
       fvec_write_sample(ibuf, input[channels*j+i], i, pos);
     }
   }
 
-  for (j=0;j<(unsigned)nframes;j++) {
+  for (j=0; j < actual_frames; j++) {
     /*time for fft*/
     if ((pos % (overlap_size-1)) == 0) {
       int isonset;
@@ -77,5 +84,19 @@ int aubio_process(float *input, int nframes) {
     }
     pos++;
   }
-  return 1;
+  
+  result = (int *) calloc(1, sizeof(unsigned int) * (onset_n + 1));
+  memcpy(result, onsets, sizeof(int) * onset_n);
+  result[onset_n] = -1;
+  printf("found %d onsets\n", onset_n);
+
+  return(result);
+}
+
+extern int *segment_get_onsets(t_sample *sound) {
+  int *result;
+  aubio_init(sound->info->channels);
+  result = aubio_process(sound, sound->frames, sound->info->frames);
+  aubio_destruct();
+  return(result);
 }

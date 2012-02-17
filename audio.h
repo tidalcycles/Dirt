@@ -1,20 +1,20 @@
+#include <jack/jack.h>
 #include "file.h"
 
 typedef struct {
   char samplename[MAXPATHSIZE+1];
   t_sample *sample;
-  double position;
-  double speed;
 } t_sound;
 
 
 typedef struct t_node {
-  double when;
+  jack_nframes_t start;
   t_sound *sound;
-  struct t_node *next, *last;
+  struct t_node *next, *prev;
   double position;
+  double speed;
 } t_queue;
 
-extern int audio_callback(int samples, float *buffer);
+extern int audio_callback(int frames, float **buffers);
 extern void audio_init(void);
-extern int audio_play(char *samplename);
+extern int audio_play(double when, char *samplename);
