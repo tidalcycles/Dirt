@@ -49,16 +49,15 @@ int *aubio_process(t_sample *sound, float *input, sf_count_t nframes) {
   unsigned int j, i;       /*frames*/
 
   int *result;
-  int actual_frames = nframes / channels;
 
-  for (j=0; j < actual_frames; j++) {
+  for (j=0; j < nframes; j++) {
     for (i=0; i < channels; i++) {
       /* write input to datanew */
       fvec_write_sample(ibuf, input[channels*j+i], i, pos);
     }
   }
 
-  for (j=0; j < actual_frames; j++) {
+  for (j=0; j < nframes; j++) {
     /*time for fft*/
     if ((pos % (overlap_size-1)) == 0) {
       int isonset;
@@ -96,7 +95,7 @@ int *aubio_process(t_sample *sound, float *input, sf_count_t nframes) {
 extern int *segment_get_onsets(t_sample *sound) {
   int *result;
   aubio_init(sound->info->channels);
-  result = aubio_process(sound, sound->frames, sound->info->frames);
+  result = aubio_process(sound, sound->items, sound->info->frames);
   aubio_destruct();
   return(result);
 }

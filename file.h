@@ -9,7 +9,7 @@
 typedef struct {
   char name[MAXPATHSIZE];
   SF_INFO *info;
-  float *frames;
+  float *items;
   int *onsets;
 } t_sample;
 

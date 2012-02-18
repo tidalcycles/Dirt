@@ -204,7 +204,7 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
     for (channel = 0; channel < channels; ++channel) {
       /* todo tween */
       buffers[channel][frame] += 
-        p->sound->sample->frames[(channels * ((int) p->position)) + channel];
+        p->sound->sample->items[(channels * ((int) p->position)) + channel];
     }
 
     p->position += p->speed;

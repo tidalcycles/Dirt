@@ -45,17 +45,19 @@ void fix_samplerate (t_sample *sample) {
 
   max_output_frames = sample->info->frames * data.src_ratio + 32;
 
-  data.data_in = sample->frames;
-  data.input_frames = sample->info->frames / channels;
+  data.data_in = sample->items;
+  data.input_frames = sample->info->frames;
 
   data.data_out = (float *) calloc(1, sizeof(float) 
                                       * max_output_frames 
+                                      * channels
                                    );
   data.output_frames = max_output_frames;
 
   src_simple(&data, SRC_SINC_BEST_QUALITY, channels);
   
-  sample->frames = data.data_out;
+  /* TODO - free old items */
+  sample->items = data.data_out;
   sample->info->samplerate = samplerate;
   sample->info->frames = data.output_frames_gen;
   
@@ -67,7 +69,7 @@ extern t_sample *file_get(char *samplename) {
   char error[62];
   t_sample *sample;
   sf_count_t count;
-  float *frames;
+  float *items;
   SF_INFO *info;
   char set[MAXPATHSIZE];
   int set_n = 0;
@@ -103,25 +105,25 @@ extern t_sample *file_get(char *samplename) {
       free(info);
     }
     else {
-      frames = (float *) calloc(1, sizeof(float) * info->frames);
+      items = (float *) calloc(1, sizeof(float) * info->frames * info->channels);
       /*snprintf(error, (size_t) 61, "hm: %d\n", sf_error(sndfile));
       perror(error);*/
-      count  = sf_read_float(sndfile, frames, info->frames);
+      count  = sf_read_float(sndfile, items, info->frames * info->channels);
       /* snprintf(error, (size_t) 61, "hmm: %d vs %d %d\n", (int) count, (int) info->frames, sf_error(sndfile)); 
          perror(error);*/
       
-      if (count == info->frames) {
+      if (count == info->frames * info->channels) {
         sample = (t_sample *) calloc(1, sizeof(t_sample));
         strncpy(sample->name, samplename, MAXPATHSIZE - 1);
         sample->info = info;
-        sample->frames = frames;
+        sample->items = items;
         samples[sample_count++] = sample;
       }
       else {
-	snprintf(error, (size_t) 61, "didn't get the right number of frames: %d vs %d %d\n", (int) count, (int) info->frames, sf_error(sndfile));
+	snprintf(error, (size_t) 61, "didn't get the right number of items: %d vs %d %d\n", (int) count, (int) info->frames * info->channels, sf_error(sndfile));
         perror(error);
         free(info);
-        free(frames);
+        free(items);
       }
     }
     if (sample == NULL) {
