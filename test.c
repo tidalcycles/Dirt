@@ -12,7 +12,11 @@ int main(int argc, char *argv[]) {
     int i;
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    lo_send(t, "/play", "iis", tv.tv_sec, tv.tv_usec, "tabla/0");
+    if (argc <= 1) {
+      printf("sample name?");
+      exit(-1);
+    }
+    lo_send(t, "/play", "iis", tv.tv_sec, tv.tv_usec, argv[1]);
     
     /*    for(i = 0; i < STRENGTH; ++i) {
       tv.tv_usec += 8000 + 100 * i;

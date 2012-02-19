@@ -8,7 +8,7 @@ typedef struct {
 
 
 typedef struct t_node {
-  jack_nframes_t start;
+  jack_nframes_t startFrame;
   t_sound *sound;
   struct t_node *next, *prev;
   double position;
@@ -17,4 +17,4 @@ typedef struct t_node {
 
 extern int audio_callback(int frames, float **buffers);
 extern void audio_init(void);
-extern int audio_play(double when, char *samplename);
+extern int audio_play(double when, char *samplename, float offset, float duration, float speed);

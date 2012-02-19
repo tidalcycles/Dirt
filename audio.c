@@ -14,7 +14,7 @@ pthread_mutex_t queue_waiting_lock;
 t_queue *waiting = NULL;
 t_queue *playing = NULL;
 
-double offset = 0;
+double epochOffset = 0;
 
 jack_client_t *client = NULL;
 
@@ -55,7 +55,7 @@ void queue_add(t_queue **queue, t_queue *new) {
 
     int i =0;
     while (1) {
-      if (tmp->start > new->start) {
+      if (tmp->startFrame > new->startFrame) {
         // insert in front of later event
         new->next = tmp;
         new->prev = tmp->prev;
@@ -113,7 +113,7 @@ void queue_remove(t_queue **queue, t_queue *old) {
   //free(old);
 }
 
-extern int audio_play(double when, char *samplename) {
+extern int audio_play(double when, char *samplename, float offset, float duration, float speed) {
   int result = 0;
   t_sound *sound;
   t_sample *sample = file_get(samplename);
@@ -127,7 +127,7 @@ extern int audio_play(double when, char *samplename) {
     sound->sample = sample;
 
     new = (t_queue *) calloc(1, sizeof(t_queue));
-    new->start = jack_time_to_frames(client, ((when-offset) * 1000000));
+    new->startFrame = jack_time_to_frames(client, ((when-epochOffset) * 1000000));
     //printf("start: %lld\n", new->start);
     new->sound = sound;
     new->next = NULL;
@@ -147,16 +147,12 @@ extern int audio_play(double when, char *samplename) {
 
 t_queue *queue_next(t_queue **queue, jack_nframes_t now) {
   t_queue *result = NULL;
-  if (*queue != NULL && (*queue)->start <= now) {
+  if (*queue != NULL && (*queue)->startFrame <= now) {
     result = *queue;
     *queue = (*queue)->next;
     if ((*queue) != NULL) {
       (*queue)->prev = NULL;
     }
-  }
-
-  if (*queue != NULL && (*queue)->start > now) {
-    //printf("diff %f - %f = %f\n", *queue->start, now, *queue->start - now);
   }
 
   return(result);
@@ -167,7 +163,7 @@ void dequeue(jack_nframes_t now) {
   pthread_mutex_lock(&queue_waiting_lock);
   while ((p = queue_next(&waiting, now)) != NULL) {
     int s = queue_size(playing);
-    //printf("dequeuing %s @ %d\n", p->sound->samplename, p->start);
+    //printf("dequeuing %s @ %d\n", p->sound->samplename, p->startFrame);
     p->prev = NULL;
     p->next = playing;
     if (playing != NULL) {
@@ -193,8 +189,8 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
   while (p != NULL) {
     int channels;
     t_queue *tmp;
-    //printf("compare start %d with frametime %d\n", p->start, frametime);
-    if (p->start > frametime) {
+    //printf("compare start %d with frametime %d\n", p->startFrame, frametime);
+    if (p->startFrame > frametime) {
       p = p->next;
       continue;
     }
@@ -224,12 +220,12 @@ extern int audio_callback(int frames, float **buffers) {
   int i;
   jack_nframes_t now;
 
-  if (offset == 0) {
+  if (epochOffset == 0) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    offset = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0)) 
+    epochOffset = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0)) 
       - ((double) jack_get_time() / 1000000.0);
-    //printf("jack time: %d tv_sec %d offset: %f\n", jack_get_time(), tv.tv_sec, offset);
+    //printf("jack time: %d tv_sec %d epochOffset: %f\n", jack_get_time(), tv.tv_sec, epochOffset);
   }
   
   now = jack_last_frame_time(client);

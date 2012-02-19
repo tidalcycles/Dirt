@@ -31,7 +31,9 @@ t_sample *find_sample (char *samplename) {
 
 int wav_filter (const struct dirent *d) {
   if (strlen(d->d_name) > 4) {
-    return(strcmp(d->d_name + strlen(d->d_name) - 4, ".wav") == 0);
+    return(strcmp(d->d_name + strlen(d->d_name) - 4, ".wav") == 0
+           || strcmp(d->d_name + strlen(d->d_name) - 4, ".WAV") == 0
+           );
   }
   return(0);
 }
@@ -101,7 +103,9 @@ extern t_sample *file_get(char *samplename) {
     }
     info = (SF_INFO *) calloc(1, sizeof(SF_INFO));
     
+    printf("opening %s.\n", path);
     if ((sndfile = (SNDFILE *) sf_open(path, SFM_READ, info)) == NULL) {
+      printf("nope.\n");
       free(info);
     }
     else {
