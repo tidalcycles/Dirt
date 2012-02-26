@@ -16,7 +16,36 @@ int main(int argc, char *argv[]) {
       printf("sample name?");
       exit(-1);
     }
-    lo_send(t, "/play", "iis", tv.tv_sec, tv.tv_usec, argv[1]);
+    lo_send(t, "/play", "iisfffff", 
+            tv.tv_sec, tv.tv_usec, 
+            argv[1], /* sample_name */
+            0.0f,       /* offset */
+            1.0f,       /* duration */
+            1.0f,       /* speed */
+            0.5f,       /* pan */
+            0.0f        /* velocity */
+            );
+
+    lo_send(t, "/play", "iisfffff", 
+            tv.tv_sec + 1, tv.tv_usec, 
+            argv[1], /* sample_name */
+            0.0f,       /* offset */
+            1.0f,       /* duration */
+            1.0f,       /* speed */
+            0.0f,       /* pan */
+            0.0f        /* velocity */
+            );
+    
+
+    lo_send(t, "/play", "iisfffff", 
+            tv.tv_sec + 2, tv.tv_usec, 
+            argv[1], /* sample_name */
+            0.0f,       /* offset */
+            1.0f,       /* duration */
+            1.0f,       /* speed */
+            0.5f,       /* pan */
+            0.0f        /* velocity */
+            );
     
     /*    for(i = 0; i < STRENGTH; ++i) {
       tv.tv_usec += 8000 + 100 * i;

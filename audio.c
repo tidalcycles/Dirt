@@ -9,6 +9,8 @@
 #include "jack.h"
 #include "audio.h"
 
+#define HALF_PI 1.5707963267948966
+
 pthread_mutex_t queue_waiting_lock;
 
 t_queue *waiting = NULL;
@@ -113,7 +115,7 @@ void queue_remove(t_queue **queue, t_queue *old) {
   //free(old);
 }
 
-extern int audio_play(double when, char *samplename, float offset, float duration, float speed) {
+extern int audio_play(double when, char *samplename, float offset, float duration, float speed, float pan, float velocity) {
   int result = 0;
   t_sound *sound;
   t_sample *sample = file_get(samplename);
@@ -133,7 +135,10 @@ extern int audio_play(double when, char *samplename, float offset, float duratio
     new->next = NULL;
     new->prev = NULL;
     new->position = 0;
-    new->speed = 1;
+
+    new->speed    = speed;
+    new->pan      = pan;
+    new->velocity = velocity;
 
     pthread_mutex_lock(&queue_waiting_lock);
     queue_add(&waiting, new);
@@ -185,10 +190,11 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
   for (channel = 0; channel < CHANNELS; ++channel) {
     buffers[channel][frame] = 0;
   }
-  //printf("ah\n");
+
   while (p != NULL) {
     int channels;
     t_queue *tmp;
+    
     //printf("compare start %d with frametime %d\n", p->startFrame, frametime);
     if (p->startFrame > frametime) {
       p = p->next;
@@ -198,9 +204,33 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
     channels = p->sound->sample->info->channels;
     //printf("channels: %d\n", channels);
     for (channel = 0; channel < channels; ++channel) {
-      /* todo tween */
-      buffers[channel][frame] += 
+      float value = 
         p->sound->sample->items[(channels * ((int) p->position)) + channel];
+
+      if ((((int) p->position) + 1) < p->sound->sample->info->frames) {
+        float next = 
+          p->sound->sample->items[(channels * (((int) p->position) + 1))
+                                  + channel
+                                  ];
+        float tween_amount = (p->position - (int) p->position);
+        /* linear interpolation */
+        value += (next - value) * tween_amount;
+      }
+
+      float c = (float) channel + p->pan;
+      float d = c - floor(c);
+      int channel_a =  ((int) c) % CHANNELS;
+      int channel_b =  ((int) c + 1) % CHANNELS;
+
+      if (channel_a < 0) {
+        channel_a += CHANNELS;
+      }
+      if (channel_b < 0) {
+        channel_b += CHANNELS;
+      }
+
+      buffers[channel_a][frame] += value * cos((HALF_PI / 2) * d);
+      buffers[channel_b][frame] += value * sin((HALF_PI / 2) * d);
     }
 
     p->position += p->speed;
