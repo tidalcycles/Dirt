@@ -13,8 +13,8 @@
 
 pthread_mutex_t queue_waiting_lock;
 
-t_queue *waiting = NULL;
-t_queue *playing = NULL;
+t_sound *waiting = NULL;
+t_sound *playing = NULL;
 
 double epochOffset = 0;
 
@@ -29,7 +29,7 @@ extern void audio_init(void) {
   file_set_samplerate(samplerate);
 }
 
-int queue_size(t_queue *queue) {
+int queue_size(t_sound *queue) {
   int result = 0;
   while (queue != NULL) {
     result++;
@@ -42,8 +42,8 @@ int queue_size(t_queue *queue) {
   return(result);
 }
 
-void queue_add(t_queue **queue, t_queue *new) {
-  //printf("queuing %s @ %lld\n", new->sound->samplename, new->start);
+void queue_add(t_sound **queue, t_sound *new) {
+  //printf("queuing %s @ %lld\n", new->samplename, new->start);
   int s = queue_size(*queue);
   int added = 0;
   if (*queue == NULL) {
@@ -52,7 +52,7 @@ void queue_add(t_queue **queue, t_queue *new) {
     added++;
   }
   else {
-    t_queue *tmp = *queue;
+    t_sound *tmp = *queue;
     assert(tmp->prev == NULL);
 
     int i =0;
@@ -96,7 +96,7 @@ void queue_add(t_queue **queue, t_queue *new) {
 }
 
 
-void queue_remove(t_queue **queue, t_queue *old) {
+void queue_remove(t_sound **queue, t_sound *old) {
   int s = queue_size(*queue);
   if (old->prev == NULL) {
     *queue = old->next;
@@ -112,26 +112,22 @@ void queue_remove(t_queue **queue, t_queue *old) {
     }
   }
   assert(s == (queue_size(*queue) + 1));
-  //free(old);
+  free(old);
 }
 
 extern int audio_play(double when, char *samplename, float offset, float duration, float speed, float pan, float velocity) {
   int result = 0;
-  t_sound *sound;
   t_sample *sample = file_get(samplename);
   //printf("samplename: %s when: %f\n", samplename, when);
   if (sample != NULL) {
     //printf("got\n");
-    t_queue *new;
+    t_sound *new = (t_sound *) calloc(1, sizeof(t_sound));
     
-    sound = (t_sound *) calloc(1, sizeof(t_sound));
-    strncpy(sound->samplename, samplename, MAXPATHSIZE);
-    sound->sample = sample;
-
-    new = (t_queue *) calloc(1, sizeof(t_queue));
-    new->startFrame = jack_time_to_frames(client, ((when-epochOffset) * 1000000));
+    strncpy(new->samplename, samplename, MAXPATHSIZE);
+    new->sample = sample;
+    new->startFrame = 
+      jack_time_to_frames(client, ((when-epochOffset) * 1000000));
     //printf("start: %lld\n", new->start);
-    new->sound = sound;
     new->next = NULL;
     new->prev = NULL;
     new->position = 0;
@@ -139,6 +135,9 @@ extern int audio_play(double when, char *samplename, float offset, float duratio
     new->speed    = speed;
     new->pan      = pan;
     new->velocity = velocity;
+
+    new->offset = offset;
+    new->duration = duration;
 
     pthread_mutex_lock(&queue_waiting_lock);
     queue_add(&waiting, new);
@@ -150,8 +149,8 @@ extern int audio_play(double when, char *samplename, float offset, float duratio
   return(result);
 }
 
-t_queue *queue_next(t_queue **queue, jack_nframes_t now) {
-  t_queue *result = NULL;
+t_sound *queue_next(t_sound **queue, jack_nframes_t now) {
+  t_sound *result = NULL;
   if (*queue != NULL && (*queue)->startFrame <= now) {
     result = *queue;
     *queue = (*queue)->next;
@@ -164,11 +163,11 @@ t_queue *queue_next(t_queue **queue, jack_nframes_t now) {
 }
 
 void dequeue(jack_nframes_t now) {
-  t_queue *p;
+  t_sound *p;
   pthread_mutex_lock(&queue_waiting_lock);
   while ((p = queue_next(&waiting, now)) != NULL) {
     int s = queue_size(playing);
-    //printf("dequeuing %s @ %d\n", p->sound->samplename, p->startFrame);
+    //printf("dequeuing %s @ %d\n", p->samplename, p->startFrame);
     p->prev = NULL;
     p->next = playing;
     if (playing != NULL) {
@@ -185,7 +184,7 @@ void dequeue(jack_nframes_t now) {
 
 inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
   int channel;
-  t_queue *p = playing;
+  t_sound *p = playing;
   
   for (channel = 0; channel < CHANNELS; ++channel) {
     buffers[channel][frame] = 0;
@@ -193,25 +192,25 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
 
   while (p != NULL) {
     int channels;
-    t_queue *tmp;
+    t_sound *tmp;
     
     //printf("compare start %d with frametime %d\n", p->startFrame, frametime);
     if (p->startFrame > frametime) {
       p = p->next;
       continue;
     }
-    //printf("playing %s\n", p->sound->samplename);
-    channels = p->sound->sample->info->channels;
+    //printf("playing %s\n", p->samplename);
+    channels = p->sample->info->channels;
     //printf("channels: %d\n", channels);
     for (channel = 0; channel < channels; ++channel) {
       float value = 
-        p->sound->sample->items[(channels * ((int) p->position)) + channel];
+        p->sample->items[(channels * ((int) p->position)) + channel];
 
-      if ((((int) p->position) + 1) < p->sound->sample->info->frames) {
+      if ((((int) p->position) + 1) < p->sample->info->frames) {
         float next = 
-          p->sound->sample->items[(channels * (((int) p->position) + 1))
-                                  + channel
-                                  ];
+          p->sample->items[(channels * (((int) p->position) + 1))
+                           + channel
+                           ];
         float tween_amount = (p->position - (int) p->position);
         /* linear interpolation */
         value += (next - value) * tween_amount;
@@ -229,18 +228,19 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
         channel_b += CHANNELS;
       }
 
+      // equal power
       buffers[channel_a][frame] += value * cos((HALF_PI / 2) * d);
       buffers[channel_b][frame] += value * sin((HALF_PI / 2) * d);
     }
 
     p->position += p->speed;
-    //printf("position: %d of %d\n", p->position, playing->sound->sample->info->frames);
+    //printf("position: %d of %d\n", p->position, playing->sample->info->frames);
 
     /* remove dead sounds */
     tmp = p;
     p = p->next;
-    if (tmp->position >= tmp->sound->sample->info->frames) {
-      //printf("remove %s\n", tmp->sound->samplename);
+    if (tmp->position >= tmp->sample->info->frames) {
+      //printf("remove %s\n", tmp->samplename);
       queue_remove(&playing, tmp);
     }
   }

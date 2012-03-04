@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
             0.0f,       /* offset */
             1.0f,       /* duration */
             1.0f,       /* speed */
-            0.5f,       /* pan */
+            0.0f,       /* pan */
             0.0f        /* velocity */
             );
 
@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
             0.0f,       /* offset */
             1.0f,       /* duration */
             1.0f,       /* speed */
-            0.0f,       /* pan */
+            1.0f,       /* pan */
             0.0f        /* velocity */
             );
     
@@ -43,7 +43,29 @@ int main(int argc, char *argv[]) {
             0.0f,       /* offset */
             1.0f,       /* duration */
             1.0f,       /* speed */
-            0.5f,       /* pan */
+            2.0f,       /* pan */
+            0.0f        /* velocity */
+            );
+    
+
+    lo_send(t, "/play", "iisfffff", 
+            tv.tv_sec + 3, tv.tv_usec, 
+            argv[1], /* sample_name */
+            0.0f,       /* offset */
+            1.0f,       /* duration */
+            1.0f,       /* speed */
+            3.0f,       /* pan */
+            0.0f        /* velocity */
+            );
+
+
+    lo_send(t, "/play", "iisfffff", 
+            tv.tv_sec + 4, tv.tv_usec, 
+            argv[1], /* sample_name */
+            0.0f,       /* offset */
+            1.0f,       /* duration */
+            1.0f,       /* speed */
+            4.0f,       /* pan */
             0.0f        /* velocity */
             );
     
