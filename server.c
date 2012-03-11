@@ -41,7 +41,7 @@ int generic_handler(const char *path, const char *types, lo_arg **argv,
 /**/
 
 int play_handler(const char *path, const char *types, lo_arg **argv,
-                    int argc, void *data, void *user_data) {
+                 int argc, void *data, void *user_data) {
 
   /* lo_timetag ts = lo_message_get_timestamp(data); */
 

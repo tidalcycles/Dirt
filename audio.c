@@ -137,7 +137,11 @@ extern int audio_play(double when, char *samplename, float offset, float duratio
     new->velocity = velocity;
 
     new->offset = offset;
+    new->frames = new->sample->info->frames;
     new->duration = duration;
+    if (new->duration < 1)  {
+      new->frames *= new->duration;
+    }
 
     pthread_mutex_lock(&queue_waiting_lock);
     queue_add(&waiting, new);
@@ -206,7 +210,7 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
       float value = 
         p->sample->items[(channels * ((int) p->position)) + channel];
 
-      if ((((int) p->position) + 1) < p->sample->info->frames) {
+      if ((((int) p->position) + 1) < p->frames) {
         float next = 
           p->sample->items[(channels * (((int) p->position) + 1))
                            + channel
@@ -234,12 +238,12 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
     }
 
     p->position += p->speed;
-    //printf("position: %d of %d\n", p->position, playing->sample->info->frames);
+    //printf("position: %d of %d\n", p->position, playing->frames);
 
     /* remove dead sounds */
     tmp = p;
     p = p->next;
-    if (tmp->position >= tmp->sample->info->frames) {
+    if (tmp->position >= tmp->frames) {
       //printf("remove %s\n", tmp->samplename);
       queue_remove(&playing, tmp);
     }

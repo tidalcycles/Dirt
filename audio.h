@@ -11,6 +11,7 @@ typedef struct t_node {
   float pan;
   float offset;
   float duration;
+  float frames;
   float velocity;
 } t_sound;
 
