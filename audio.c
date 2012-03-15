@@ -233,8 +233,8 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
       }
 
       // equal power
-      buffers[channel_a][frame] += value * cos((HALF_PI / 2) * d);
-      buffers[channel_b][frame] += value * sin((HALF_PI / 2) * d);
+      buffers[channel_a][frame] += value * cos(HALF_PI * d);
+      buffers[channel_b][frame] += value * sin(HALF_PI * d);
     }
 
     p->position += p->speed;
