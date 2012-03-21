@@ -54,6 +54,19 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   float speed  = argv[5]->f;
   float pan  = argv[6]->f;
   float velocity  = argv[7]->f;
+  char *vowel_s = (char *) argv[8];
+  float start  = argv[9]->f;
+  
+  int vowelnum = -1;
+  
+  switch(vowel_s[0]) {
+  case 'a': case 'A': vowelnum = 0; break;
+  case 'e': case 'E': vowelnum = 1; break;
+  case 'i': case 'I': vowelnum = 2; break;
+  case 'o': case 'O': vowelnum = 3; break;
+  case 'u': case 'U': vowelnum = 4; break;
+  }
+  printf("vowel: %s num: %d\n", vowel_s, vowelnum);
 
   audio_play(when,
              sample_name,
@@ -61,7 +74,9 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
              duration,
              speed,
              pan,
-             velocity
+             velocity,
+             vowelnum,
+             start
              );
   return 0;
 }
@@ -73,7 +88,7 @@ extern int server_init(void) {
 
   //lo_server_thread_add_method(st, NULL, NULL, generic_handler, NULL);
 
-  lo_server_thread_add_method(st, "/play", "iisfffff",
+  lo_server_thread_add_method(st, "/play", "iisfffffsf",
                               play_handler, 
                               NULL
                              );

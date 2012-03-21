@@ -115,10 +115,63 @@ void queue_remove(t_sound **queue, t_sound *old) {
   free(old);
 }
 
-extern int audio_play(double when, char *samplename, float offset, float duration, float speed, float pan, float velocity) {
+const double coeff[5][11]= {
+  { 3.11044e-06,
+    8.943665402,    -36.83889529,    92.01697887,    -154.337906,    181.6233289,
+    -151.8651235,   89.09614114,    -35.10298511,    8.388101016,    -0.923313471  
+  },
+  {4.36215e-06,
+   8.90438318,    -36.55179099,    91.05750846,    -152.422234,    179.1170248,  
+   -149.6496211,87.78352223,    -34.60687431,    8.282228154,    -0.914150747
+  },
+  { 3.33819e-06,
+    8.893102966,    -36.49532826,    90.96543286,    -152.4545478,    179.4835618,
+    -150.315433,    88.43409371,    -34.98612086,    8.407803364,    -0.932568035  
+},
+  {1.13572e-06,
+   8.994734087,    -37.2084849,    93.22900521,    -156.6929844,    184.596544,   
+   -154.3755513,    90.49663749,    -35.58964535,    8.478996281,    -0.929252233
+  },
+  {4.09431e-07,
+   8.997322763,    -37.20218544,    93.11385476,    -156.2530937,    183.7080141,  
+   -153.2631681,    89.59539726,    -35.12454591,    8.338655623,    -0.910251753
+  }
+};
+
+float formant_filter(float in, t_sound *sound, int channel) {
+  float res = 
+    (float) ( coeff[sound->formant_vowelnum][0] * in +
+              coeff[sound->formant_vowelnum][1] * sound->formant_history[channel][0] +  
+              coeff[sound->formant_vowelnum][2] * sound->formant_history[channel][1] +
+              coeff[sound->formant_vowelnum][3] * sound->formant_history[channel][2] +
+              coeff[sound->formant_vowelnum][4] * sound->formant_history[channel][3] +
+              coeff[sound->formant_vowelnum][5] * sound->formant_history[channel][4] +
+              coeff[sound->formant_vowelnum][6] * sound->formant_history[channel][5] +
+              coeff[sound->formant_vowelnum][7] * sound->formant_history[channel][6] +
+              coeff[sound->formant_vowelnum][8] * sound->formant_history[channel][7] +
+              coeff[sound->formant_vowelnum][9] * sound->formant_history[channel][8] +
+              coeff[sound->formant_vowelnum][10] * sound->formant_history[channel][9] 
+             );
+
+  sound->formant_history[channel][9] = sound->formant_history[channel][8];
+  sound->formant_history[channel][8] = sound->formant_history[channel][7];
+  sound->formant_history[channel][7] = sound->formant_history[channel][6];
+  sound->formant_history[channel][6] = sound->formant_history[channel][5];
+  sound->formant_history[channel][5] = sound->formant_history[channel][4];
+  sound->formant_history[channel][4] = sound->formant_history[channel][3];
+  sound->formant_history[channel][3] = sound->formant_history[channel][2];
+  sound->formant_history[channel][2] = sound->formant_history[channel][1];
+  sound->formant_history[channel][1] = sound->formant_history[channel][0];
+  sound->formant_history[channel][0] = (double) res;
+  return res;
+}
+
+extern int audio_play(double when, char *samplename, float offset, float duration, float speed, float pan, float velocity, int vowelnum, float start) {
   int result = 0;
+  struct timeval tv;
   t_sample *sample = file_get(samplename);
-  //printf("samplename: %s when: %f\n", samplename, when);
+  gettimeofday(&tv, NULL);
+  printf("samplename: %s when: %f\n", samplename, when - (float) tv.tv_sec);
   if (sample != NULL) {
     //printf("got\n");
     t_sound *new = (t_sound *) calloc(1, sizeof(t_sound));
@@ -139,9 +192,25 @@ extern int audio_play(double when, char *samplename, float offset, float duratio
     new->offset = offset;
     new->frames = new->sample->info->frames;
     new->duration = duration;
+    printf("start: %f\n", start);
+    if (start > 0 && start <= 1) {
+      printf("newpos: %f\n", new->position);
+      new->position = start * new->frames;
+    }
+    
     if (new->duration < 1)  {
       new->frames *= new->duration;
     }
+
+    if (new->speed == 0) {
+      new->speed = 1;
+    }
+    
+    if (new->speed < 0) {
+      new->position = new->frames - new->position;
+    }
+
+    new->formant_vowelnum = vowelnum;
 
     pthread_mutex_lock(&queue_waiting_lock);
     queue_add(&waiting, new);
@@ -207,18 +276,32 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
     channels = p->sample->info->channels;
     //printf("channels: %d\n", channels);
     for (channel = 0; channel < channels; ++channel) {
+      float roundoff = 1;
       float value = 
         p->sample->items[(channels * ((int) p->position)) + channel];
-
-      if ((((int) p->position) + 1) < p->frames) {
+      int pos = ((int) p->position) + 1;
+      if (pos < p->frames) {
         float next = 
-          p->sample->items[(channels * (((int) p->position) + 1))
+          p->sample->items[(channels * pos)
                            + channel
                            ];
         float tween_amount = (p->position - (int) p->position);
+        
+
         /* linear interpolation */
         value += (next - value) * tween_amount;
       }
+
+      if (p->formant_vowelnum >= 0) {
+        value = formant_filter(value, p, 0);
+      }
+
+      if ((p->frames - p->position) < ROUNDOFF) {
+        // TODO what frames < ROUNDOFF?)
+        //printf("roundoff: %f\n", (p->frames - pos) / (float) ROUNDOFF);
+        roundoff = (p->frames - pos) / (float) ROUNDOFF;
+      }
+      value *= roundoff;
 
       float c = (float) channel + p->pan;
       float d = c - floor(c);
@@ -232,7 +315,7 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
         channel_b += CHANNELS;
       }
 
-      // equal power
+      // equal power panning
       buffers[channel_a][frame] += value * cos(HALF_PI * d);
       buffers[channel_b][frame] += value * sin(HALF_PI * d);
     }
@@ -243,9 +326,17 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
     /* remove dead sounds */
     tmp = p;
     p = p->next;
-    if (tmp->position >= tmp->frames) {
-      //printf("remove %s\n", tmp->samplename);
-      queue_remove(&playing, tmp);
+    if (tmp->speed > 0) {
+      if (tmp->position >= tmp->frames) {
+        //printf("remove %s\n", tmp->samplename);
+        queue_remove(&playing, tmp);
+      }
+    }
+    else {
+      if (tmp->position <= 0) {
+        //printf("remove %s\n", tmp->samplename);
+        queue_remove(&playing, tmp);
+      }
     }
   }
 }
