@@ -135,7 +135,8 @@ extern t_sample *file_get(char *samplename) {
     }
     else {
       fix_samplerate(sample);
-      sample->onsets = segment_get_onsets(sample);
+      sample->onsets = NULL;
+      //sample->onsets = segment_get_onsets(sample);
     }
   }
 

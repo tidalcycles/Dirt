@@ -50,12 +50,12 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   char *sample_name = strdup((char *) argv[2]);
 
   float offset = argv[3]->f;
-  float duration = argv[4]->f;
-  float speed  = argv[5]->f;
-  float pan  = argv[6]->f;
-  float velocity  = argv[7]->f;
-  char *vowel_s = (char *) argv[8];
-  float start  = argv[9]->f;
+  float start = argv[4]->f;
+  float end  = argv[5]->f;
+  float speed  = argv[6]->f;
+  float pan  = argv[7]->f;
+  float velocity  = argv[8]->f;
+  char *vowel_s = (char *) argv[9];
   
   int vowelnum = -1;
   
@@ -66,17 +66,17 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   case 'o': case 'O': vowelnum = 3; break;
   case 'u': case 'U': vowelnum = 4; break;
   }
-  printf("vowel: %s num: %d\n", vowel_s, vowelnum);
+  //printf("vowel: %s num: %d\n", vowel_s, vowelnum);
 
   audio_play(when,
              sample_name,
              offset,
-             duration,
+             start, 
+             end,
              speed,
              pan,
              velocity,
-             vowelnum,
-             start
+             vowelnum
              );
   return 0;
 }
@@ -88,7 +88,7 @@ extern int server_init(void) {
 
   //lo_server_thread_add_method(st, NULL, NULL, generic_handler, NULL);
 
-  lo_server_thread_add_method(st, "/play", "iisfffffsf",
+  lo_server_thread_add_method(st, "/play", "iisffffffs",
                               play_handler, 
                               NULL
                              );

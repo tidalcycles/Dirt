@@ -34,7 +34,7 @@ int queue_size(t_sound *queue) {
   while (queue != NULL) {
     result++;
     queue = queue->next;
-    if (result > 1024) {
+    if (result > 4096) {
       printf("whoops, big queue\n");
       break;
     }
@@ -166,12 +166,13 @@ float formant_filter(float in, t_sound *sound, int channel) {
   return res;
 }
 
-extern int audio_play(double when, char *samplename, float offset, float duration, float speed, float pan, float velocity, int vowelnum, float start) {
+extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum) {
   int result = 0;
   struct timeval tv;
   t_sample *sample = file_get(samplename);
+
   gettimeofday(&tv, NULL);
-  printf("samplename: %s when: %f\n", samplename, when - (float) tv.tv_sec);
+  //printf("samplename: %s when: %f\n", samplename, when - (float) tv.tv_sec);
   if (sample != NULL) {
     //printf("got\n");
     t_sound *new = (t_sound *) calloc(1, sizeof(t_sound));
@@ -191,15 +192,13 @@ extern int audio_play(double when, char *samplename, float offset, float duratio
 
     new->offset = offset;
     new->frames = new->sample->info->frames;
-    new->duration = duration;
-    printf("start: %f\n", start);
+
     if (start > 0 && start <= 1) {
-      printf("newpos: %f\n", new->position);
       new->position = start * new->frames;
     }
     
-    if (new->duration < 1)  {
-      new->frames *= new->duration;
+    if (end > 0 && end < 1) {
+      new->frames *= end;
     }
 
     if (new->speed == 0) {
