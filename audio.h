@@ -17,6 +17,7 @@ typedef struct t_node {
   float pan;
   float offset;
   float frames;
+  float startframe;
   float velocity;
   double formant_history[CHANNELS][10];
   int    formant_vowelnum;

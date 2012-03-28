@@ -184,8 +184,7 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
     //printf("start: %lld\n", new->start);
     new->next = NULL;
     new->prev = NULL;
-    new->position = 0;
-
+    new->startframe = 0;
     new->speed    = speed;
     new->pan      = pan;
     new->velocity = velocity;
@@ -194,7 +193,7 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
     new->frames = new->sample->info->frames;
 
     if (start > 0 && start <= 1) {
-      new->position = start * new->frames;
+      new->startframe = start * new->frames;
     }
     
     if (end > 0 && end < 1) {
@@ -206,9 +205,10 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
     }
     
     if (new->speed < 0) {
-      new->position = new->frames - new->position;
+      new->startframe = new->frames - new->startframe;
     }
 
+    new->position = new->startframe;
     new->formant_vowelnum = vowelnum;
 
     pthread_mutex_lock(&queue_waiting_lock);
@@ -299,6 +299,11 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
         // TODO what frames < ROUNDOFF?)
         //printf("roundoff: %f\n", (p->frames - pos) / (float) ROUNDOFF);
         roundoff = (p->frames - pos) / (float) ROUNDOFF;
+      }
+      else {
+        if ((pos - p->startframe) < ROUNDOFF) {
+          roundoff = (pos - p->startframe) / (float) ROUNDOFF;
+        }
       }
       value *= roundoff;
 
