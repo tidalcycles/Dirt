@@ -16,6 +16,14 @@ extern void file_set_samplerate(int s) {
   samplerate = s;
 }
 
+t_loop *new_loop(float seconds) {
+  t_loop *result = (t_loop *) calloc(1, sizeof(t_loop));
+  result->frames = seconds * (float) samplerate;
+  result->items = (float *) calloc(result->frames, sizeof(float));
+  result->now = 0;
+  return(result);
+}
+
 t_sample *find_sample (char *samplename) {
   int c;
   t_sample *sample = NULL;
@@ -43,8 +51,12 @@ void fix_samplerate (t_sample *sample) {
   int max_output_frames;
   int channels = sample->info->channels;
 
-  data.src_ratio = sample->info->samplerate / samplerate;
-
+  //printf("start frames: %d\n", sample->info->frames);
+  if (sample->info->samplerate == samplerate) {
+    return;
+  }
+  data.src_ratio = (float) samplerate / (float) sample->info->samplerate;
+  //printf("ratio: %d / %d = %f\n", sample->info->samplerate, samplerate, data.src_ratio);
   max_output_frames = sample->info->frames * data.src_ratio + 32;
 
   data.data_in = sample->items;
@@ -55,14 +67,14 @@ void fix_samplerate (t_sample *sample) {
                                       * channels
                                    );
   data.output_frames = max_output_frames;
-
+  
   src_simple(&data, SRC_SINC_BEST_QUALITY, channels);
   
   /* TODO - free old items */
   sample->items = data.data_out;
   sample->info->samplerate = samplerate;
   sample->info->frames = data.output_frames_gen;
-  
+  //printf("end samplerate: %d frames: %d\n", (int) sample->info->samplerate, sample->info->frames);  
 }
 
 extern t_sample *file_get(char *samplename) {
@@ -113,8 +125,8 @@ extern t_sample *file_get(char *samplename) {
       /*snprintf(error, (size_t) 61, "hm: %d\n", sf_error(sndfile));
       perror(error);*/
       count  = sf_read_float(sndfile, items, info->frames * info->channels);
-      /* snprintf(error, (size_t) 61, "hmm: %d vs %d %d\n", (int) count, (int) info->frames, sf_error(sndfile)); 
-         perror(error);*/
+      snprintf(error, (size_t) 61, "count: %d frames: %d channels: %d\n", (int) count, (int) info->frames, info->channels); 
+      perror(error);
       
       if (count == info->frames * info->channels) {
         sample = (t_sample *) calloc(1, sizeof(t_sample));

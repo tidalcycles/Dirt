@@ -16,17 +16,19 @@ pthread_mutex_t queue_waiting_lock;
 t_sound *waiting = NULL;
 t_sound *playing = NULL;
 
+t_loop *loop = NULL;
+
 double epochOffset = 0;
 
 jack_client_t *client = NULL;
+static int samplerate = 0;
 
 extern void audio_init(void) {
-  int samplerate;
-
   pthread_mutex_init(&queue_waiting_lock, NULL);
   client = jack_start(audio_callback);
   samplerate = jack_get_sample_rate(client);
   file_set_samplerate(samplerate);
+  loop = new_loop(8);
 }
 
 int queue_size(t_sound *queue) {
@@ -167,58 +169,81 @@ float formant_filter(float in, t_sound *sound, int channel) {
 }
 
 extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum) {
-  int result = 0;
   struct timeval tv;
-  t_sample *sample = file_get(samplename);
-
+  int is_loop = 0;
+  t_sample *sample = NULL;
+  t_sound *new;
+  
   gettimeofday(&tv, NULL);
-  //printf("samplename: %s when: %f\n", samplename, when - (float) tv.tv_sec);
-  if (sample != NULL) {
-    //printf("got\n");
-    t_sound *new = (t_sound *) calloc(1, sizeof(t_sound));
-    
-    strncpy(new->samplename, samplename, MAXPATHSIZE);
-    new->sample = sample;
-    new->startFrame = 
-      jack_time_to_frames(client, ((when-epochOffset) * 1000000));
-    //printf("start: %lld\n", new->start);
-    new->next = NULL;
-    new->prev = NULL;
-    new->startframe = 0;
-    new->speed    = speed;
-    new->pan      = pan;
-    new->velocity = velocity;
 
-    new->offset = offset;
-    new->frames = new->sample->info->frames;
 
-    if (start > 0 && start <= 1) {
-      new->startframe = start * new->frames;
-    }
-    
-    if (end > 0 && end < 1) {
-      new->frames *= end;
-    }
-
-    if (new->speed == 0) {
-      new->speed = 1;
-    }
-    
-    if (new->speed < 0) {
-      new->startframe = new->frames - new->startframe;
-    }
-
-    new->position = new->startframe;
-    new->formant_vowelnum = vowelnum;
-
-    pthread_mutex_lock(&queue_waiting_lock);
-    queue_add(&waiting, new);
-    //printf("added: %d\n", waiting != NULL);
-    pthread_mutex_unlock(&queue_waiting_lock);
-
-    result = 1;
+  if (strcmp(samplename, "loop") == 0) {
+    is_loop = 1;
   }
-  return(result);
+  else {
+    sample = file_get(samplename);
+    if (sample == NULL) {
+      return(0);
+    }
+  }
+  
+  new = (t_sound *) calloc(1, sizeof(t_sound));
+  printf("samplename: %s when: %f\n", samplename, when - (float) tv.tv_sec);
+  strncpy(new->samplename, samplename, MAXPATHSIZE);
+  
+  if (is_loop) {
+    new->loop    = loop;
+    new->frames   = loop->frames;
+    new->items    = loop->items;
+    new->channels = 1;
+    new->loop_start = (loop->now + (loop->frames / 2)) % loop->frames;
+  }
+  else {
+    new->sample   = sample;
+    new->frames   = sample->info->frames;
+    new->items    = sample->items;
+    new->channels = sample->info->channels;
+  }
+  new->is_loop = is_loop;
+
+  new->startFrame = 
+    jack_time_to_frames(client, ((when-epochOffset) * 1000000));
+  
+  new->next = NULL;
+  new->prev = NULL;
+  new->startframe = 0;
+  new->speed    = speed;
+  new->pan      = pan;
+  new->velocity = velocity;
+  
+  new->offset = offset;
+
+  printf("frames: %f\n", new->frames);
+  if (start > 0 && start <= 1) {
+    new->startframe = start * new->frames;
+  }
+  
+  if (end > 0 && end < 1) {
+    new->frames *= end;
+  }
+  
+  if (new->speed == 0) {
+    new->speed = 1;
+  }
+  
+  if (new->speed < 0) {
+    new->startframe = new->frames - new->startframe;
+  }
+  
+  new->position = new->startframe;
+  new->formant_vowelnum = vowelnum;
+  
+  pthread_mutex_lock(&queue_waiting_lock);
+  queue_add(&waiting, new);
+  //printf("added: %d\n", waiting != NULL);
+  pthread_mutex_unlock(&queue_waiting_lock);
+  
+  return(1);
 }
 
 t_sound *queue_next(t_sound **queue, jack_nframes_t now) {
@@ -272,18 +297,35 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
       continue;
     }
     //printf("playing %s\n", p->samplename);
-    channels = p->sample->info->channels;
+    channels = p->channels;
     //printf("channels: %d\n", channels);
     for (channel = 0; channel < channels; ++channel) {
       float roundoff = 1;
-      float value = 
-        p->sample->items[(channels * ((int) p->position)) + channel];
+      float value;
+
+      if (p->is_loop) {
+        // only one channel, but relative to 'now'
+        unsigned int i = (p->loop_start + ((int) p->position)) % p->loop->frames;
+        value = p->items[i];
+      }
+      else {
+        value = p->items[(channels * ((int) p->position)) + channel];
+      }
+
       int pos = ((int) p->position) + 1;
-      if (pos < p->frames) {
-        float next = 
-          p->sample->items[(channels * pos)
-                           + channel
-                           ];
+      if ((!p->is_loop) && pos < p->frames) {
+        float next;
+        if (p->is_loop) {
+          // only one channel, but relative to 'now'
+          unsigned int i = (p->loop_start + pos) % p->loop->frames;
+          value = p->items[i];
+        }
+        else {
+          next = 
+            p->items[(channels * pos)
+                     + channel
+                     ];
+        }
         float tween_amount = (p->position - (int) p->position);
         
 
@@ -345,7 +387,7 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
   }
 }
 
-extern int audio_callback(int frames, float **buffers) {
+extern int audio_callback(int frames, float *input, float **outputs) {
   int i;
   jack_nframes_t now;
 
@@ -356,13 +398,17 @@ extern int audio_callback(int frames, float **buffers) {
       - ((double) jack_get_time() / 1000000.0);
     //printf("jack time: %d tv_sec %d epochOffset: %f\n", jack_get_time(), tv.tv_sec, epochOffset);
   }
-  
   now = jack_last_frame_time(client);
   
   for (i=0; i < frames; ++i) {
+    loop->items[loop->now++] = input[i];
+    if (loop->now >= loop->frames) {
+      loop->now = 0;
+    }
+    
     dequeue(now + frames);
 
-    playback(buffers, i, now + i);
+    playback(outputs, i, now + i);
   }
   return(0);
 }
