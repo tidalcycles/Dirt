@@ -6,6 +6,7 @@
 #include <math.h>
 #include <assert.h>
 
+#include "config.h"
 #include "jack.h"
 #include "audio.h"
 
@@ -16,7 +17,9 @@ pthread_mutex_t queue_waiting_lock;
 t_sound *waiting = NULL;
 t_sound *playing = NULL;
 
+#ifdef FEEDBACK
 t_loop *loop = NULL;
+#endif
 
 double epochOffset = 0;
 
@@ -28,7 +31,9 @@ extern void audio_init(void) {
   client = jack_start(audio_callback);
   samplerate = jack_get_sample_rate(client);
   file_set_samplerate(samplerate);
+#ifdef FEEDBACK
   loop = new_loop(8);
+#endif
 }
 
 int queue_size(t_sound *queue) {
@@ -170,27 +175,34 @@ float formant_filter(float in, t_sound *sound, int channel) {
 
 extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum) {
   struct timeval tv;
+#ifdef FEEDBACK
   int is_loop = 0;
+#endif
   t_sample *sample = NULL;
   t_sound *new;
   
   gettimeofday(&tv, NULL);
 
 
+#ifdef FEEDBACK
   if (strcmp(samplename, "loop") == 0) {
     is_loop = 1;
   }
   else {
+#endif
     sample = file_get(samplename);
     if (sample == NULL) {
       return(0);
     }
+#ifdef FEEDBACK
   }
+#endif
   
   new = (t_sound *) calloc(1, sizeof(t_sound));
   printf("samplename: %s when: %f\n", samplename, when - (float) tv.tv_sec);
   strncpy(new->samplename, samplename, MAXPATHSIZE);
   
+#ifdef FEEDBACK
   if (is_loop) {
     new->loop    = loop;
     new->frames   = loop->frames;
@@ -199,12 +211,15 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
     new->loop_start = (loop->now + (loop->frames / 2)) % loop->frames;
   }
   else {
+#endif
     new->sample   = sample;
     new->frames   = sample->info->frames;
     new->items    = sample->items;
     new->channels = sample->info->channels;
+#ifdef FEEDBACK
   }
   new->is_loop = is_loop;
+#endif
 
   new->startFrame = 
     jack_time_to_frames(client, ((when-epochOffset) * 1000000));
@@ -303,29 +318,29 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
       float roundoff = 1;
       float value;
 
+#ifdef FEEDBACK
       if (p->is_loop) {
         // only one channel, but relative to 'now'
         unsigned int i = (p->loop_start + ((int) p->position)) % p->loop->frames;
         value = p->items[i];
       }
       else {
+#endif
         value = p->items[(channels * ((int) p->position)) + channel];
+#ifdef FEEDBACK
       }
+#endif
 
       int pos = ((int) p->position) + 1;
+#ifdef FEEDBACK
       if ((!p->is_loop) && pos < p->frames) {
-        float next;
-        if (p->is_loop) {
-          // only one channel, but relative to 'now'
-          unsigned int i = (p->loop_start + pos) % p->loop->frames;
-          value = p->items[i];
-        }
-        else {
-          next = 
+#else
+      if (pos < p->frames) {
+#endif
+        float next = 
             p->items[(channels * pos)
                      + channel
                      ];
-        }
         float tween_amount = (p->position - (int) p->position);
         
 
@@ -401,11 +416,13 @@ extern int audio_callback(int frames, float *input, float **outputs) {
   now = jack_last_frame_time(client);
   
   for (i=0; i < frames; ++i) {
+#ifdef FEEDBACK
     loop->items[loop->now++] = input[i];
+
     if (loop->now >= loop->frames) {
       loop->now = 0;
     }
-    
+#endif
     dequeue(now + frames);
 
     playback(outputs, i, now + i);
