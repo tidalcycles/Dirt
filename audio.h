@@ -5,7 +5,7 @@
 #define MAXDELAYS 16
 #define MAXDELAY 44100
 
-#define ROUNDOFF 16
+#define ROUNDOFF 8
 
 typedef struct t_node {
   jack_nframes_t startFrame;
