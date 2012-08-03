@@ -10,17 +10,21 @@
 
 jack_client_t *client;
 jack_port_t *output_ports[CHANNELS+1];
+jack_port_t *input_port;
 
 int process(jack_nframes_t nframes, void *arg) {
   jack_default_audio_sample_t *out[CHANNELS+1];
+  jack_default_audio_sample_t *in;
   t_callback callback = (t_callback) arg;
   int i;
 
   for (i = 0; i < CHANNELS; ++i) {
     out[i] = jack_port_get_buffer(output_ports[i], nframes);
   }
-  
-  callback(nframes, out);
+
+  in = jack_port_get_buffer(input_port, nframes);
+
+  callback(nframes, in, out);
 
   return 0;      
 
@@ -66,6 +70,16 @@ extern jack_client_t *jack_start(t_callback callback) {
   printf("engine sample rate: %" PRIu32 "\n",
           jack_get_sample_rate(client));
 
+  strcpy(portname, "input");
+  input_port = jack_port_register(client, portname,
+                                  JACK_DEFAULT_AUDIO_TYPE,
+                                  JackPortIsInput, 0);
+
+  if (input_port == NULL) {
+    fprintf(stderr, "no JACK input ports available\n");
+    exit(1);
+  }
+
   for (i = 0; i < CHANNELS; ++i) {
     sprintf(portname, "output_%d", i);
     output_ports[i] = jack_port_register(client, portname,
@@ -76,6 +90,7 @@ extern jack_client_t *jack_start(t_callback callback) {
       exit(1);
     }
   }
+  
   output_ports[CHANNELS] = NULL;
   
   if (jack_activate(client)) {
@@ -89,10 +104,17 @@ extern jack_client_t *jack_start(t_callback callback) {
     if (ports[i] == NULL) {
       break;
     }
-    sprintf(portname, "output_%d", i);
+    //sprintf(portname, "output_%d", i);
     if (jack_connect(client, jack_port_name(output_ports[i]), ports[i])) {
       fprintf(stderr, "cannot connect output ports\n");
     }
+  }
+
+  ports = jack_get_ports(client, NULL, NULL,
+                         JackPortIsPhysical|JackPortIsOutput);
+  //strcpy(portname, "input");
+  if (jack_connect(client, ports[0], jack_port_name(input_port))) {
+    fprintf(stderr, "cannot connect input port\n");
   }
   
   free(ports);

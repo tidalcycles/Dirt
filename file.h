@@ -13,5 +13,12 @@ typedef struct {
   int *onsets;
 } t_sample;
 
+typedef struct {
+  unsigned int frames;
+  unsigned int now;
+  float *items;
+} t_loop;
+
 extern void file_set_samplerate(int s);
 extern t_sample *file_get(char *samplename);
+t_loop *new_loop(float seconds);

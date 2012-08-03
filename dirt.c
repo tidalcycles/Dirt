@@ -4,6 +4,7 @@
 
 #include "jack.h"
 #include "audio.h"
+#include "server.h"
 
 int main (int argc, char **argv) {
   printf("init audio\n");
