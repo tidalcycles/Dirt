@@ -173,7 +173,45 @@ float formant_filter(float in, t_sound *sound, int channel) {
   return res;
 }
 
-extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum) {
+void init_vcf (t_sound *sound) {
+  for (int channel = 0; channel < CHANNELS; ++channel) {
+    t_vcf *vcf = &(sound->vcf[channel]);
+    vcf->f     = 2 * sound->cutoff;
+    vcf->k     = 3.6 * vcf->f - 1.6 * vcf->f * vcf->f -1;
+    vcf->p     = (vcf->k+1) * 0.5;
+    vcf->scale = exp((1-vcf->p)*1.386249);
+    vcf->r     = sound->resonance * vcf->scale;
+    vcf->y1    = 0;
+    vcf->y2    = 0;
+    vcf->y3    = 0;
+    vcf->y4    = 0;
+    vcf->oldx  = 0;
+    vcf->oldy1 = 0;
+    vcf->oldy2 = 0;
+    vcf->oldy3 = 0;
+  }
+}
+
+float effect_vcf(float in, t_sound *sound, int channel) {
+  t_vcf *vcf = &(sound->vcf[channel]);
+  vcf->x  = in - vcf->r * vcf->y4;
+  
+  vcf->y1 = vcf->x  * vcf->p + vcf->oldx  * vcf->p - vcf->k * vcf->y1;
+  vcf->y2 = vcf->y1 * vcf->p + vcf->oldy1 * vcf->p - vcf->k * vcf->y2;
+  vcf->y3 = vcf->y2 * vcf->p + vcf->oldy2 * vcf->p - vcf->k * vcf->y3;
+  vcf->y4 = vcf->y3 * vcf->p + vcf->oldy3 * vcf->p - vcf->k * vcf->y4;
+  
+  vcf->y4 = vcf->y4 - pow(vcf->y4,3) / 6;
+  
+  vcf->oldx  = vcf->x;
+  vcf->oldy1 = vcf->y1;
+  vcf->oldy2 = vcf->y2;
+  vcf->oldy3 = vcf->y3;
+  
+  return vcf->y4;
+}
+
+extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate) {
   struct timeval tv;
 #ifdef FEEDBACK
   int is_loop = 0;
@@ -232,6 +270,12 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   new->velocity = velocity;
   
   new->offset = offset;
+
+  new->cutoff = cutoff;
+  new->resonance = resonance;
+  init_vcf(new);
+
+  new->accellerate = accellerate;
 
   printf("frames: %f\n", new->frames);
   if (start > 0 && start <= 1) {
@@ -294,7 +338,7 @@ void dequeue(jack_nframes_t now) {
 }
 
 
-inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
+void playback(float **buffers, int frame, jack_nframes_t frametime) {
   int channel;
   t_sound *p = playing;
   
@@ -352,6 +396,12 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
         value = formant_filter(value, p, 0);
       }
 
+      // why 44000 (or 44100)? init_vcf divides by samplerate..
+      if (p->resonance > 0 && p->resonance < 1 
+	  && p->cutoff > 0 && p->cutoff < 1) {
+	value = effect_vcf(value, p, channel);
+      }
+
       if ((p->frames - p->position) < ROUNDOFF) {
         // TODO what frames < ROUNDOFF?)
         //printf("roundoff: %f\n", (p->frames - pos) / (float) ROUNDOFF);
@@ -380,8 +430,13 @@ inline void playback(float **buffers, int frame, jack_nframes_t frametime) {
       buffers[channel_a][frame] += value * cos(HALF_PI * d);
       buffers[channel_b][frame] += value * sin(HALF_PI * d);
     }
-
-    p->position += p->speed;
+      
+    if (p->accellerate != 0) {
+      p->position += p->speed;
+    }
+    else {
+      p->position += p->speed;
+    }
     //printf("position: %d of %d\n", p->position, playing->frames);
 
     /* remove dead sounds */
