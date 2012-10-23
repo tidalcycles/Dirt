@@ -40,10 +40,11 @@ typedef struct t_node {
   struct t_node *next, *prev;
   double position;
   float  speed;
+  int    reverse;
   float  pan;
   float  offset;
-  float  frames;
-  float  startframe;
+  float  start;
+  float  end;
   float  velocity;
   double formant_history[CHANNELS][10];
   int    formant_vowelnum;

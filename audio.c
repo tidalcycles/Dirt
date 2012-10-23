@@ -219,6 +219,10 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   t_sample *sample = NULL;
   t_sound *new;
   
+  if (speed == 0) {
+    return(0);
+  }
+
   gettimeofday(&tv, NULL);
 
 
@@ -243,7 +247,7 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
 #ifdef FEEDBACK
   if (is_loop) {
     new->loop    = loop;
-    new->frames   = loop->frames;
+    new->end   = loop->frames;
     new->items    = loop->items;
     new->channels = 1;
     new->loop_start = (loop->now + (loop->frames / 2)) % loop->frames;
@@ -251,7 +255,7 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   else {
 #endif
     new->sample   = sample;
-    new->frames   = sample->info->frames;
+    new->end   = sample->info->frames;
     new->items    = sample->items;
     new->channels = sample->info->channels;
 #ifdef FEEDBACK
@@ -264,8 +268,9 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   
   new->next = NULL;
   new->prev = NULL;
-  new->startframe = 0;
-  new->speed    = speed;
+  new->start = 0;
+  new->speed    = fabsf(speed);
+  new->reverse  = speed < 0;
   new->pan      = pan;
   new->velocity = velocity;
   
@@ -277,24 +282,23 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
 
   new->accellerate = accellerate;
 
-  printf("frames: %f\n", new->frames);
+  printf("frames: %f\n", new->end);
   if (start > 0 && start <= 1) {
-    new->startframe = start * new->frames;
+    new->start = start * new->end;
   }
   
   if (end > 0 && end < 1) {
-    new->frames *= end;
+    new->end *= end;
   }
-  
-  if (new->speed == 0) {
-    new->speed = 1;
+
+  /*  if (new->speed < 0) {
+    float tmp;
+    tmp = new->start;
+    new->start = new->end;
+    new->end = tmp;
   }
-  
-  if (new->speed < 0) {
-    new->startframe = new->frames - new->startframe;
-  }
-  
-  new->position = new->startframe;
+  */
+  new->position = new->reverse ? new->end : new->start;
   new->formant_vowelnum = vowelnum;
   
   pthread_mutex_lock(&queue_waiting_lock);
@@ -377,9 +381,9 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
 
       int pos = ((int) p->position) + 1;
 #ifdef FEEDBACK
-      if ((!p->is_loop) && pos < p->frames) {
+      if ((!p->is_loop) && pos < p->end) {
 #else
-      if (pos < p->frames) {
+      if (pos < p->end) {
 #endif
         float next = 
             p->items[(channels * pos)
@@ -402,14 +406,14 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
 	value = effect_vcf(value, p, channel);
       }
 
-      if ((p->frames - p->position) < ROUNDOFF) {
-        // TODO what frames < ROUNDOFF?)
-        //printf("roundoff: %f\n", (p->frames - pos) / (float) ROUNDOFF);
-        roundoff = (p->frames - pos) / (float) ROUNDOFF;
+      if ((p->end - p->position) < ROUNDOFF) {
+        // TODO what end < ROUNDOFF?)
+        //printf("roundoff: %f\n", (p->end - pos) / (float) ROUNDOFF);
+        roundoff = (p->end - pos) / (float) ROUNDOFF;
       }
       else {
-        if ((pos - p->startframe) < ROUNDOFF) {
-          roundoff = (pos - p->startframe) / (float) ROUNDOFF;
+        if ((pos - p->start) < ROUNDOFF) {
+          roundoff = (pos - p->start) / (float) ROUNDOFF;
         }
       }
       value *= roundoff;
@@ -432,24 +436,32 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
     }
       
     if (p->accellerate != 0) {
-      p->position += p->speed;
+      // ->startFrame ->end ->position
+      float duration = (p->end - p->start);
+      float tmppos = (p->position - p->start) / duration;
+      p->position += (1 - (tmppos * 2)) * p->accellerate + p->speed;
     }
     else {
-      p->position += p->speed;
+      if (reverse) {
+        p->position -= p->speed;
+      }
+      else {
+        p->position += p->speed;
+      }
     }
-    //printf("position: %d of %d\n", p->position, playing->frames);
+    //printf("position: %d of %d\n", p->position, playing->end);
 
     /* remove dead sounds */
     tmp = p;
     p = p->next;
     if (tmp->speed > 0) {
-      if (tmp->position >= tmp->frames) {
+      if (tmp->position >= tmp->end) {
         //printf("remove %s\n", tmp->samplename);
         queue_remove(&playing, tmp);
       }
     }
     else {
-      if (tmp->position <= 0) {
+      if (tmp->position <= tmp->end) {
         //printf("remove %s\n", tmp->samplename);
         queue_remove(&playing, tmp);
       }
