@@ -442,7 +442,7 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
       p->position += (1 - (tmppos * 2)) * p->accellerate + p->speed;
     }
     else {
-      if (reverse) {
+      if (p->reverse) {
         p->position -= p->speed;
       }
       else {
