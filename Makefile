@@ -13,3 +13,9 @@ dirt: dirt.o jack.o audio.o file.o server.o segment.o Makefile
 
 test : test.c Makefile
 	$(CC) test.c -llo -o test
+
+install: dirt
+	install -d $(DESTDIR)/bin/
+	install -m 0755 dirt $(DESTDIR)/bin/dirt
+
+
