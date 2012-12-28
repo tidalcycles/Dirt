@@ -4,8 +4,8 @@
 
 #define MAXDELAYS 16
 #define MAXDELAY 44100
-
-#define ROUNDOFF 8
+#define MAXSOUNDS 64
+#define ROUNDOFF 128
 
 typedef struct {
  float cutoff;
@@ -51,9 +51,11 @@ typedef struct t_node {
   float  cutoff;
   float  resonance;
   t_vcf  vcf[CHANNELS];
-  float accellerate;
+  float  accellerate;
+  int    shape;
+  float  shape_k;
 } t_sound;
 
 extern int audio_callback(int frames, float *input, float **outputs);
 extern void audio_init(void);
-extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate);
+extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate, float shape);
