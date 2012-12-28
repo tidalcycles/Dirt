@@ -1,0 +1,2 @@
+shlibs:Depends=libaubio2, libc6 (>= 2.7), libjack-jackd2-0 (>= 1.9.5~dfsg-14) | libjack-0.116, liblo7 (>= 0.26~repack), libsamplerate0 (>= 0.1.7), libsndfile1 (>= 1.0.20)
+misc:Depends=
