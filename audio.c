@@ -53,7 +53,7 @@ void queue_add(t_sound **queue, t_sound *new) {
   //printf("queuing %s @ %lld\n", new->samplename, new->start);
   int s = queue_size(*queue);
   if (s >= MAXSOUNDS) {
-    printf("hit max sounds (%d)\n", MAXSOUNDS);
+   // printf("hit max sounds (%d)\n", MAXSOUNDS);
   }
   int added = 0;
   if (*queue == NULL) {
