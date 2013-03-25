@@ -52,10 +52,12 @@ int queue_size(t_sound *queue) {
 void queue_add(t_sound **queue, t_sound *new) {
   //printf("queuing %s @ %lld\n", new->samplename, new->start);
   int s = queue_size(*queue);
+  if (s >= MAXSOUNDS) {
+   // printf("hit max sounds (%d)\n", MAXSOUNDS);
+  }
   int added = 0;
   if (*queue == NULL) {
     *queue = new;
-    assert(s == (queue_size(*queue) - 1));
     added++;
   }
   else {
@@ -76,9 +78,6 @@ void queue_add(t_sound **queue, t_sound *new) {
         }
         tmp->prev = new;
 
-        if (s != (queue_size(*queue) - 1)) {
-          assert(s == (queue_size(*queue) - 1));
-        }
         added++;
         break;
       }
@@ -88,7 +87,6 @@ void queue_add(t_sound **queue, t_sound *new) {
         tmp->next = new;
         new->prev = tmp;
         added++;
-        assert(s == (queue_size(*queue) - 1));
         break;
       }
       ++i;
@@ -96,15 +94,11 @@ void queue_add(t_sound **queue, t_sound *new) {
     }
   }
 
-  if (s != (queue_size(*queue) - added)) {
-    assert(s == (queue_size(*queue) - added));
-  }
   assert(added == 1);
 }
 
 
 void queue_remove(t_sound **queue, t_sound *old) {
-  int s = queue_size(*queue);
   if (old->prev == NULL) {
     *queue = old->next;
     if (*queue  != NULL) {
@@ -118,7 +112,6 @@ void queue_remove(t_sound **queue, t_sound *old) {
       old->next->prev = old->prev;
     }
   }
-  assert(s == (queue_size(*queue) + 1));
   free(old);
 }
 
@@ -211,7 +204,7 @@ float effect_vcf(float in, t_sound *sound, int channel) {
   return vcf->y4;
 }
 
-extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate) {
+extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate, float shape) {
   struct timeval tv;
 #ifdef FEEDBACK
   int is_loop = 0;
@@ -241,7 +234,7 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
 #endif
   
   new = (t_sound *) calloc(1, sizeof(t_sound));
-  printf("samplename: %s when: %f\n", samplename, when - (float) tv.tv_sec);
+  //printf("samplename: %s when: %f\n", samplename, when);
   strncpy(new->samplename, samplename, MAXPATHSIZE);
   
 #ifdef FEEDBACK
@@ -278,11 +271,17 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
 
   new->cutoff = cutoff;
   new->resonance = resonance;
+
+  if (shape != 0) {
+    new->shape = 1;
+    new->shape_k = (2.0f * shape) / (1.0f - shape);
+  }
+
   init_vcf(new);
 
   new->accellerate = accellerate;
 
-  printf("frames: %f\n", new->end);
+  //printf("frames: %f\n", new->end);
   if (start > 0 && start <= 1) {
     new->start = start * new->end;
   }
@@ -407,16 +406,24 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
       }
 
       if ((p->end - p->position) < ROUNDOFF) {
-        // TODO what end < ROUNDOFF?)
+        // TODO what if end < ROUNDOFF?)
         //printf("roundoff: %f\n", (p->end - pos) / (float) ROUNDOFF);
-        roundoff = (p->end - pos) / (float) ROUNDOFF;
+        roundoff = (p->end - p->position) / (float) ROUNDOFF;
+        //printf("end roundoff: %f (%f)\n", roundoff, p->end - p->position);
       }
       else {
-        if ((pos - p->start) < ROUNDOFF) {
-          roundoff = (pos - p->start) / (float) ROUNDOFF;
+        if ((p->position - p->start) < ROUNDOFF) {
+          roundoff = (p->position - p->start) / (float) ROUNDOFF;
+          //printf("start roundoff: %f (%f / %d)\n", roundoff, p->position - p->start, ROUNDOFF);
         }
       }
+
+      if (p->shape) {
+        value = (1+p->shape_k)*value/(1+p->shape_k*fabs(value));
+      }
+
       value *= roundoff;
+      value *= 0.5;
 
       float c = (float) channel + p->pan;
       float d = c - floor(c);

@@ -59,6 +59,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   float cutoff = argv[10]->f;
   float resonance = argv[11]->f;
   float accellerate = argv[12]->f;
+  float shape = argv[13]->f;
   
   int vowelnum = -1;
   
@@ -82,7 +83,8 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
              vowelnum,
              cutoff,
              resonance,
-             accellerate
+             accellerate,
+             shape
              );
   return 0;
 }
@@ -94,7 +96,7 @@ extern int server_init(void) {
 
   //lo_server_thread_add_method(st, NULL, NULL, generic_handler, NULL);
 
-  lo_server_thread_add_method(st, "/play", "iisffffffsfff",
+  lo_server_thread_add_method(st, "/play", "iisffffffsffff",
                               play_handler, 
                               NULL
                              );
