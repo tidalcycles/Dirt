@@ -21,6 +21,8 @@ t_loop *new_loop(float seconds) {
   result->frames = seconds * (float) samplerate;
   result->items = (float *) calloc(result->frames, sizeof(float));
   result->now = 0;
+  result->loops = 0;
+  result->chunksz = samplerate / 16; // 16 Hz
   return(result);
 }
 

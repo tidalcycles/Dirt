@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <lo/lo.h>
+#include <sys/types.h>
+#include <math.h>
 
 #include "server.h"
 #include "audio.h"
@@ -40,6 +42,21 @@ int generic_handler(const char *path, const char *types, lo_arg **argv,
 
 /**/
 
+int kriole_handler(const char *path, const char *types, lo_arg **argv,
+                   int argc, void *data, void *user_data) {
+
+  double when = (double) argv[0]->i + ((double) argv[1]->i / 1000000.0);
+  float duration = argv[2]->f;
+  float pitch_start = argv[3]->f;
+  float pitch_stop = argv[4]->f;
+  
+  audio_kriole(when, duration, pitch_start, pitch_stop);
+
+  return(0);
+}
+
+/**/
+
 int play_handler(const char *path, const char *types, lo_arg **argv,
                  int argc, void *data, void *user_data) {
 
@@ -60,6 +77,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   float resonance = argv[11]->f;
   float accellerate = argv[12]->f;
   float shape = argv[13]->f;
+  int kriole_chunk = argv[14]->i;
   
   int vowelnum = -1;
   
@@ -84,7 +102,8 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
              cutoff,
              resonance,
              accellerate,
-             shape
+             shape,
+             kriole_chunk
              );
   return 0;
 }
@@ -94,13 +113,62 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 extern int server_init(void) {
   lo_server_thread st = lo_server_thread_new("7771", error);
 
-  //lo_server_thread_add_method(st, NULL, NULL, generic_handler, NULL);
-
-  lo_server_thread_add_method(st, "/play", "iisffffffsffff",
+  lo_server_thread_add_method(st, "/play", "iisffffffsffffi",
                               play_handler, 
                               NULL
                              );
+
+  lo_server_thread_add_method(st, "/kriole", "iifff",
+                              kriole_handler, 
+                              NULL
+                             );
+  lo_server_thread_add_method(st, NULL, NULL, generic_handler, NULL);
   lo_server_thread_start(st);
   
   return(1);
 }
+
+extern void osc_send_pitch(float starttime, unsigned int chunk, float pitch) {
+  static lo_address t = NULL;
+  static int pid = 0;
+  if (t == NULL) {
+    t = lo_address_new(NULL, "6010");
+  }
+  if (pid == 0) {
+    pid = (int) getpid();
+  }
+  printf("send [%d] %f\n", chunk, pitch);
+  // pid, starttime, chunk, v_pitch, v_flux
+  lo_send(t, "/chunk", "ififf", 
+          pid,
+          starttime,
+          (int) chunk,
+          pitch,
+          0.0f
+          );
+  
+}
+
+
+extern void osc_send_play(double when, int lowchunk, float pitch, float flux) {
+  static lo_address t = NULL;
+  static int pid = 0;
+  if (t == NULL) {
+    t = lo_address_new(NULL, "6010");
+  }
+  if (pid == 0) {
+    pid = (int) getpid();
+  }
+  printf("play [%d] %f\n", lowchunk, pitch);
+  // pid, starttime, chunk, v_pitch, v_flux
+  lo_send(t, "/play", "iiiiff", 
+          pid,
+          (int) when,
+          (int) ((when - floor(when)) * 1000000.0),
+          lowchunk,
+          pitch,
+          flux
+          );
+  
+}
+

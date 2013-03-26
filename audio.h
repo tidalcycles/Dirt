@@ -54,8 +54,16 @@ typedef struct t_node {
   float  accellerate;
   int    shape;
   float  shape_k;
+  int    kriole_chunk;
+  int    is_kriole;
 } t_sound;
 
 extern int audio_callback(int frames, float *input, float **outputs);
 extern void audio_init(void);
-extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate, float shape);
+extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate, float shape, int kriole_chunk);
+extern void audio_kriole(double when, 
+                         float duration, 
+                         float pitch_start, 
+                         float pitch_stop
+                         );
+

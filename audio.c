@@ -9,6 +9,8 @@
 #include "config.h"
 #include "jack.h"
 #include "audio.h"
+#include "server.h"
+#include "pitch.h"
 
 #define HALF_PI 1.5707963267948966
 
@@ -22,17 +24,25 @@ t_loop *loop = NULL;
 #endif
 
 double epochOffset = 0;
+float starttime = 0;
 
 jack_client_t *client = NULL;
 static int samplerate = 0;
 
 extern void audio_init(void) {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  starttime = (float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0);
+#ifdef FEEDBACK
+  loop = new_loop(60 * 10);
+#endif
   pthread_mutex_init(&queue_waiting_lock, NULL);
   client = jack_start(audio_callback);
   samplerate = jack_get_sample_rate(client);
   file_set_samplerate(samplerate);
+
 #ifdef FEEDBACK
-  loop = new_loop(8);
+  pitch_init(loop, samplerate);
 #endif
 }
 
@@ -204,10 +214,38 @@ float effect_vcf(float in, t_sound *sound, int channel) {
   return vcf->y4;
 }
 
-extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate, float shape) {
+extern void audio_kriole(double when, 
+                         float duration, 
+                         float pitch_start, 
+                         float pitch_stop) {
+  
+  int lowchunk = loop->chunk_n - (loop->frames / loop->chunksz);
+  
+  // subtract a bit for some legroom..
+  lowchunk -= 16;
+
+  lowchunk = lowchunk < 0 ? 0 : lowchunk;
+
+  float chunklen = (float) loop->chunksz / (float) samplerate;
+  int chunks = (int) (duration / chunklen);
+  if (chunks == 0) {
+    chunks = 1;
+  }
+  float pitch_diff = pitch_stop - pitch_start;
+  for (int i = 0; i < chunks; ++i) {
+    float pitch = pitch_start + (((float) i / (float) chunks) * pitch_diff);
+    osc_send_play(when + ((float) i) * chunklen,
+                  lowchunk,
+                  pitch,
+                  0 // flux
+                  );
+  }
+}
+
+extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate, float shape, int kriole_chunk) {
   struct timeval tv;
 #ifdef FEEDBACK
-  int is_loop = 0;
+  int is_kriole = 0;
 #endif
   t_sample *sample = NULL;
   t_sound *new;
@@ -220,8 +258,8 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
 
 
 #ifdef FEEDBACK
-  if (strcmp(samplename, "loop") == 0) {
-    is_loop = 1;
+  if (strcmp(samplename, "kriole") == 0) {
+    is_kriole = 1;
   }
   else {
 #endif
@@ -238,22 +276,40 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   strncpy(new->samplename, samplename, MAXPATHSIZE);
   
 #ifdef FEEDBACK
-  if (is_loop) {
+  if (is_kriole) {
     new->loop    = loop;
-    new->end   = loop->frames;
+    //printf("calculating chunk %d\n", kriole_chunk);
+    new->kriole_chunk = kriole_chunk;
+    
+    //printf("now %d\n", loop->now);
+    //printf("since_chunk %d\n", loop->since_chunk);
+    int last_chunk_start = (loop->now - loop->since_chunk);
+    //printf("last_chunk_start %d\n", last_chunk_start);
+    int chunks_back = loop->chunk_n - kriole_chunk;
+    //printf("chunks_back %d\n", chunks_back);
+    int samples_back = (chunks_back * loop->chunksz);
+    //printf("samples_back %d\n", samples_back);
+    int unmodded = last_chunk_start - samples_back;
+    //printf("unmodded %d\n", unmodded);
+    int modded = unmodded % loop->frames;
+    //printf("modded %d\n", modded);
+    new->start = unmodded;
+    new->end      = new->start + loop->chunksz;
     new->items    = loop->items;
     new->channels = 1;
-    new->loop_start = (loop->now + (loop->frames / 2)) % loop->frames;
+    printf("kriole %d: start %f end %f\n", new->kriole_chunk, new->start, new->end);
+    //new->loop_start = (loop->now + (loop->frames / 2)) % loop->frames;
   }
   else {
 #endif
     new->sample   = sample;
+    new->start = 0;
     new->end   = sample->info->frames;
     new->items    = sample->items;
     new->channels = sample->info->channels;
 #ifdef FEEDBACK
   }
-  new->is_loop = is_loop;
+  new->is_kriole = is_kriole;
 #endif
 
   new->startFrame = 
@@ -261,7 +317,6 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   
   new->next = NULL;
   new->prev = NULL;
-  new->start = 0;
   new->speed    = fabsf(speed);
   new->reverse  = speed < 0;
   new->pan      = pan;
@@ -298,6 +353,7 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   }
   */
   new->position = new->reverse ? new->end : new->start;
+  printf("position: %f\n", new->position);
   new->formant_vowelnum = vowelnum;
   
   pthread_mutex_lock(&queue_waiting_lock);
@@ -358,6 +414,7 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
       p = p->next;
       continue;
     }
+    
     //printf("playing %s\n", p->samplename);
     channels = p->channels;
     //printf("channels: %d\n", channels);
@@ -366,9 +423,10 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
       float value;
 
 #ifdef FEEDBACK
-      if (p->is_loop) {
-        // only one channel, but relative to 'now'
-        unsigned int i = (p->loop_start + ((int) p->position)) % p->loop->frames;
+      if (p->is_kriole) {
+        unsigned int i = ((int) (p->position)
+                          % p->loop->frames
+                          );
         value = p->items[i];
       }
       else {
@@ -380,7 +438,7 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
 
       int pos = ((int) p->position) + 1;
 #ifdef FEEDBACK
-      if ((!p->is_loop) && pos < p->end) {
+      if ((!p->is_kriole) && pos < p->end) {
 #else
       if (pos < p->end) {
 #endif
@@ -463,13 +521,13 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
     p = p->next;
     if (tmp->speed > 0) {
       if (tmp->position >= tmp->end) {
-        //printf("remove %s\n", tmp->samplename);
+        printf("remove %s %f\n", tmp->samplename, tmp->position);
         queue_remove(&playing, tmp);
       }
     }
     else {
       if (tmp->position <= tmp->end) {
-        //printf("remove %s\n", tmp->samplename);
+        printf("remove %s (zerospeed)\n", tmp->samplename);
         queue_remove(&playing, tmp);
       }
     }
@@ -491,11 +549,39 @@ extern int audio_callback(int frames, float *input, float **outputs) {
   
   for (i=0; i < frames; ++i) {
 #ifdef FEEDBACK
+    /*if (loop->now % (samplerate / 4) == 0) {
+      printf("loop->now %d\n", loop->now);
+      }*/
     loop->items[loop->now++] = input[i];
 
     if (loop->now >= loop->frames) {
       loop->now = 0;
+      loop->loops++;
     }
+    if (loop->since_chunk == loop->chunksz) {
+      loop->since_chunk = 0;
+      static int onlyonce = 0;
+      float pitch = pitch_calc(loop);
+      struct timeval tv;
+      gettimeofday(&tv, NULL);
+      float nowtime = tv.tv_sec + (tv.tv_usec / 1000000.0);
+
+      if (pitch > 0) {
+        /*
+        printf("found pitch at %d - %d [loop %d] (%f/%f secs)\n", 
+               loop->now - loop->chunksz, 
+               loop->now,
+               loop->loops,
+               (float) (loop->now + (loop->loops * loop->chunksz)) 
+               / (float) samplerate,
+               nowtime - starttime
+               );*/
+        osc_send_pitch(starttime, loop->chunk_n, pitch);
+        onlyonce++;
+      }
+      loop->chunk_n++;
+    }
+    loop->since_chunk++;
 #endif
     dequeue(now + frames);
 

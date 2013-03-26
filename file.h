@@ -1,4 +1,5 @@
 #include <sndfile.h>
+#include <aubio/aubio.h>
 
 #define MAXSAMPLES 1024
 #define MAXFILES 4096
@@ -16,7 +17,25 @@ typedef struct {
 typedef struct {
   unsigned int frames;
   unsigned int now;
+  int loops;
+  unsigned int chunksz;
+  unsigned int since_chunk;
+  unsigned int chunk_n;
   float *items;
+
+  unsigned int win_s;
+  unsigned int hop_s;
+  unsigned int samplerate;
+  unsigned int channels;
+
+  fvec_t *ibuf;
+  
+  aubio_pitchdetection_mode mode;
+  aubio_pitchdetection_type type;
+  fvec_t *in;
+  aubio_pitchdetection_t *pitch_output;
+  
+  int initialised;
 } t_loop;
 
 extern void file_set_samplerate(int s);
