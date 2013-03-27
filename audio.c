@@ -293,7 +293,7 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
     //printf("unmodded %d\n", unmodded);
     int modded = unmodded % loop->frames;
     //printf("modded %d\n", modded);
-    new->start = unmodded;
+    new->start = modded;
     new->end      = new->start + loop->chunksz;
     new->items    = loop->items;
     new->channels = 1;
