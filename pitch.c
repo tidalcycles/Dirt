@@ -54,10 +54,9 @@ extern float pitch_calc(t_loop *loop) {
   
   //now we need to get the average
   rmsAmplitude /= loop->chunksz;
-  //printf("loud: %f\n", rmsAmplitude);
-  
+
   //don't update the pitch if the sound is very quiet
-  if( rmsAmplitude > 0.2 ){
+  if( rmsAmplitude > 0.01 ){
     //finally get the pitch of the sound
     pitch = aubio_pitchdetection(loop->pitch_output, loop->in);
   }

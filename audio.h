@@ -1,6 +1,7 @@
 #include <jack/jack.h>
 #include "file.h"
 #include "jack.h"
+#include "config.h"
 
 #define MAXDELAYS 16
 #define MAXDELAY 44100
@@ -61,6 +62,7 @@ typedef struct t_node {
 extern int audio_callback(int frames, float *input, float **outputs);
 extern void audio_init(void);
 extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate, float shape, int kriole_chunk);
+
 extern void audio_kriole(double when, 
                          float duration, 
                          float pitch_start, 
