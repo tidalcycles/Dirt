@@ -7,6 +7,7 @@
 #include <jack/jack.h>
 
 #include "jack.h"
+#include "config.h"
 
 jack_client_t *client;
 jack_port_t *output_ports[CHANNELS+1];

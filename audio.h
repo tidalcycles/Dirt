@@ -3,7 +3,6 @@
 #include "jack.h"
 #include "config.h"
 
-#define MAXDELAYS 16
 #define MAXDELAY 44100
 #define MAXSOUNDS 64
 #define ROUNDOFF 128
@@ -26,6 +25,14 @@ typedef struct {
  float oldy3;
  float x;
 } t_vcf;
+
+typedef struct {
+  float samples[CHANNELS][MAXDELAY];
+  int   point;
+  float delay;
+} t_delay;
+
+t_delay delay;
 
 typedef struct t_node {
   jack_nframes_t startFrame;
@@ -57,7 +64,10 @@ typedef struct t_node {
   float  shape_k;
   int    kriole_chunk;
   int    is_kriole;
+  float  delay_in;
 } t_sound;
+
+
 
 extern int audio_callback(int frames, float *input, float **outputs);
 extern void audio_init(void);

@@ -1,7 +1,7 @@
 CC=gcc
 # -O3 
 CFLAGS = -g -Wall -std=gnu99
-LDFLAGS = -llo -lsndfile -lsamplerate -ljack -laubio
+LDFLAGS = -llo -lsndfile -lsamplerate -ljack -laubio -lxtract
 
 all: dirt
 

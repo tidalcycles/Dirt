@@ -28,6 +28,7 @@ float starttime = 0;
 
 jack_client_t *client = NULL;
 static int samplerate = 0;
+float compression_speed = -1;
 
 extern void audio_init(void) {
   struct timeval tv;
@@ -39,6 +40,7 @@ extern void audio_init(void) {
   pthread_mutex_init(&queue_waiting_lock, NULL);
   client = jack_start(audio_callback);
   samplerate = jack_get_sample_rate(client);
+  compression_speed = 1000 / samplerate;
   file_set_samplerate(samplerate);
 
 #ifdef FEEDBACK
@@ -398,6 +400,32 @@ void dequeue(jack_nframes_t now) {
   pthread_mutex_unlock(&queue_waiting_lock);
 }
 
+float compress(float in) {
+  static float env = 0;
+  env += (float) 50 / samplerate;
+  if (fabs(in * env) > 1) {
+    env = env / fabs(in * env);
+  }
+  return(env);
+}
+
+float compressdave(float in) {
+  static float threshold = 0.5;
+  static float env = 0;
+  float result = in;
+  // square input (to abs and make logarithmic)
+  float t=in*in;
+  
+  // blend to create simple envelope follower
+  env = env*(1-compression_speed) + t*compression_speed;
+  
+  // if we are over the threshold
+  if (env > threshold) {
+    // calculate the gain related to amount over thresh
+    result *= 1.0f / (1.0f+(env - threshold));
+  }
+  return(result);
+}
 
 void playback(float **buffers, int frame, jack_nframes_t frametime) {
   int channel;
@@ -419,6 +447,7 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
     
     //printf("playing %s\n", p->samplename);
     channels = p->channels;
+
     //printf("channels: %d\n", channels);
     for (channel = 0; channel < channels; ++channel) {
       float roundoff = 1;
@@ -483,7 +512,6 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
       }
 
       value *= roundoff;
-      value *= 0.5;
 
       float c = (float) channel + p->pan;
       float d = c - floor(c);
@@ -534,6 +562,17 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
       }
     }
   }
+  float max = 0;
+    
+  for (channel = 0; channel < CHANNELS; ++channel) {
+    if (fabsf(buffers[channel][frame]) > max) {
+      max = buffers[channel][frame];
+    }
+  }
+  float factor = compress(max);
+  for (channel = 0; channel < CHANNELS; ++channel) {
+    buffers[channel][frame] *= factor * 0.4;
+  }
 }
 
 extern int audio_callback(int frames, float *input, float **outputs) {
@@ -570,10 +609,9 @@ extern int audio_callback(int frames, float *input, float **outputs) {
       float pitch = pitch_calc(loop);
       struct timeval tv;
       gettimeofday(&tv, NULL);
-      //float nowtime = tv.tv_sec + (tv.tv_usec / 1000000.0);
+      float nowtime = tv.tv_sec + (tv.tv_usec / 1000000.0);
 
       if (pitch > 0) {
-        /*
         printf("found pitch at %d - %d [loop %d] (%f/%f secs)\n", 
                loop->now - loop->chunksz, 
                loop->now,
@@ -581,7 +619,7 @@ extern int audio_callback(int frames, float *input, float **outputs) {
                (float) (loop->now + (loop->loops * loop->chunksz)) 
                / (float) samplerate,
                nowtime - starttime
-               );*/
+               );
         osc_send_pitch(starttime, loop->chunk_n, pitch);
         onlyonce++;
       }
