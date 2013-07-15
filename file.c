@@ -22,7 +22,7 @@ t_loop *new_loop(float seconds) {
   result->items = (float *) calloc(result->frames, sizeof(float));
   result->now = 0;
   result->loops = 0;
-  result->chunksz = samplerate / 16; // 16 Hz
+  result->chunksz = 2048 * 2;
   return(result);
 }
 

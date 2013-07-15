@@ -24,9 +24,7 @@ extern void pitch_init(t_loop *loop, int samplerate) {
                              loop->samplerate, 
                              loop->type, 
                              loop->mode);
-  xtract_init_fft(loop->chunksz, XTRACT_FAILSAFE_F0);
   xtract_init_fft(loop->chunksz, XTRACT_SPECTRUM);
-  xtract_init_fft(loop->chunksz, XTRACT_FLUX);
 
   loop->initialised = 1;
 }
@@ -36,19 +34,22 @@ void pitch_destruct(t_loop *loop) {
   del_aubio_pitchdetection(loop->pitch_output);
 }
 
-extern float pitch_calc(t_loop *loop) {
+extern float *pitch_calc(t_loop *loop) {
   float rmsAmplitude  = 0;
   float pitch = -1;
   float pitch2 = -1;
+  static float result[3];
+  result[0] = -1;
+  result[1] = -1;
+  result[2] = -1;
 
   if (loop->initialised == 0) {
-    return(-1);
+    return(NULL);
   }
   
   int j = (loop->now - loop->chunksz) % loop->frames;
   
   for (int i = 0; i < loop->chunksz; i++){
-    //calculate the root mean square amplitude
     rmsAmplitude += sqrt(loop->items[j]*loop->items[j]);
     
     loop->in->data[0][i] = loop->items[j];
@@ -58,29 +59,45 @@ extern float pitch_calc(t_loop *loop) {
     }
   }
   
-  //now we need to get the average
+
   rmsAmplitude /= loop->chunksz;
-  printf("amp: %f\n", rmsAmplitude);
-  //don't update the pitch if the sound is very quiet
-  if( rmsAmplitude > 0.005 ){
+
+  if( rmsAmplitude > 0.015 ){
     float flux = -1;
-    //finally get the pitch of the sound
+    float centroid = -1;
+    float param[4];
+    float spectrum[loop->chunksz];
+
     pitch = aubio_pitchdetection(loop->pitch_output, loop->in);
+    
     int x = xtract_failsafe_f0(loop->in->data[0],
 			       loop->chunksz,
 			       &loop->samplerate,
 			       &pitch2
-			       );
-    xtract[XTRACT_FLUX]((void *)loop->in->data[0], loop->chunksz, &loop->samplerate, &flux);
+			      );
 
-    printf("pitches: %f vs %f (%d) - %f\n", pitch, pitch2, x, flux);
-    
+    param[0] = (float) loop->samplerate / (float)loop->chunksz;
+    param[1] = XTRACT_MAGNITUDE_SPECTRUM;
+    param[2] = 0.f;
+    param[3] = 0.f;
+
+    xtract[XTRACT_SPECTRUM](loop->in->data[0], loop->chunksz, &param[0], spectrum);
+
+    xtract_spectral_centroid(spectrum, loop->chunksz, NULL,  &centroid);
+
+    // order
+    param[0] = 1;
+    // type
+    param[1] = XTRACT_POSITIVE_SLOPE;
+    xtract[XTRACT_FLUX](loop->in->data[0], loop->chunksz, &param, &flux);
+
+    printf("pitches: %f vs %f (%d) %f %f\n", pitch, pitch2, x, flux, centroid);
+    result[0] = pitch;
+    result[1] = flux;
+    result[2] = centroid;
   }
-  
-  return(pitch);
+  return(result);
 }
-
-
 
 /*
 extern int *segment_get_onsets(t_sample *sample) {

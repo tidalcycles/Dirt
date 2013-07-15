@@ -128,7 +128,8 @@ extern int server_init(void) {
   return(1);
 }
 
-extern void osc_send_pitch(float starttime, unsigned int chunk, float pitch) {
+extern void osc_send_pitch(float starttime, unsigned int chunk, 
+			   float pitch, float flux, float centroid) {
   static lo_address t = NULL;
   static int pid = 0;
   if (t == NULL) {
@@ -137,20 +138,21 @@ extern void osc_send_pitch(float starttime, unsigned int chunk, float pitch) {
   if (pid == 0) {
     pid = (int) getpid();
   }
-  printf("send [%d] %f\n", chunk, pitch);
-  // pid, starttime, chunk, v_pitch, v_flux
-  lo_send(t, "/chunk", "ififf", 
+  //printf("send [%d] %f\n", chunk, pitch);
+  // pid, starttime, chunk, v_pitch, v_flux, v_centroid
+  lo_send(t, "/chunk", "ififff", 
           pid,
           starttime,
           (int) chunk,
           pitch,
-          0.0f
+          flux,
+	  centroid
           );
   
 }
 
 
-extern void osc_send_play(double when, int lowchunk, float pitch, float flux) {
+extern void osc_send_play(double when, int lowchunk, float pitch, float flux, float centroid) {
   static lo_address t = NULL;
   static int pid = 0;
   if (t == NULL) {
@@ -160,14 +162,15 @@ extern void osc_send_play(double when, int lowchunk, float pitch, float flux) {
     pid = (int) getpid();
   }
   printf("play [%d] %f\n", lowchunk, pitch);
-  // pid, starttime, chunk, v_pitch, v_flux
-  lo_send(t, "/play", "iiiiff", 
+  // pid, starttime, chunk, v_pitch, v_flux, v_centroid
+  lo_send(t, "/play", "iiiifff", 
           pid,
           (int) when,
           (int) ((when - floor(when)) * 1000000.0),
           lowchunk,
           pitch,
-          flux
+          flux,
+	  centroid
           );
   
 }
