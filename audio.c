@@ -35,7 +35,7 @@ extern void audio_init(void) {
   gettimeofday(&tv, NULL);
   starttime = (float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0);
 #ifdef FEEDBACK
-  loop = new_loop(60 * 10);
+  loop = new_loop(60 * 60);
 #endif
   pthread_mutex_init(&queue_waiting_lock, NULL);
   client = jack_start(audio_callback);
@@ -219,7 +219,8 @@ float effect_vcf(float in, t_sound *sound, int channel) {
 extern void audio_kriole(double when, 
                          float duration, 
                          float pitch_start, 
-                         float pitch_stop) {
+                         float pitch_stop
+			 ) {
 #ifdef FEEDBACK
   
   int lowchunk = loop->chunk_n - (loop->frames / loop->chunksz);
@@ -240,7 +241,8 @@ extern void audio_kriole(double when,
     osc_send_play(when + ((float) i) * chunklen,
                   lowchunk,
                   pitch,
-                  0 // flux
+                  0, // flux
+		  0 // centroid
                   );
   }
 #endif
@@ -302,7 +304,7 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
     new->items    = loop->items;
     new->channels = 1;
     //printf("kriole %d: start %f end %f\n", new->kriole_chunk, new->start, new->end);
-    //new->loop_start = (loop->now + (loop->frames / 2)) % loop->frames;
+    new->loop_start = (loop->now + (loop->frames / 2)) % loop->frames;
   }
   else {
 #endif
@@ -605,23 +607,26 @@ extern int audio_callback(int frames, float *input, float **outputs) {
     }
     if (loop->since_chunk == loop->chunksz) {
       loop->since_chunk = 0;
-      static int onlyonce = 0;
-      float pitch = pitch_calc(loop);
-      struct timeval tv;
-      gettimeofday(&tv, NULL);
-      float nowtime = tv.tv_sec + (tv.tv_usec / 1000000.0);
-
-      if (pitch > 0) {
-        printf("found pitch at %d - %d [loop %d] (%f/%f secs)\n", 
-               loop->now - loop->chunksz, 
-               loop->now,
-               loop->loops,
-               (float) (loop->now + (loop->loops * loop->chunksz)) 
-               / (float) samplerate,
-               nowtime - starttime
-               );
-        osc_send_pitch(starttime, loop->chunk_n, pitch);
-        onlyonce++;
+      float *extracted = pitch_calc(loop);
+      if (extracted != NULL) {
+	float pitch = extracted[0];
+	float flux = extracted[1];
+	float centroid = extracted[2];
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	float nowtime = tv.tv_sec + (tv.tv_usec / 1000000.0);
+	
+	if (pitch > 0) {
+	  /*printf("found pitch at %d - %d [loop %d] (%f/%f secs)\n", 
+	    loop->now - loop->chunksz, 
+	    loop->now,
+	    loop->loops,
+	    (float) (loop->now + (loop->loops * loop->chunksz)) 
+	    / (float) samplerate,
+	    nowtime - starttime
+	    );*/
+	  osc_send_pitch(starttime, loop->chunk_n, pitch, flux, centroid);
+	}
       }
       loop->chunk_n++;
     }
