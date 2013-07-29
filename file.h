@@ -22,17 +22,18 @@ typedef struct {
   unsigned int since_chunk;
   unsigned int chunk_n;
   float *items;
+  double *in;
+  //fvec_t *in;
+  //fvec_t *ibuf;
 
   unsigned int win_s;
   unsigned int hop_s;
   unsigned int samplerate;
   unsigned int channels;
 
-  fvec_t *ibuf;
   
   aubio_pitchdetection_mode mode;
   aubio_pitchdetection_type type;
-  fvec_t *in;
   aubio_pitchdetection_t *pitch_output;
   
   int initialised;

@@ -614,9 +614,9 @@ extern int audio_callback(int frames, float *input, float **outputs) {
 	float centroid = extracted[2];
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
-	float nowtime = tv.tv_sec + (tv.tv_usec / 1000000.0);
+	//float nowtime = tv.tv_sec + (tv.tv_usec / 1000000.0);
 	
-	if (pitch > 0) {
+	if (pitch >= 0) {
 	  /*printf("found pitch at %d - %d [loop %d] (%f/%f secs)\n", 
 	    loop->now - loop->chunksz, 
 	    loop->now,

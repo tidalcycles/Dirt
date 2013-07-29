@@ -18,11 +18,13 @@ extern void file_set_samplerate(int s) {
 
 t_loop *new_loop(float seconds) {
   t_loop *result = (t_loop *) calloc(1, sizeof(t_loop));
+  //result->chunksz = 2048 * 2;
+  result->chunksz = 2048;
   result->frames = seconds * (float) samplerate;
-  result->items = (float *) calloc(result->frames, sizeof(float));
+  result->items = (float *) calloc(result->frames, sizeof(double));
+  result->in = (double *) calloc(result->chunksz, sizeof(double));
   result->now = 0;
   result->loops = 0;
-  result->chunksz = 2048 * 2;
   return(result);
 }
 
