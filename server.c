@@ -5,6 +5,7 @@
 #include <lo/lo.h>
 #include <sys/types.h>
 #include <math.h>
+#include <sys/time.h>
 
 #include "server.h"
 #include "audio.h"
@@ -63,7 +64,6 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   /* lo_timetag ts = lo_message_get_timestamp(data); */
 
   double when = (double) argv[0]->i + ((double) argv[1]->i / 1000000.0);
-
   char *sample_name = strdup((char *) argv[2]);
 
   float offset = argv[3]->f;
@@ -80,7 +80,8 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   int kriole_chunk = argv[14]->i;
   
   int vowelnum = -1;
-  
+
+
   switch(vowel_s[0]) {
   case 'a': case 'A': vowelnum = 0; break;
   case 'e': case 'E': vowelnum = 1; break;
@@ -150,7 +151,6 @@ extern void osc_send_pitch(float starttime, unsigned int chunk,
           );
   
 }
-
 
 extern void osc_send_play(double when, int lowchunk, float pitch, float flux, float centroid) {
   static lo_address t = NULL;
