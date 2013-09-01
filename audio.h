@@ -4,7 +4,7 @@
 #include "config.h"
 
 #define MAXDELAY 44100
-#define MAXSOUNDS 64
+#define MAXSOUNDS 256
 #define ROUNDOFF 128
 
 typedef struct {
@@ -35,6 +35,7 @@ typedef struct {
 t_delay delay;
 
 typedef struct t_node {
+  int    active;
   jack_nframes_t startFrame;
   char samplename[MAXPATHSIZE+1];
   int is_loop;
@@ -65,6 +66,8 @@ typedef struct t_node {
   int    kriole_chunk;
   int    is_kriole;
   float  delay_in;
+  int    started;
+  int    checks;
 } t_sound;
 
 

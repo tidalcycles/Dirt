@@ -81,7 +81,6 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   
   int vowelnum = -1;
 
-
   switch(vowel_s[0]) {
   case 'a': case 'A': vowelnum = 0; break;
   case 'e': case 'E': vowelnum = 1; break;
