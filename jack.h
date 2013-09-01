@@ -1,6 +1,8 @@
 #include <jack/jack.h>
 
+#ifndef CHANNELS
 #define CHANNELS 2
+#endif
 
 typedef int (*t_callback)(int, float *, float **);
 
