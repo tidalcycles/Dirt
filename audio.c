@@ -19,6 +19,8 @@ pthread_mutex_t queue_waiting_lock;
 t_sound *waiting = NULL;
 t_sound *playing = NULL;
 
+t_sound sounds[MAXSOUNDS];
+
 #ifdef FEEDBACK
 t_loop *loop = NULL;
 #endif
@@ -63,10 +65,6 @@ int queue_size(t_sound *queue) {
 
 void queue_add(t_sound **queue, t_sound *new) {
   //printf("queuing %s @ %lld\n", new->samplename, new->start);
-  int s = queue_size(*queue);
-  if (s >= MAXSOUNDS) {
-   // printf("hit max sounds (%d)\n", MAXSOUNDS);
-  }
   int added = 0;
   if (*queue == NULL) {
     *queue = new;
@@ -124,7 +122,7 @@ void queue_remove(t_sound **queue, t_sound *old) {
       old->next->prev = old->prev;
     }
   }
-  free(old);
+  old->active = 0;
 }
 
 const double coeff[5][11]= {
@@ -248,6 +246,18 @@ extern void audio_kriole(double when,
 #endif
 }
 
+t_sound *new_sound() {
+  t_sound *result = NULL;
+  for (int i = 0; i < MAXSOUNDS; ++i) {
+    if (sounds[i].active == 0) {
+      result = &sounds[i];
+      memset(result, 0, sizeof(t_sound));
+      break;
+    }
+  }
+  return(result);
+}
+
 extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate, float shape, int kriole_chunk) {
   struct timeval tv;
 #ifdef FEEDBACK
@@ -277,7 +287,13 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   }
 #endif
   
-  new = (t_sound *) calloc(1, sizeof(t_sound));
+  new = new_sound();
+  if (new == NULL) {
+    printf("hit max sounds (%d)\n", MAXSOUNDS);
+    return(-1);
+  }
+  
+  new->active = 1;
   //printf("samplename: %s when: %f\n", samplename, when);
   strncpy(new->samplename, samplename, MAXPATHSIZE);
   
@@ -387,7 +403,9 @@ void dequeue(jack_nframes_t now) {
   t_sound *p;
   pthread_mutex_lock(&queue_waiting_lock);
   while ((p = queue_next(&waiting, now)) != NULL) {
+#ifdef DEBUG
     int s = queue_size(playing);
+#endif
     //printf("dequeuing %s @ %d\n", p->samplename, p->startFrame);
     p->prev = NULL;
     p->next = playing;
@@ -395,7 +413,9 @@ void dequeue(jack_nframes_t now) {
       playing->prev = p;
     }
     playing = p;
+#ifdef DEBUG
     assert(s == (queue_size(playing) - 1));
+#endif
     
     //printf("done.\n");
   }
@@ -443,10 +463,16 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
     
     //printf("compare start %d with frametime %d\n", p->startFrame, frametime);
     if (p->startFrame > frametime) {
+      p->checks++;
       p = p->next;
       continue;
     }
-    
+    if ((!p->started) && p->checks == 0 && p->startFrame < frametime) {
+      /*printf("started late by %d frames\n",
+	     frametime - p->startFrame	     
+	     );*/
+      p->started = 1;
+    }
     //printf("playing %s\n", p->samplename);
     channels = p->channels;
 
@@ -480,7 +506,6 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
                      + channel
                      ];
         float tween_amount = (p->position - (int) p->position);
-        
 
         /* linear interpolation */
         value += (next - value) * tween_amount;
@@ -612,8 +637,8 @@ extern int audio_callback(int frames, float *input, float **outputs) {
 	float pitch = extracted[0];
 	float flux = extracted[1];
 	float centroid = extracted[2];
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
+	//struct timeval tv;
+	//gettimeofday(&tv, NULL);
 	//float nowtime = tv.tv_sec + (tv.tv_usec / 1000000.0);
 	
 	if (pitch >= 0) {
