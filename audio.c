@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
-#include <jack/jack.h>
 #include <math.h>
 #include <assert.h>
 
@@ -23,6 +22,7 @@ t_sound sounds[MAXSOUNDS];
 
 #ifdef FEEDBACK
 t_loop *loop = NULL;
+int input_paused = 0;
 #endif
 
 double epochOffset = 0;
@@ -31,24 +31,6 @@ float starttime = 0;
 jack_client_t *client = NULL;
 static int samplerate = 0;
 float compression_speed = -1;
-
-extern void audio_init(void) {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  starttime = (float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0);
-#ifdef FEEDBACK
-  loop = new_loop(60 * 60);
-#endif
-  pthread_mutex_init(&queue_waiting_lock, NULL);
-  client = jack_start(audio_callback);
-  samplerate = jack_get_sample_rate(client);
-  compression_speed = 1000 / samplerate;
-  file_set_samplerate(samplerate);
-
-#ifdef FEEDBACK
-  pitch_init(loop, samplerate);
-#endif
-}
 
 int queue_size(t_sound *queue) {
   int result = 0;
@@ -342,6 +324,9 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   new->speed    = fabsf(speed);
   new->reverse  = speed < 0;
   new->pan      = pan;
+  if (new->channels == 2) {
+    new->pan -= 0.5;
+  }
   new->velocity = velocity;
   
   new->offset = offset;
@@ -448,6 +433,8 @@ float compressdave(float in) {
   }
   return(result);
 }
+
+/**/
 
 void playback(float **buffers, int frame, jack_nframes_t frametime) {
   int channel;
@@ -602,6 +589,33 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
   }
 }
 
+
+
+#ifdef FEEDBACK
+void loop_input(float s) {
+  loop->items[loop->now++] = s;
+  if (loop->now >= loop->frames) {
+    loop->now = 0;
+    loop->loops++;
+  }
+  if (loop->since_chunk == loop->chunksz) {
+    loop->since_chunk = 0;
+    float *extracted = pitch_calc(loop);
+    if (extracted != NULL) {
+      float pitch = extracted[0];
+      float flux = extracted[1];
+      float centroid = extracted[2];
+      
+      if (pitch >= 0) {
+        osc_send_pitch(starttime, loop->chunk_n, pitch, flux, centroid);
+      }
+    }
+    loop->chunk_n++;
+  }
+  loop->since_chunk++;
+}
+#endif
+
 extern int audio_callback(int frames, float *input, float **outputs) {
   jack_nframes_t now;
 
@@ -618,47 +632,72 @@ extern int audio_callback(int frames, float *input, float **outputs) {
     playback(outputs, i, now + i);
 
 #ifdef FEEDBACK
-    /*if (loop->now % (samplerate / 4) == 0) {
-      printf("loop->now %d\n", loop->now);
-      }*/
 #ifdef INPUT
-    loop->items[loop->now++] = input[i];
+    if (! input_paused) {
+      loop_input(input[i]);
+    }
 #else
-    loop->items[loop->now++] = outputs[0][i];
+    loop_input(outputs[0][i]);
 #endif
-    if (loop->now >= loop->frames) {
-      loop->now = 0;
-      loop->loops++;
-    }
-    if (loop->since_chunk == loop->chunksz) {
-      loop->since_chunk = 0;
-      float *extracted = pitch_calc(loop);
-      if (extracted != NULL) {
-	float pitch = extracted[0];
-	float flux = extracted[1];
-	float centroid = extracted[2];
-	//struct timeval tv;
-	//gettimeofday(&tv, NULL);
-	//float nowtime = tv.tv_sec + (tv.tv_usec / 1000000.0);
-	
-	if (pitch >= 0) {
-	  /*printf("found pitch at %d - %d [loop %d] (%f/%f secs)\n", 
-	    loop->now - loop->chunksz, 
-	    loop->now,
-	    loop->loops,
-	    (float) (loop->now + (loop->loops * loop->chunksz)) 
-	    / (float) samplerate,
-	    nowtime - starttime
-	    );*/
-	  osc_send_pitch(starttime, loop->chunk_n, pitch, flux, centroid);
-	}
-      }
-      loop->chunk_n++;
-    }
-    loop->since_chunk++;
 #endif
     dequeue(now + frames);
-
   }
   return(0);
+}
+
+#ifdef FEEDBACK
+void preload_kriol(char *dir) {
+  int n;
+  char path[MAXPATHSIZE];
+  struct dirent **namelist = NULL;
+
+  snprintf(path, MAXPATHSIZE -1, "%s/%s", SAMPLEROOT, dir);
+  n = scandir(path, &namelist, wav_filter, alphasort);
+  for (int i = 0; i < n; ++i) {
+    snprintf(path, MAXPATHSIZE -1, 
+             "kriol_preload/%s", namelist[i]->d_name
+             );
+    t_sample *sample = file_get(path);
+    if (sample == NULL) {
+      printf("failed to preload %s\n", path);
+    }
+    else {
+      printf("preloading %d frames of %s\n", (int) sample->info->frames, path);
+      for (int j = 0; j < sample->info->frames; j++) {
+	loop_input(sample->items[j * sample->info->channels]);
+      }
+    }
+    free(namelist[i]);
+  }
+  if (namelist == NULL) {
+    printf("couldn't load %s (%s)\n", dir, path);
+  }
+  else {
+    free(namelist);
+  }
+}
+
+void audio_pause_input(int paused) {
+   input_paused = paused;
+   printf("input is now %s.\n", input_paused ? "off" : "on");
+}
+
+#endif
+
+extern void audio_init(void) {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  starttime = (float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0);
+#ifdef FEEDBACK
+  loop = new_loop(60 * 60);
+#endif
+  pthread_mutex_init(&queue_waiting_lock, NULL);
+  client = jack_start(audio_callback);
+  samplerate = jack_get_sample_rate(client);
+  compression_speed = 1000 / samplerate;
+  file_set_samplerate(samplerate);
+
+#ifdef FEEDBACK
+  pitch_init(loop, samplerate);
+#endif
 }
