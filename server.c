@@ -64,6 +64,23 @@ int kriole_handler(const char *path, const char *types, lo_arg **argv,
 
 /**/
 
+#ifdef FEEDBACK
+int preload_handler(const char *path, const char *types, lo_arg **argv,
+                   int argc, void *data, void *user_data) {
+
+  preload_kriol((char *) argv[0]);
+  return(0);
+}
+
+int pause_input_handler(const char *path, const char *types, lo_arg **argv,
+			int argc, void *data, void *user_data) {
+  audio_pause_input(argv[0]->i);
+  return(0);
+}
+#endif
+
+/**/
+
 int play_handler(const char *path, const char *types, lo_arg **argv,
                  int argc, void *data, void *user_data) {
 
@@ -111,6 +128,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
              shape,
              kriole_chunk
              );
+  free(sample_name);
   return 0;
 }
 
@@ -168,6 +186,17 @@ extern int server_init(void) {
                               kriole_handler, 
                               NULL
                              );
+
+#ifdef FEEDBACK
+  lo_server_thread_add_method(st, "/preload", "s",
+                              preload_handler, 
+                              NULL
+                             );
+  lo_server_thread_add_method(st, "/pause_input", "i",
+                              pause_input_handler, 
+                              NULL
+                             );
+#endif
 
   lo_server_thread_add_method(st, NULL, NULL, generic_handler, NULL);
   lo_server_thread_start(st);
