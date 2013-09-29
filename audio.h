@@ -3,7 +3,7 @@
 #include "jack.h"
 #include "config.h"
 
-#define MAXDELAY 44100
+#define MAXLINE  44100
 #define MAXSOUNDS 256
 #define ROUNDOFF 128
 
@@ -27,12 +27,9 @@ typedef struct {
 } t_vcf;
 
 typedef struct {
-  float samples[CHANNELS][MAXDELAY];
+  float samples[MAXLINE];
   int   point;
-  float delay;
-} t_delay;
-
-t_delay delay;
+} t_line;
 
 typedef struct t_node {
   int    active;
@@ -65,9 +62,9 @@ typedef struct t_node {
   float  shape_k;
   int    kriole_chunk;
   int    is_kriole;
-  float  delay_in;
   int    started;
   int    checks;
+  float  delay_in;
 } t_sound;
 
 
@@ -82,3 +79,7 @@ extern void audio_kriole(double when,
                          float pitch_stop
                          );
 
+#ifdef FEEDBACK
+void preload_kriol(char *dir);
+void audio_pause_input(int paused);
+#endif
