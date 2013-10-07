@@ -1,8 +1,10 @@
 CC=gcc
 //CFLAGS = -g -Wall -O3 -std=gnu99 -DCHANNELS=2
-CFLAGS = -g -Wall -O3 -std=gnu99 -DCHANNELS=16 -DZEROMQ="\"tcp://178.77.72.138:5556\""
-
-LDFLAGS = -lm -llo -lsndfile -lsamplerate -ljack -lzmq -lxtract
+CFLAGS = -g -Wall -O3 -std=gnu99 -DCHANNELS=2
+# -DZEROMQ="\"tcp://178.77.72.138:5556\""
+LDFLAGS = -lm -llo -lsndfile -lsamplerate -ljack
+# -lzmq
+#  -lxtract
 
 all: dirt
 
