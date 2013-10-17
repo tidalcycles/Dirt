@@ -93,7 +93,6 @@ extern t_sample *file_get(char *samplename) {
   int set_n = 0;
   struct dirent **namelist;
 
-  //printf("find %s\n", samplename);
   sample = find_sample(samplename);
   
   if (sample == NULL) {
@@ -101,6 +100,7 @@ extern t_sample *file_get(char *samplename) {
     if (sscanf(samplename, "%[a-z0-9A-Z]/%d", set, &set_n)) {
       int n;
       snprintf(path, MAXPATHSIZE -1, "%s/%s", SAMPLEROOT, set);
+      //printf("looking in %s\n", set);
       n = scandir(path, &namelist, wav_filter, alphasort);
       if (n > 0) {
         snprintf(path, MAXPATHSIZE -1, 
@@ -111,7 +111,7 @@ extern t_sample *file_get(char *samplename) {
         free(namelist);
       }
       else {
-        path[0] = '\0';
+	snprintf(path, MAXPATHSIZE -1, "%s/%s", SAMPLEROOT, samplename);
       }
     }
     else {
