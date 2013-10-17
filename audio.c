@@ -4,6 +4,7 @@
 #include <sys/time.h>
 #include <math.h>
 #include <assert.h>
+#include <dirent.h>
 
 #include "config.h"
 #include "jack.h"
@@ -327,6 +328,9 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   if (new->channels == 2) {
     new->pan -= 0.5;
   }
+#ifdef FAKECHANNELS
+  new->pan *= (float) CHANNELS / FAKECHANNELS;
+#endif
   new->velocity = velocity;
   
   new->offset = offset;
