@@ -580,6 +580,7 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
       }
     }
   }
+    /*
   float max = 0;
     
   for (channel = 0; channel < CHANNELS; ++channel) {
@@ -590,6 +591,10 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
   float factor = compress(max);
   for (channel = 0; channel < CHANNELS; ++channel) {
     buffers[channel][frame] *= factor * 0.4;
+  }
+    */
+  for (channel = 0; channel < CHANNELS; ++channel) {
+    buffers[channel][frame] *= 0.4;
   }
 }
 
