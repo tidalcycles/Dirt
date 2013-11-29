@@ -10,6 +10,7 @@
 
 #include "server.h"
 #include "audio.h"
+#include "config.h"
 
 #ifdef ZEROMQ
 #include <zmq.h>
@@ -87,6 +88,9 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   /* lo_timetag ts = lo_message_get_timestamp(data); */
 
   double when = (double) argv[0]->i + ((double) argv[1]->i / 1000000.0);
+#ifdef SUBLATENCY
+  when -= SUBLATENCY;
+#endif
   char *sample_name = strdup((char *) argv[2]);
 
   float offset = argv[3]->f;
@@ -176,7 +180,7 @@ void *zmqthread(void *data){
 
 extern int server_init(void) {
 
-  lo_server_thread st = lo_server_thread_new("7771", error);
+  lo_server_thread st = lo_server_thread_new(OSC_PORT, error);
   lo_server_thread_add_method(st, "/play", "iisffffffsffffi",
                               play_handler, 
                               NULL
