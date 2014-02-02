@@ -4,7 +4,7 @@
 #include "config.h"
 
 #define MAXLINE  44100
-#define MAXSOUNDS 1024
+#define MAXSOUNDS 256
 #define ROUNDOFF 128
 
 #define MAX_DB 12
