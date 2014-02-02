@@ -241,7 +241,7 @@ t_sound *new_sound() {
   return(result);
 }
 
-extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate, float shape, int kriole_chunk) {
+extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate, float shape, int kriole_chunk, float gain, int cutgroup) {
   struct timeval tv;
 #ifdef FEEDBACK
   int is_kriole = 0;
@@ -249,7 +249,8 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   t_sample *sample = NULL;
   t_sound *new;
   
-  if (speed == 0) {
+  // TODO - support backward play
+  if (speed <= 0) {
     return(0);
   }
 
@@ -337,6 +338,7 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
 
   new->cutoff = cutoff;
   new->resonance = resonance;
+  new->cutgroup = cutgroup;
 
   if (shape != 0) {
     new->shape = 1;
@@ -366,6 +368,7 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   new->position = new->reverse ? new->end : new->start;
   //printf("position: %f\n", new->position);
   new->formant_vowelnum = vowelnum;
+  //new->gain_percent = MAX_DB * (1 - (Math.log(p) / Math.log(0.5)));
   
   pthread_mutex_lock(&queue_waiting_lock);
   queue_add(&waiting, new);
@@ -388,6 +391,27 @@ t_sound *queue_next(t_sound **queue, jack_nframes_t now) {
   return(result);
 }
 
+void cut(int group) {
+  int result = 0;
+  t_sound *p = NULL;
+  p = playing;
+  
+  while (p != NULL) {
+    if (p->cutgroup == group) {
+      // schedule this sound to end in ROUNDOFF samples time, so we
+      // don't get a click
+      float newend = p->position + ROUNDOFF;
+      // unless it's dying soon anyway..
+      if (newend < p->end) {
+        p->end = newend;
+      }
+    }
+
+    p = p->next;
+  }
+
+}
+
 void dequeue(jack_nframes_t now) {
   t_sound *p;
   pthread_mutex_lock(&queue_waiting_lock);
@@ -395,6 +419,9 @@ void dequeue(jack_nframes_t now) {
 #ifdef DEBUG
     int s = queue_size(playing);
 #endif
+    if (p->cutgroup > 0) {
+      cut(p->cutgroup);
+    }
     //printf("dequeuing %s @ %d\n", p->samplename, p->startFrame);
     p->prev = NULL;
     p->next = playing;

@@ -7,6 +7,8 @@
 #define MAXSOUNDS 1024
 #define ROUNDOFF 128
 
+#define MAX_DB 12
+
 typedef struct {
  float cutoff;
  float res;
@@ -65,13 +67,15 @@ typedef struct t_node {
   int    started;
   int    checks;
   float  delay_in;
+  float  gain_percent;
+  int    cutgroup;
 } t_sound;
 
 
 
 extern int audio_callback(int frames, float *input, float **outputs);
 extern void audio_init(void);
-extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate, float shape, int kriole_chunk);
+extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate, float shape, int kriole_chunk, float gain, int cutgroup);
 
 extern void audio_kriole(double when, 
                          float duration, 
