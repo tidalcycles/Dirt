@@ -1,8 +1,11 @@
 CC=gcc
 //CFLAGS = -g -Wall -O3 -std=gnu99 -DCHANNELS=2
-CFLAGS += -g -Wall -O3 -std=gnu99 -DCHANNELS=2
+#CFLAGS += -g -Wall -O3 -std=gnu99 -DCHANNELS=2
 # -DZEROMQ="\"tcp://178.77.72.138:5556\""
-LDFLAGS += -lm -llo -lsndfile -lsamplerate -ljack
+#LDFLAGS += -lm -llo -lsndfile -lsamplerate -ljack
+
+CFLAGS += -g -I/usr/local/include -Wall -O3 -std=gnu99 -DCHANNELS=2
+LDFLAGS += -lm -L/usr/local/lib -llo -lsndfile -lsamplerate -ljack
 # -lzmq
 #  -lxtract
 
