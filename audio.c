@@ -391,25 +391,28 @@ t_sound *queue_next(t_sound **queue, jack_nframes_t now) {
   return(result);
 }
 
-void cut(int group) {
+void cut(t_sound *s) {
   int result = 0;
   t_sound *p = NULL;
   p = playing;
-  
-  while (p != NULL) {
-    if (p->cutgroup == group) {
-      // schedule this sound to end in ROUNDOFF samples time, so we
-      // don't get a click
-      float newend = p->position + ROUNDOFF;
-      // unless it's dying soon anyway..
-      if (newend < p->end) {
-        p->end = newend;
+
+  int group = s->cutgroup;
+
+  if (group != 0) {
+    while (p != NULL) {
+      // If group is less than 0, only cut playback of the same sample
+      if (p->cutgroup == group && (group > 0 || p->sample == s->sample)) {
+        // schedule this sound to end in ROUNDOFF samples time, so we
+        // don't get a click
+        float newend = p->position + ROUNDOFF;
+        // unless it's dying soon anyway..
+        if (newend < p->end) {
+          p->end = newend;
+        }
       }
+      p = p->next;
     }
-
-    p = p->next;
   }
-
 }
 
 void dequeue(jack_nframes_t now) {
@@ -419,9 +422,8 @@ void dequeue(jack_nframes_t now) {
 #ifdef DEBUG
     int s = queue_size(playing);
 #endif
-    if (p->cutgroup > 0) {
-      cut(p->cutgroup);
-    }
+    
+    cut(p);
     //printf("dequeuing %s @ %d\n", p->samplename, p->startFrame);
     p->prev = NULL;
     p->next = playing;
