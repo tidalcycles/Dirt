@@ -90,6 +90,7 @@ extern t_sample *file_get(char *samplename) {
   float *items;
   SF_INFO *info;
   char set[MAXPATHSIZE];
+  char sep[2];
   int set_n = 0;
   struct dirent **namelist;
 
@@ -97,7 +98,7 @@ extern t_sample *file_get(char *samplename) {
   
   if (sample == NULL) {
     /* load it from disk */
-    if (sscanf(samplename, "%[a-z0-9A-Z]/%d", set, &set_n)) {
+    if (sscanf(samplename, "%[a-z0-9A-Z]%[/:]%d", set, sep, &set_n)) {
       int n;
       snprintf(path, MAXPATHSIZE -1, "%s/%s", SAMPLEROOT, set);
       //printf("looking in %s\n", set);
