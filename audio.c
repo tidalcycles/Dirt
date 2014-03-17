@@ -249,11 +249,6 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   t_sample *sample = NULL;
   t_sound *new;
   
-  // TODO - support backward play
-  if (speed <= 0) {
-    return(0);
-  }
-
   gettimeofday(&tv, NULL);
 
 
@@ -323,8 +318,8 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   
   new->next = NULL;
   new->prev = NULL;
-  new->speed    = fabsf(speed);
   new->reverse  = speed < 0;
+  new->speed    = fabsf(speed);
   new->pan      = pan;
   if (new->channels == 2) {
     new->pan -= 0.5;
@@ -349,6 +344,14 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
 
   new->accellerate = accellerate;
 
+  if (new->reverse) {
+    float tmp;
+    tmp = start;
+    start = 1 - end;
+    end = 1 - tmp;
+  }
+
+
   //printf("frames: %f\n", new->end);
   if (start > 0 && start <= 1) {
     new->start = start * new->end;
@@ -365,7 +368,7 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
     new->end = tmp;
   }
   */
-  new->position = new->reverse ? new->end : new->start;
+  new->position = new->start;
   //printf("position: %f\n", new->position);
   new->formant_vowelnum = vowelnum;
   //new->gain_percent = MAX_DB * (1 - (Math.log(p) / Math.log(0.5)));
@@ -392,7 +395,6 @@ t_sound *queue_next(t_sound **queue, jack_nframes_t now) {
 }
 
 void cut(t_sound *s) {
-  int result = 0;
   t_sound *p = NULL;
   p = playing;
 
@@ -510,7 +512,7 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
       }
       else {
 #endif
-        value = p->items[(channels * ((int) p->position)) + channel];
+        value = p->items[(channels * (p->reverse ? (p->sample->info->frames - (int) p->position) : (int) p->position)) + channel];
 #ifdef FEEDBACK
       }
 #endif
@@ -522,9 +524,9 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
       if (pos < p->end) {
 #endif
         float next = 
-            p->items[(channels * pos)
-                     + channel
-                     ];
+          p->items[(channels * (p->reverse ? p->sample->info->frames - pos : pos))
+                    + channel
+                    ];
         float tween_amount = (p->position - (int) p->position);
 
         /* linear interpolation */
@@ -584,12 +586,7 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
       p->position += (1 - (tmppos * 2)) * p->accellerate + p->speed;
     }
     else {
-      if (p->reverse) {
-        p->position -= p->speed;
-      }
-      else {
-        p->position += p->speed;
-      }
+      p->position += p->speed;
     }
     //printf("position: %d of %d\n", p->position, playing->end);
 
@@ -609,7 +606,8 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
       }
     }
   }
-    /*
+
+#ifdef DIRTYCOMPRESSOR
   float max = 0;
     
   for (channel = 0; channel < CHANNELS; ++channel) {
@@ -621,13 +619,12 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
   for (channel = 0; channel < CHANNELS; ++channel) {
     buffers[channel][frame] *= factor * 0.4;
   }
-    */
+#else
   for (channel = 0; channel < CHANNELS; ++channel) {
     buffers[channel][frame] *= 0.4;
   }
+#endif
 }
-
-
 
 #ifdef FEEDBACK
 void loop_input(float s) {
