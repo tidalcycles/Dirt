@@ -4,8 +4,8 @@
 #include "config.h"
 
 #define MAXLINE  44100
-#define MAXSOUNDS 256
-#define ROUNDOFF 128
+#define MAXSOUNDS 1024
+#define ROUNDOFF 64
 
 #define MAX_DB 12
 
@@ -67,8 +67,9 @@ typedef struct t_node {
   int    started;
   int    checks;
   float  delay_in;
-  float  gain_percent;
+  float  gain;
   int    cutgroup;
+  int    mono;
 } t_sound;
 
 
