@@ -321,8 +321,11 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   new->reverse  = speed < 0;
   new->speed    = fabsf(speed);
   new->pan      = pan;
-  if (new->channels == 2) {
-    new->pan -= 0.5;
+  if (new->channels == 2 && new->pan == 0.5) {
+    new->pan = 0;
+  }
+  else {
+    new->mono = 1;
   }
 #ifdef FAKECHANNELS
   new->pan *= (float) CHANNELS / FAKECHANNELS;
@@ -371,7 +374,7 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   new->position = new->start;
   //printf("position: %f\n", new->position);
   new->formant_vowelnum = vowelnum;
-  //new->gain_percent = MAX_DB * (1 - (Math.log(p) / Math.log(0.5)));
+  new->gain = powf(gain, 4);
   
   pthread_mutex_lock(&queue_waiting_lock);
   queue_add(&waiting, new);
@@ -560,6 +563,7 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
         value = (1+p->shape_k)*value/(1+p->shape_k*fabs(value));
       }
 
+      value *= p->gain;
       value *= roundoff;
 
       float c = (float) channel + p->pan;
@@ -577,6 +581,10 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
       // equal power panning
       buffers[channel_a][frame] += value * cos(HALF_PI * d);
       buffers[channel_b][frame] += value * sin(HALF_PI * d);
+
+      if (p->mono) {
+        break;
+      }
     }
       
     if (p->accellerate != 0) {
