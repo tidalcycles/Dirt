@@ -62,7 +62,7 @@ typedef struct t_node {
   float  cutoff;
   float  resonance;
   t_vcf  vcf[CHANNELS];
-  float  accellerate;
+  float  accelerate;
   int    shape;
   float  shape_k;
   int    kriole_chunk;
@@ -79,7 +79,7 @@ typedef struct t_node {
 
 extern int audio_callback(int frames, float *input, float **outputs);
 extern void audio_init(void);
-extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate, float shape, int kriole_chunk, float gain, int cutgroup, float delay, float delaytime, float delayfeedback);
+extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accelerate, float shape, int kriole_chunk, float gain, int cutgroup, float delay, float delaytime, float delayfeedback);
 
 extern void audio_kriole(double when, 
                          float duration, 
