@@ -33,6 +33,9 @@ jack_client_t *client = NULL;
 static int samplerate = 0;
 float compression_speed = -1;
 
+float delay_time = 0.1;
+float delay_feedback = 0.7;
+
 int queue_size(t_sound *queue) {
   int result = 0;
   while (queue != NULL) {
@@ -197,6 +200,27 @@ float effect_vcf(float in, t_sound *sound, int channel) {
   return vcf->y4;
 }
 
+/**/
+
+void add_delay(t_line *line, float sample, float delay, float feedback) {
+  float rand_no = rand() / RAND_MAX;
+  int point = (line->point + (int) ( (delay + (rand_no * 0.2)) * MAXLINE )) % MAXLINE;
+
+  //printf("'feedback': %f\n", feedback);
+  line->samples[point] += (sample * feedback);
+}
+
+/**/
+
+float shift_delay(t_line *line) {
+  float result = line->samples[line->point];
+  line->samples[line->point] = 0;
+  line->point = (line->point + 1) % MAXLINE;
+  return(result);
+}
+
+/**/
+
 extern void audio_kriole(double when, 
                          float duration, 
                          float pitch_start, 
@@ -241,7 +265,7 @@ t_sound *new_sound() {
   return(result);
 }
 
-extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate, float shape, int kriole_chunk, float gain, int cutgroup) {
+extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate, float shape, int kriole_chunk, float gain, int cutgroup, float delay, float delaytime, float delayfeedback) {
   struct timeval tv;
 #ifdef FEEDBACK
   int is_kriole = 0;
@@ -250,6 +274,27 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   t_sound *new;
   
   gettimeofday(&tv, NULL);
+
+  if (delay > 1) {
+    delay = 1;
+  }
+  else if (delay < 0) {
+    delay = 0;
+  }
+
+  if (delaytime > 1) {
+    delaytime = 1;
+  }
+  else if (delaytime < 0) {
+    delaytime = 0;
+  }
+
+  if (delayfeedback >= 1) {
+    delayfeedback = 0.9999;
+  }
+  if (delayfeedback < 0) {
+    delayfeedback = 0;
+  }
 
 
 #ifdef FEEDBACK
@@ -346,6 +391,9 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   init_vcf(new);
 
   new->accellerate = accellerate;
+  new->delay = delay;
+  delay_time = delaytime;
+  delay_feedback = delayfeedback;
 
   if (new->reverse) {
     float tmp;
@@ -374,7 +422,7 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   new->position = new->start;
   //printf("position: %f\n", new->position);
   new->formant_vowelnum = vowelnum;
-  new->gain = powf(gain, 4);
+  new->gain = powf(gain/2, 4);
   
   pthread_mutex_lock(&queue_waiting_lock);
   queue_add(&waiting, new);
@@ -579,8 +627,14 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
       }
 
       // equal power panning
-      buffers[channel_a][frame] += value * cos(HALF_PI * d);
-      buffers[channel_b][frame] += value * sin(HALF_PI * d);
+      float tmpa = value * cos(HALF_PI * d);
+      float tmpb = value * sin(HALF_PI * d);
+
+      buffers[channel_a][frame] += tmpa;
+      buffers[channel_b][frame] += tmpb;
+
+      add_delay(&delays[channel_a], tmpa, delay_time, p->delay);
+      add_delay(&delays[channel_b], tmpb, delay_time, p->delay);
 
       if (p->mono) {
         break;
@@ -589,30 +643,27 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
       
     if (p->accellerate != 0) {
       // ->startFrame ->end ->position
-      float duration = (p->end - p->start);
-      float tmppos = (p->position - p->start) / duration;
-      p->position += (1 - (tmppos * 2)) * p->accellerate + p->speed;
+      p->speed += p->accellerate/samplerate;
     }
-    else {
-      p->position += p->speed;
-    }
+    p->position += p->speed;
+
     //printf("position: %d of %d\n", p->position, playing->end);
 
     /* remove dead sounds */
     tmp = p;
     p = p->next;
-    if (tmp->speed > 0) {
-      if (tmp->position >= tmp->end) {
-        //printf("remove %s %f\n", tmp->samplename, tmp->position);
-        queue_remove(&playing, tmp);
-      }
+    if (tmp->position >= tmp->end || tmp->position < tmp->start) {
+      //printf("remove %s %f\n", tmp->samplename, tmp->position);
+      queue_remove(&playing, tmp);
     }
-    else {
-      if (tmp->position <= tmp->end) {
-        //printf("remove %s (zerospeed)\n", tmp->samplename);
-        queue_remove(&playing, tmp);
-      }
+  }
+
+  for (channel = 0; channel < CHANNELS; ++channel) {
+    float tmp = shift_delay(&delays[channel]);
+    if (delay_feedback != 0) {
+      add_delay(&delays[channel], tmp, delay_time, delay_feedback);
     }
+    buffers[channel][frame] += tmp;
   }
 
 #ifdef DIRTYCOMPRESSOR
@@ -740,6 +791,8 @@ extern void audio_init(void) {
   compression_speed = 1000 / samplerate;
   file_set_samplerate(samplerate);
 
+  memset(delays, 0, sizeof(t_line) * CHANNELS);
+  
 #ifdef FEEDBACK
   pitch_init(loop, samplerate);
 #endif
