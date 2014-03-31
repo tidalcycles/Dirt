@@ -109,6 +109,10 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   float gain = argc > 15 ? argv[15]->f : 0;
   int cutgroup = argc > 16 ? argv[16]->i : 0;
 
+  float delay = argc > 17 ? argv[17]->f : 0;
+  float delaytime = argc > 18 ? argv[18]->f : 0;
+  float delayfeedback = argc > 19 ? argv[19]->f : 0;
+
   int vowelnum = -1;
 
   switch(vowel_s[0]) {
@@ -135,7 +139,10 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
              shape,
              kriole_chunk,
              gain,
-             cutgroup
+             cutgroup,
+             delay,
+             delaytime,
+             delayfeedback
              );
   free(sample_name);
   return 0;
@@ -151,6 +158,11 @@ void *zmqthread(void *data){
 
   int rc = zmq_connect (subscriber, ZEROMQ);
   lo_server s = lo_server_new("7772", error);
+
+  lo_server_add_method(s, "/play", "iisffffffsffffififff",
+		       play_handler, 
+		       NULL
+		       );
 
   lo_server_add_method(s, "/play", "iisffffffsffffifi",
 		       play_handler, 
@@ -192,6 +204,12 @@ void *zmqthread(void *data){
 extern int server_init(void) {
 
   lo_server_thread st = lo_server_thread_new(OSC_PORT, error);
+
+  lo_server_thread_add_method(st, "/play", "iisffffffsffffififff",
+                              play_handler, 
+                              NULL
+                             );
+
   lo_server_thread_add_method(st, "/play", "iisffffffsffffifi",
                               play_handler, 
                               NULL
