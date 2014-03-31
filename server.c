@@ -102,7 +102,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   char *vowel_s = (char *) argv[9];
   float cutoff = argv[10]->f;
   float resonance = argv[11]->f;
-  float accellerate = argv[12]->f;
+  float accelerate = argv[12]->f;
   float shape = argv[13]->f;
   int kriole_chunk = argv[14]->i;
   
@@ -135,7 +135,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
              vowelnum,
              cutoff,
              resonance,
-             accellerate,
+             accelerate,
              shape,
              kriole_chunk,
              gain,

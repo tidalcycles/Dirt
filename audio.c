@@ -265,7 +265,7 @@ t_sound *new_sound() {
   return(result);
 }
 
-extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accellerate, float shape, int kriole_chunk, float gain, int cutgroup, float delay, float delaytime, float delayfeedback) {
+extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accelerate, float shape, int kriole_chunk, float gain, int cutgroup, float delay, float delaytime, float delayfeedback) {
   struct timeval tv;
 #ifdef FEEDBACK
   int is_kriole = 0;
@@ -390,7 +390,7 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
 
   init_vcf(new);
 
-  new->accellerate = accellerate;
+  new->accelerate = accelerate;
   new->delay = delay;
   delay_time = delaytime;
   delay_feedback = delayfeedback;
@@ -641,9 +641,9 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
       }
     }
       
-    if (p->accellerate != 0) {
+    if (p->accelerate != 0) {
       // ->startFrame ->end ->position
-      p->speed += p->accellerate/samplerate;
+      p->speed += p->accelerate/samplerate;
     }
     p->position += p->speed;
 
