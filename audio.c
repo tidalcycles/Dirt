@@ -278,15 +278,9 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   if (delay > 1) {
     delay = 1;
   }
-  else if (delay < 0) {
-    delay = 0;
-  }
 
   if (delaytime > 1) {
     delaytime = 1;
-  }
-  else if (delaytime < 0) {
-    delaytime = 0;
   }
 
   if (delayfeedback >= 1) {
@@ -392,8 +386,13 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
 
   new->accelerate = accelerate;
   new->delay = delay;
-  delay_time = delaytime;
-  delay_feedback = delayfeedback;
+
+  if (delaytime >= 0) {
+    delay_time = delaytime;
+  }
+  if (delay_feedback >= 0) {
+    delay_feedback = delayfeedback;
+  }
 
   if (new->reverse) {
     float tmp;
