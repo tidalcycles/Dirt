@@ -712,13 +712,12 @@ void loop_input(float s) {
 extern int audio_callback(int frames, float *input, float **outputs) {
   jack_nframes_t now;
 
-  if (epochOffset == 0) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     epochOffset = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0)) 
       - ((double) jack_get_time() / 1000000.0);
     //printf("jack time: %d tv_sec %d epochOffset: %f\n", jack_get_time(), tv.tv_sec, epochOffset);
-  }
+
   now = jack_last_frame_time(client);
   
   for (int i=0; i < frames; ++i) {
