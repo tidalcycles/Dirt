@@ -1,9 +1,12 @@
 CC=gcc
 
 
-CFLAGS += -g -I/usr/local/include -Wall -O3 -std=gnu99 -DCHANNELS=2 -DDIRTYCOMPRESSOR # -DJACK
-LDFLAGS += -lm -L/usr/local/lib -llo -lsndfile -lsamplerate -lportaudio
-#LDFLAGS += -lm -L/usr/local/lib -llo -lsndfile -lsamplerate -ljack
+CFLAGS += -g -I/usr/local/include -Wall -O3 -std=gnu99 -DCHANNELS=2 -DDIRTYCOMPRESSOR
+LDFLAGS += -lm -L/usr/local/lib -llo -lsndfile -lsamplerate
+
+dirt: CFLAGS += -DJACK
+dirt: LDFLAGS += -ljack
+dirt-pa: LDFLAGS += -lportaudio
 
 all: dirt
 
