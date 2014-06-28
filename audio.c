@@ -7,7 +7,16 @@
 #include <dirent.h>
 
 #include "config.h"
+
+#ifdef JACK
 #include "jack.h"
+#else
+#include "portaudio.h"
+
+PaStream *stream;
+#define PA_FRAMES_PER_BUFFER 1024
+#endif
+
 #include "audio.h"
 #include "server.h"
 #include "pitch.h"
@@ -29,7 +38,7 @@ int input_paused = 0;
 double epochOffset = 0;
 float starttime = 0;
 
-jack_client_t *client = NULL;
+jack_client_t *jack_client = NULL;
 static int samplerate = 0;
 float compression_speed = -1;
 
@@ -62,7 +71,7 @@ void queue_add(t_sound **queue, t_sound *new) {
 
     int i =0;
     while (1) {
-      if (tmp->startFrame > new->startFrame) {
+      if (tmp->startT > new->startT) {
         // insert in front of later event
         new->next = tmp;
         new->prev = tmp->prev;
@@ -352,9 +361,13 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   new->is_kriole = is_kriole;
 #endif
 
-  new->startFrame = 
-    jack_time_to_frames(client, ((when-epochOffset) * 1000000));
-  
+#ifdef JACK
+  new->startT = 
+    jack_time_to_frames(jack_client, ((when-epochOffset) * 1000000));
+# else
+  new->startT = when - epochOffset;
+#endif
+
   new->next = NULL;
   new->prev = NULL;
   new->reverse  = speed < 0;
@@ -431,9 +444,10 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   return(1);
 }
 
-t_sound *queue_next(t_sound **queue, jack_nframes_t now) {
+t_sound *queue_next(t_sound **queue, sampletime_t now) {
   t_sound *result = NULL;
-  if (*queue != NULL && (*queue)->startFrame <= now) {
+  //printf("%f vs %f\n", *queue == NULL ? 0 : (*queue)->startT, now);
+  if (*queue != NULL && (*queue)->startT <= now) {
     result = *queue;
     *queue = (*queue)->next;
     if ((*queue) != NULL) {
@@ -467,7 +481,7 @@ void cut(t_sound *s) {
   }
 }
 
-void dequeue(jack_nframes_t now) {
+void dequeue(sampletime_t now) {
   t_sound *p;
   pthread_mutex_lock(&queue_waiting_lock);
   while ((p = queue_next(&waiting, now)) != NULL) {
@@ -476,7 +490,6 @@ void dequeue(jack_nframes_t now) {
 #endif
     
     cut(p);
-    //printf("dequeuing %s @ %d\n", p->samplename, p->startFrame);
     p->prev = NULL;
     p->next = playing;
     if (playing != NULL) {
@@ -521,10 +534,10 @@ float compressdave(float in) {
 
 /**/
 
-void playback(float **buffers, int frame, jack_nframes_t frametime) {
+void playback(float **buffers, int frame, sampletime_t now) {
   int channel;
   t_sound *p = playing;
-  
+
   for (channel = 0; channel < CHANNELS; ++channel) {
     buffers[channel][frame] = 0;
   }
@@ -533,13 +546,12 @@ void playback(float **buffers, int frame, jack_nframes_t frametime) {
     int channels;
     t_sound *tmp;
     
-    //printf("compare start %d with frametime %d\n", p->startFrame, frametime);
-    if (p->startFrame > frametime) {
+    if (p->startT > now) {
       p->checks++;
       p = p->next;
       continue;
     }
-    if ((!p->started) && p->checks == 0 && p->startFrame < frametime) {
+    if ((!p->started) && p->checks == 0 && p->startT < now) {
       /*printf("started late by %d frames\n",
 	     frametime - p->startFrame	     
 	     );*/
@@ -709,8 +721,9 @@ void loop_input(float s) {
 }
 #endif
 
-extern int audio_callback(int frames, float *input, float **outputs) {
-  jack_nframes_t now;
+#ifdef JACK
+extern int jack_callback(int frames, float *input, float **outputs) {
+    sampletime_t now;
 
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -718,7 +731,7 @@ extern int audio_callback(int frames, float *input, float **outputs) {
       - ((double) jack_get_time() / 1000000.0);
     //printf("jack time: %d tv_sec %d epochOffset: %f\n", jack_get_time(), tv.tv_sec, epochOffset);
 
-  now = jack_last_frame_time(client);
+  now = jack_last_frame_time(jack_client);
   
   for (int i=0; i < frames; ++i) {
     playback(outputs, i, now + i);
@@ -732,10 +745,43 @@ extern int audio_callback(int frames, float *input, float **outputs) {
     loop_input(outputs[0][i]);
 #endif
 #endif
-    dequeue(now + frames);
+    dequeue(now + i);
   }
   return(0);
 }
+#else
+
+
+static int pa_callback(const void *inputBuffer, void *outputBuffer,
+		       unsigned long framesPerBuffer,
+		       const PaStreamCallbackTimeInfo* timeInfo,
+		       PaStreamCallbackFlags statusFlags,
+		       void *userData) {
+  
+  struct timeval tv;
+  
+  if (epochOffset == 0) {
+    gettimeofday(&tv, NULL);
+    epochOffset = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0))
+      - timeInfo->outputBufferDacTime;
+    printf("set offset (%f - %f) to %f\n", ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0))
+	   , timeInfo->outputBufferDacTime, epochOffset);
+  }
+
+  double now = timeInfo->outputBufferDacTime;
+
+  float **buffers = (float **) outputBuffer;
+
+  for (int i=0; i < framesPerBuffer; ++i) {
+    double framenow = now + (((double) i)/((double) samplerate));
+    //printf("i: %d %f\n", i, framenow);
+    playback(buffers, i, framenow);
+    dequeue(framenow);
+  }
+  return paContinue;
+}
+#endif
+
 
 #ifdef FEEDBACK
 void preload_kriol(char *dir) {
@@ -776,6 +822,95 @@ void audio_pause_input(int paused) {
 
 #endif
 
+#ifdef JACK
+void jack_init(void) {
+  jack_client = jack_start(jack_callback);
+  samplerate = jack_get_sample_rate(jack_client);
+}
+#else
+
+static void StreamFinished( void* userData ) {
+  printf( "Stream Completed\n");
+}
+
+void pa_init(void) {
+  PaStreamParameters outputParameters;
+
+  PaError err;
+
+  printf("init pa\n");
+  samplerate = 44100;
+
+  err = Pa_Initialize();
+  if( err != paNoError ) {
+    goto error;
+  }
+
+  int num = Pa_GetDeviceCount();
+  const PaDeviceInfo *d;
+  if (num <0) {
+    err = num;
+    goto error;
+  }
+
+  printf("Devices = #%d\n", num);
+  for (int i =0; i < num; i++) {
+     d = Pa_GetDeviceInfo(i);
+     printf("%d = %s: %fHz\n", i, d->name, d->defaultSampleRate);
+  }
+
+  outputParameters.device = Pa_GetDefaultOutputDevice();
+  if (outputParameters.device == paNoDevice) {
+    fprintf(stderr,"Error: No default output device.\n");
+    goto error;
+  }
+  printf("default device: %s\n", Pa_GetDeviceInfo(outputParameters.device)->name);
+  outputParameters.channelCount = CHANNELS;
+  outputParameters.sampleFormat = paFloat32 | paNonInterleaved; 
+  outputParameters.suggestedLatency = 0.050;
+  // Pa_GetDeviceInfo( outputParameters.device )->defaultLowOutputLatency;
+  outputParameters.hostApiSpecificStreamInfo = NULL;
+
+  char foo[] = "hello";
+  err = Pa_OpenStream(
+            &stream,
+            NULL, /* no input */
+            &outputParameters,
+            samplerate,
+            PA_FRAMES_PER_BUFFER,
+            paNoFlag,
+            pa_callback, 
+            (void *) foo );
+    if( err != paNoError ) {
+      printf("failed to open stream.\n");
+      goto error;
+    } 
+
+    err = Pa_SetStreamFinishedCallback( stream, &StreamFinished );
+    if( err != paNoError ) {
+      goto error;
+    } 
+
+    err = Pa_StartStream(stream);
+    if( err != paNoError ) {
+      goto error;
+    } 
+
+  return;
+error:
+    fprintf( stderr, "An error occured while using the portaudio stream\n" );
+    fprintf( stderr, "Error number: %d\n", err );
+    fprintf( stderr, "Error message: %s\n", Pa_GetErrorText( err ) );
+    if( err == paUnanticipatedHostError) {
+	const PaHostErrorInfo *hostErrorInfo = Pa_GetLastHostErrorInfo();
+	fprintf( stderr, "Host API error = #%ld, hostApiType = %d\n", hostErrorInfo->errorCode, hostErrorInfo->hostApiType );
+	fprintf( stderr, "Host API error = %s\n", hostErrorInfo->errorText );
+    }
+    Pa_Terminate();
+    exit(-1);
+}
+#endif
+
 extern void audio_init(void) {
   struct timeval tv;
   gettimeofday(&tv, NULL);
@@ -783,9 +918,14 @@ extern void audio_init(void) {
 #ifdef FEEDBACK
   loop = new_loop(60 * 60);
 #endif
+
   pthread_mutex_init(&queue_waiting_lock, NULL);
-  client = jack_start(audio_callback);
-  samplerate = jack_get_sample_rate(client);
+#ifdef JACK
+  jack_init();
+#else
+  pa_init();
+#endif
+printf("hm.\n");
   compression_speed = 1000 / samplerate;
   file_set_samplerate(samplerate);
 
