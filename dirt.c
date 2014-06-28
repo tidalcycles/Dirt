@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <string.h>
 
+#include "common.h"
 #include "jack.h"
 #include "audio.h"
 #include "server.h"
@@ -18,8 +19,14 @@ int main (int argc, char **argv) {
       return(0);
   }
 
+  bool dirty_compressor = true;
+  if (argc > 1 && strncmp(argv[1], "-dc", 3) >= 0) {
+      dirty_compressor = false;
+      fprintf(stderr, "dirty compressor disabled\n");
+  }
+
   fprintf(stderr, "init audio\n");
-  audio_init();
+  audio_init(dirty_compressor);
 
   fprintf(stderr, "init open sound control\n");
   server_init();

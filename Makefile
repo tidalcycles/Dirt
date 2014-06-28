@@ -1,7 +1,7 @@
 CC=gcc
 
 
-CFLAGS += -g -I/usr/local/include -Wall -O3 -std=gnu99 -DCHANNELS=2 -DDIRTYCOMPRESSOR
+CFLAGS += -g -I/usr/local/include -Wall -O3 -std=gnu99 -DCHANNELS=2
 LDFLAGS += -lm -L/usr/local/lib -llo -lsndfile -lsamplerate -ljack
 
 all: dirt
