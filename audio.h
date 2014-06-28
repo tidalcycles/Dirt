@@ -2,6 +2,7 @@
 #include "file.h"
 #include "jack.h"
 #include "config.h"
+#include "common.h"
 
 #define MAXLINE  44100
 #define MAXSOUNDS 1024
@@ -78,7 +79,7 @@ typedef struct t_node {
 
 
 extern int audio_callback(int frames, float *input, float **outputs);
-extern void audio_init(void);
+extern void audio_init(bool dirty_compressor);
 extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accelerate, float shape, int kriole_chunk, float gain, int cutgroup, float delay, float delaytime, float delayfeedback);
 
 extern void audio_kriole(double when, 
