@@ -47,6 +47,9 @@ float compression_speed = -1;
 float delay_time = 0.1;
 float delay_feedback = 0.7;
 
+bool use_dirty_compressor = false;
+
+
 int queue_size(t_sound *queue) {
   int result = 0;
   while (queue != NULL) {
@@ -679,23 +682,23 @@ void playback(float **buffers, int frame, sampletime_t now) {
     buffers[channel][frame] += tmp;
   }
 
-#ifdef DIRTYCOMPRESSOR
-  float max = 0;
-    
-  for (channel = 0; channel < CHANNELS; ++channel) {
-    if (fabsf(buffers[channel][frame]) > max) {
-      max = buffers[channel][frame];
+  if (use_dirty_compressor) {
+    float max = 0;
+
+    for (channel = 0; channel < CHANNELS; ++channel) {
+      if (fabsf(buffers[channel][frame]) > max) {
+        max = buffers[channel][frame];
+      }
+    }
+    float factor = compress(max);
+    for (channel = 0; channel < CHANNELS; ++channel) {
+      buffers[channel][frame] *= factor * 0.4;
+    }
+  } else {
+    for (channel = 0; channel < CHANNELS; ++channel) {
+      buffers[channel][frame] *= 0.4;
     }
   }
-  float factor = compress(max);
-  for (channel = 0; channel < CHANNELS; ++channel) {
-    buffers[channel][frame] *= factor * 0.4;
-  }
-#else
-  for (channel = 0; channel < CHANNELS; ++channel) {
-    buffers[channel][frame] *= 0.4;
-  }
-#endif
 }
 
 #ifdef FEEDBACK
@@ -913,7 +916,7 @@ error:
 }
 #endif
 
-extern void audio_init(void) {
+extern void audio_init(bool dirty_compressor) {
   struct timeval tv;
   gettimeofday(&tv, NULL);
   starttime = (float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0);
@@ -936,4 +939,6 @@ printf("hm.\n");
 #ifdef FEEDBACK
   pitch_init(loop, samplerate);
 #endif
+
+  use_dirty_compressor = dirty_compressor;
 }
