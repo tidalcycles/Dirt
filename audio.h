@@ -1,14 +1,21 @@
-#include <jack/jack.h>
 #include "file.h"
-#include "jack.h"
 #include "config.h"
 #include "common.h"
 
 #define MAXLINE  44100
-#define MAXSOUNDS 1024
-#define ROUNDOFF 64
+#define MAXSOUNDS 512
+#define ROUNDOFF 16
 
 #define MAX_DB 12
+
+#ifdef JACK
+#include <jack/jack.h>
+#include "jack.h"
+#define sampletime_t jack_nframes_t
+#else
+#define sampletime_t double
+#endif
+
 
 typedef struct {
  float cutoff;
@@ -39,7 +46,7 @@ float line_feedback_delay;
 
 typedef struct t_node {
   int    active;
-  jack_nframes_t startFrame;
+  sampletime_t startT;
   char samplename[MAXPATHSIZE+1];
   int is_loop;
   union {

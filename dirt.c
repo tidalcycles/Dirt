@@ -3,7 +3,6 @@
 #include <string.h>
 
 #include "common.h"
-#include "jack.h"
 #include "audio.h"
 #include "server.h"
 
