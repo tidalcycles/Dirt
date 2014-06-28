@@ -1,8 +1,9 @@
 CC=gcc
 
 
-CFLAGS += -g -I/usr/local/include -Wall -O3 -std=gnu99 -DCHANNELS=2 -DDIRTYCOMPRESSOR
-LDFLAGS += -lm -L/usr/local/lib -llo -lsndfile -lsamplerate -ljack
+CFLAGS += -g -I/usr/local/include -Wall -O3 -std=gnu99 -DCHANNELS=2 -DDIRTYCOMPRESSOR # -DJACK
+LDFLAGS += -lm -L/usr/local/lib -llo -lsndfile -lsamplerate -lportaudio
+#LDFLAGS += -lm -L/usr/local/lib -llo -lsndfile -lsamplerate -ljack
 
 all: dirt
 
@@ -10,7 +11,10 @@ clean:
 	rm -f *.o *~ dirt dirt-analyse
 
 dirt: dirt.o jack.o audio.o file.o server.o  Makefile
-	$(CC) dirt.o jack.o audio.o file.o server.o $(CFLAGS) $(LDFLAGS) -o dirt 
+	$(CC) dirt.o jack.o audio.o file.o server.o $(CFLAGS) $(LDFLAGS) -o dirt
+
+dirt-pa: dirt.o audio.o file.o server.o  Makefile
+	$(CC) dirt.o audio.o file.o server.o $(CFLAGS) $(LDFLAGS) -o dirt-pa
 
 dirt-analyse: dirt.o jack.o audio.o file.o server.o pitch.o Makefile
 	$(CC) dirt.o jack.o audio.o file.o server.o pitch.o $(CFLAGS) $(LDFLAGS) -o dirt-analyse
