@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <dirent.h>
 
+#include "common.h"
 #include "config.h"
 
 #ifdef JACK
@@ -828,8 +829,8 @@ void audio_pause_input(int paused) {
 #endif
 
 #ifdef JACK
-void jack_init(void) {
-  jack_client = jack_start(jack_callback);
+void jack_init(bool autoconnect) {
+  jack_client = jack_start(jack_callback, autoconnect);
   samplerate = jack_get_sample_rate(jack_client);
 }
 #else
@@ -916,7 +917,7 @@ error:
 }
 #endif
 
-extern void audio_init(bool dirty_compressor) {
+extern void audio_init(bool dirty_compressor, bool autoconnect) {
   struct timeval tv;
   gettimeofday(&tv, NULL);
   starttime = (float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0);
@@ -926,7 +927,7 @@ extern void audio_init(bool dirty_compressor) {
 
   pthread_mutex_init(&queue_waiting_lock, NULL);
 #ifdef JACK
-  jack_init();
+  jack_init(autoconnect);
 #else
   pa_init();
 #endif
