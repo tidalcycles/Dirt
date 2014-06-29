@@ -8,6 +8,9 @@
 #include "server.h"
 
 static int dirty_compressor_flag = 1;
+#ifdef JACK
+static int jack_auto_connect_flag = 1;
+#endif
 
 int main (int argc, char **argv) {
   /* Use getopt to parse command-line arguments */
@@ -23,6 +26,10 @@ int main (int argc, char **argv) {
 
       {"dirty-compressor",      no_argument, &dirty_compressor_flag, 1},
       {"no-dirty-compressor",   no_argument, &dirty_compressor_flag, 0},
+#ifdef JACK
+      {"jack-auto-connect",     no_argument, &jack_auto_connect_flag, 1},
+      {"no-jack-auto-connect",  no_argument, &jack_auto_connect_flag, 0},
+#endif
 
       {"version", no_argument, 0, 'v'},
       {"help",    no_argument, 0, 'h'},
@@ -61,6 +68,10 @@ int main (int argc, char **argv) {
                "Arguments:\n"
                "      --dirty-compressor          enable dirty compressor on audio output (default)\n"
                "      --no-dirty-compressor       disable dirty compressor on audio output\n"
+#ifdef JACK
+               "      --jack-auto-connect         automatically connect to writable clients (default)\n"
+               "      --no-jack-auto-connect      do not connect to writable clients  \n"
+#endif
                "  -h, --help                      display this help and exit\n"
                "  -v, --version                   output version information and exit\n",
                OSC_PORT);
@@ -79,8 +90,18 @@ int main (int argc, char **argv) {
     fprintf(stderr, "dirty compressor disabled\n");
   }
 
+#ifdef JACK
+  if (!jack_auto_connect_flag) {
+    fprintf(stderr, "port auto-connection disabled\n");
+  }
+#endif
+
   fprintf(stderr, "init audio\n");
-  audio_init(dirty_compressor_flag);
+#ifdef JACK
+  audio_init(dirty_compressor_flag, jack_auto_connect_flag);
+#else
+  audio_init(dirty_compressor_flag, true);
+#endif
 
   fprintf(stderr, "init open sound control\n");
   server_init();
