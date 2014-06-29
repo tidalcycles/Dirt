@@ -2,7 +2,6 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "jack.h"
 #include "audio.h"
 #include "server.h"
 

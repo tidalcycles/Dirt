@@ -38,7 +38,9 @@ int input_paused = 0;
 double epochOffset = 0;
 float starttime = 0;
 
+#ifdef JACK
 jack_client_t *jack_client = NULL;
+#endif
 static int samplerate = 0;
 float compression_speed = -1;
 
