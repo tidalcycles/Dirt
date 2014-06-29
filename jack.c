@@ -44,8 +44,7 @@ void jack_shutdown(void *arg) {
   exit(1);
 }
 
-extern jack_client_t *jack_start(t_callback callback) {
-  const char **ports;
+extern jack_client_t *jack_start(t_callback callback, bool autoconnect) {
   const char *client_name = "dirt";
   const char *server_name = NULL;
   jack_options_t options = JackNullOption;
@@ -110,27 +109,30 @@ extern jack_client_t *jack_start(t_callback callback) {
     exit(1);
   }
 
-  ports = jack_get_ports(client, NULL, NULL,
-                         JackPortIsPhysical|JackPortIsInput);
-  for (i = 0; i < CHANNELS; ++i) {
-    if (ports[i] == NULL) {
-      break;
+  if (autoconnect) {
+    const char **ports;
+    ports = jack_get_ports(client, NULL, NULL,
+                           JackPortIsPhysical|JackPortIsInput);
+    for (i = 0; i < CHANNELS; ++i) {
+      if (ports[i] == NULL) {
+        break;
+      }
+      //sprintf(portname, "output_%d", i);
+      if (jack_connect(client, jack_port_name(output_ports[i]), ports[i])) {
+        fprintf(stderr, "cannot connect output ports\n");
+      }
     }
-    //sprintf(portname, "output_%d", i);
-    if (jack_connect(client, jack_port_name(output_ports[i]), ports[i])) {
-      fprintf(stderr, "cannot connect output ports\n");
-    }
-  }
 
 #ifdef INPUT
-  ports = jack_get_ports(client, NULL, NULL,
-                         JackPortIsPhysical|JackPortIsOutput);
-  //strcpy(portname, "input");
-  if (jack_connect(client, ports[0], jack_port_name(input_port))) {
-    fprintf(stderr, "cannot connect input port\n");
-  }
+    ports = jack_get_ports(client, NULL, NULL,
+                           JackPortIsPhysical|JackPortIsOutput);
+    //strcpy(portname, "input");
+    if (jack_connect(client, ports[0], jack_port_name(input_port))) {
+      fprintf(stderr, "cannot connect input port\n");
+    }
 #endif
-  free(ports);
+    free(ports);
+  }
 
   return(client);
 }
