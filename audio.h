@@ -1,6 +1,4 @@
-#include <jack/jack.h>
 #include "file.h"
-#include "jack.h"
 #include "config.h"
 
 #define MAXLINE  44100
@@ -10,6 +8,8 @@
 #define MAX_DB 12
 
 #ifdef JACK
+#include <jack/jack.h>
+#include "jack.h"
 #define sampletime_t jack_nframes_t
 #else
 #define sampletime_t double
