@@ -130,6 +130,7 @@ extern jack_client_t *jack_start(t_callback callback, bool autoconnect) {
         fprintf(stderr, "cannot connect output ports\n");
       }
     }
+    free(ports);
 
 #ifdef INPUT
     ports = jack_get_ports(client, NULL, NULL,
@@ -138,8 +139,8 @@ extern jack_client_t *jack_start(t_callback callback, bool autoconnect) {
     if (jack_connect(client, ports[0], jack_port_name(input_port))) {
       fprintf(stderr, "cannot connect input port\n");
     }
-#endif
     free(ports);
+#endif
   }
 
   return(client);
