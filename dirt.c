@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <getopt.h>
@@ -12,10 +13,13 @@ static int dirty_compressor_flag = 1;
 static int jack_auto_connect_flag = 1;
 #endif
 
+
 int main (int argc, char **argv) {
   /* Use getopt to parse command-line arguments */
   /* see http://www.gnu.org/savannah-checkouts/gnu/libc/manual/html_node/Getopt.html */
   int c;
+  int num_channels;
+
   while (1)
   {
     static struct option long_options[] =
@@ -23,7 +27,7 @@ int main (int argc, char **argv) {
       /* Use flags like so:
       {"verbose",  no_argument,  &verbose_flag, 'V'}*/
       /* Argument styles: no_argument, required_argument, optional_argument */
-
+      {"channels",              required_argument, 0, 'c'},
       {"dirty-compressor",      no_argument, &dirty_compressor_flag, 1},
       {"no-dirty-compressor",   no_argument, &dirty_compressor_flag, 0},
 #ifdef JACK
@@ -44,7 +48,7 @@ int main (int argc, char **argv) {
       required_argument: ":"
       optional_argument: "::" */
 
-    c = getopt_long(argc, argv, "vh",
+    c = getopt_long(argc, argv, "c:vh",
                     long_options, &option_index);
 
     if (c == -1)
@@ -66,6 +70,7 @@ int main (int argc, char **argv) {
                "Listens to OSC messages on port %s.\n"
                "\n"
                "Arguments:\n"
+               "  -c, --channels                  number of output channels (default: %u)\n"
                "      --dirty-compressor          enable dirty compressor on audio output (default)\n"
                "      --no-dirty-compressor       disable dirty compressor on audio output\n"
 #ifdef JACK
@@ -74,8 +79,17 @@ int main (int argc, char **argv) {
 #endif
                "  -h, --help                      display this help and exit\n"
                "  -v, --version                   output version information and exit\n",
-               OSC_PORT);
+               OSC_PORT, DEFAULT_CHANNELS);
         return 1;
+
+      case 'c':
+        num_channels = atoi(optarg);
+        if (num_channels < 1 || num_channels > MAX_CHANNELS) {
+          fprintf(stderr, "invalid number of channels: %u. resetting to default\n", num_channels);
+          num_channels = DEFAULT_CHANNELS;
+        }
+        g_num_channels = num_channels;
+        break;
 
       case '?':
         /* getopt_long will have already printed an error */
@@ -85,6 +99,8 @@ int main (int argc, char **argv) {
         return 1;
     }
   }
+
+  fprintf(stderr, "channels: %u\n", g_num_channels);
 
   if (!dirty_compressor_flag) {
     fprintf(stderr, "dirty compressor disabled\n");
