@@ -963,6 +963,8 @@ error:
 extern void audio_init(bool dirty_compressor, bool autoconnect) {
   struct timeval tv;
 
+  atexit(audio_close);
+
   gettimeofday(&tv, NULL);
   starttime = (float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0);
 #ifdef FEEDBACK
@@ -974,7 +976,6 @@ extern void audio_init(bool dirty_compressor, bool autoconnect) {
     fprintf(stderr, "no memory to allocate `delays' array\n");
     exit(1);
   }
-  atexit(audio_close);
 
   pthread_mutex_init(&queue_waiting_lock, NULL);
 #ifdef JACK
@@ -994,6 +995,9 @@ printf("hm.\n");
 }
 
 extern void audio_close(void) {
+#ifdef FEEDBACK
+  free_loop(loop);
+#endif
   if (delays) free(delays);
 
   // free all active sounds, if any

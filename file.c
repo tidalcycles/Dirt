@@ -28,6 +28,14 @@ t_loop *new_loop(float seconds) {
   return(result);
 }
 
+void free_loop(t_loop *loop) {
+  if (loop) {
+    if (loop->items) free(loop->items);
+    if (loop->in) free(loop->in);
+    free(loop);
+  }
+}
+
 t_sample *find_sample (char *samplename) {
   int c;
   t_sample *sample = NULL;
@@ -74,7 +82,7 @@ void fix_samplerate (t_sample *sample) {
   
   src_simple(&data, SRC_SINC_BEST_QUALITY, channels);
   
-  /* TODO - free old items */
+  if (sample->items) free(sample->items);
   sample->items = data.data_out;
   sample->info->samplerate = samplerate;
   sample->info->frames = data.output_frames_gen;
@@ -146,6 +154,7 @@ extern t_sample *file_get(char *samplename) {
         free(info);
         free(items);
       }
+      sf_close(sndfile);
     }
     if (sample == NULL) {
       printf("failed.\n");

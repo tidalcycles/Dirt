@@ -38,3 +38,4 @@ int wav_filter (const struct dirent *d);
 extern void file_set_samplerate(int s);
 extern t_sample *file_get(char *samplename);
 t_loop *new_loop(float seconds);
+void free_loop(t_loop*);
