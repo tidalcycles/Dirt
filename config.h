@@ -5,4 +5,7 @@
 //#define INPUT
 #define OSC_PORT "7771"
 
+#define DEFAULT_CHANNELS 2
+#define MAX_CHANNELS 16
+
 #endif

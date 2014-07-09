@@ -1,7 +1,7 @@
 CC=gcc
 
 
-CFLAGS += -g -I/usr/local/include -Wall -O3 -std=gnu99 -DCHANNELS=2 -DDIRTYCOMPRESSOR
+CFLAGS += -g -I/usr/local/include -Wall -O3 -std=gnu99
 LDFLAGS += -lm -L/usr/local/lib -llo -lsndfile -lsamplerate
 
 dirt: CFLAGS += -DJACK
@@ -13,14 +13,14 @@ all: dirt
 clean:
 	rm -f *.o *~ dirt dirt-analyse
 
-dirt: dirt.o jack.o audio.o file.o server.o  Makefile
-	$(CC) dirt.o jack.o audio.o file.o server.o $(CFLAGS) $(LDFLAGS) -o dirt
+dirt: dirt.o common.o jack.o audio.o file.o server.o  Makefile
+	$(CC) dirt.o common.o jack.o audio.o file.o server.o $(CFLAGS) $(LDFLAGS) -o dirt
 
-dirt-pa: dirt.o audio.o file.o server.o  Makefile
-	$(CC) dirt.o audio.o file.o server.o $(CFLAGS) $(LDFLAGS) -o dirt-pa
+dirt-pa: dirt.o common.o audio.o file.o server.o  Makefile
+	$(CC) dirt.o common.o audio.o file.o server.o $(CFLAGS) $(LDFLAGS) -o dirt-pa
 
-dirt-analyse: dirt.o jack.o audio.o file.o server.o pitch.o Makefile
-	$(CC) dirt.o jack.o audio.o file.o server.o pitch.o $(CFLAGS) $(LDFLAGS) -o dirt-analyse
+dirt-analyse: dirt.o common.o jack.o audio.o file.o server.o pitch.o Makefile
+	$(CC) dirt.o common.o jack.o audio.o file.o server.o pitch.o $(CFLAGS) $(LDFLAGS) -o dirt-analyse
 
 test : test.c Makefile
 	$(CC) test.c -llo -o test
