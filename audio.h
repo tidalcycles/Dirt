@@ -41,7 +41,7 @@ typedef struct {
   int   point;
 } t_line;
 
-t_line delays[CHANNELS];
+t_line* delays;
 float line_feedback_delay;
 
 typedef struct t_node {
@@ -65,11 +65,11 @@ typedef struct t_node {
   float  start;
   float  end;
   float  velocity;
-  double formant_history[CHANNELS][10];
+  double **formant_history;
   int    formant_vowelnum;
   float  cutoff;
   float  resonance;
-  t_vcf  vcf[CHANNELS];
+  t_vcf  *vcf;
   float  accelerate;
   int    shape;
   float  shape_k;
@@ -87,6 +87,7 @@ typedef struct t_node {
 
 extern int audio_callback(int frames, float *input, float **outputs);
 extern void audio_init(bool dirty_compressor, bool autoconnect);
+extern void audio_close(void);
 extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accelerate, float shape, int kriole_chunk, float gain, int cutgroup, float delay, float delaytime, float delayfeedback);
 
 extern void audio_kriole(double when, 

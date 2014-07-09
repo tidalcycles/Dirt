@@ -177,8 +177,43 @@ float formant_filter(float in, t_sound *sound, int channel) {
   return res;
 }
 
+void init_formant_history(t_sound *sound) {
+  bool failed = false;
+
+  sound->formant_history = malloc(g_num_channels * sizeof(double*));
+  if (!sound->formant_history) {
+    failed = true;
+  }
+
+  for (int c = 0; !failed && c < g_num_channels; c++) {
+    sound->formant_history[c] = calloc(10, sizeof(double));
+    if (!sound->formant_history[c]) failed = true;
+  }
+
+  if (failed) {
+    fprintf(stderr, "no memory to allocate `formant_history' array\n");
+    exit(1);
+  }
+}
+
+void free_formant_history(t_sound *sound) {
+  if (sound->formant_history) {
+    for (int c = 0; c < g_num_channels; c++) {
+      double* fh = sound->formant_history[c];
+      if (fh) free(fh);
+    }
+    free(sound->formant_history);
+  }
+}
+
 void init_vcf (t_sound *sound) {
-  for (int channel = 0; channel < CHANNELS; ++channel) {
+  sound->vcf = malloc(g_num_channels * sizeof(t_vcf));
+  if (!sound->vcf) {
+    fprintf(stderr, "no memory to allocate vcf struct\n");
+    exit(1);
+  }
+
+  for (int channel = 0; channel < g_num_channels; ++channel) {
     t_vcf *vcf = &(sound->vcf[channel]);
     vcf->f     = 2 * sound->cutoff;
     vcf->k     = 3.6 * vcf->f - 1.6 * vcf->f * vcf->f -1;
@@ -194,6 +229,10 @@ void init_vcf (t_sound *sound) {
     vcf->oldy2 = 0;
     vcf->oldy3 = 0;
   }
+}
+
+void free_vcf(t_sound *sound) {
+  if (sound->vcf) free(sound->vcf);
 }
 
 float effect_vcf(float in, t_sound *sound, int channel) {
@@ -273,6 +312,8 @@ t_sound *new_sound() {
   for (int i = 0; i < MAXSOUNDS; ++i) {
     if (sounds[i].active == 0) {
       result = &sounds[i];
+      free_vcf(result);
+      free_formant_history(result);
       memset(result, 0, sizeof(t_sound));
       break;
     }
@@ -386,9 +427,11 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
     new->mono = 1;
   }
 #ifdef FAKECHANNELS
-  new->pan *= (float) CHANNELS / FAKECHANNELS;
+  new->pan *= (float) g_num_channels / FAKECHANNELS;
 #endif
   new->velocity = velocity;
+
+  init_formant_history(new);
   
   new->offset = offset;
 
@@ -544,7 +587,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
   int channel;
   t_sound *p = playing;
 
-  for (channel = 0; channel < CHANNELS; ++channel) {
+  for (channel = 0; channel < g_num_channels; ++channel) {
     buffers[channel][frame] = 0;
   }
 
@@ -633,14 +676,14 @@ void playback(float **buffers, int frame, sampletime_t now) {
 
       float c = (float) channel + p->pan;
       float d = c - floor(c);
-      int channel_a =  ((int) c) % CHANNELS;
-      int channel_b =  ((int) c + 1) % CHANNELS;
+      int channel_a =  ((int) c) % g_num_channels;
+      int channel_b =  ((int) c + 1) % g_num_channels;
 
       if (channel_a < 0) {
-        channel_a += CHANNELS;
+        channel_a += g_num_channels;
       }
       if (channel_b < 0) {
-        channel_b += CHANNELS;
+        channel_b += g_num_channels;
       }
 
       // equal power panning
@@ -675,7 +718,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
     }
   }
 
-  for (channel = 0; channel < CHANNELS; ++channel) {
+  for (channel = 0; channel < g_num_channels; ++channel) {
     float tmp = shift_delay(&delays[channel]);
     if (delay_feedback != 0) {
       add_delay(&delays[channel], tmp, delay_time, delay_feedback);
@@ -686,17 +729,17 @@ void playback(float **buffers, int frame, sampletime_t now) {
   if (use_dirty_compressor) {
     float max = 0;
 
-    for (channel = 0; channel < CHANNELS; ++channel) {
+    for (channel = 0; channel < g_num_channels; ++channel) {
       if (fabsf(buffers[channel][frame]) > max) {
         max = buffers[channel][frame];
       }
     }
     float factor = compress(max);
-    for (channel = 0; channel < CHANNELS; ++channel) {
+    for (channel = 0; channel < g_num_channels; ++channel) {
       buffers[channel][frame] *= factor * 0.4;
     }
   } else {
-    for (channel = 0; channel < CHANNELS; ++channel) {
+    for (channel = 0; channel < g_num_channels; ++channel) {
       buffers[channel][frame] *= 0.4;
     }
   }
@@ -871,7 +914,7 @@ void pa_init(void) {
     goto error;
   }
   printf("default device: %s\n", Pa_GetDeviceInfo(outputParameters.device)->name);
-  outputParameters.channelCount = CHANNELS;
+  outputParameters.channelCount = g_num_channels;
   outputParameters.sampleFormat = paFloat32 | paNonInterleaved; 
   outputParameters.suggestedLatency = 0.050;
   // Pa_GetDeviceInfo( outputParameters.device )->defaultLowOutputLatency;
@@ -919,11 +962,20 @@ error:
 
 extern void audio_init(bool dirty_compressor, bool autoconnect) {
   struct timeval tv;
+
+  atexit(audio_close);
+
   gettimeofday(&tv, NULL);
   starttime = (float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0);
 #ifdef FEEDBACK
   loop = new_loop(60 * 60);
 #endif
+
+  delays = calloc(g_num_channels, sizeof(t_line));
+  if (!delays) {
+    fprintf(stderr, "no memory to allocate `delays' array\n");
+    exit(1);
+  }
 
   pthread_mutex_init(&queue_waiting_lock, NULL);
 #ifdef JACK
@@ -935,11 +987,24 @@ printf("hm.\n");
   compression_speed = 1000 / samplerate;
   file_set_samplerate(samplerate);
 
-  memset(delays, 0, sizeof(t_line) * CHANNELS);
-  
 #ifdef FEEDBACK
   pitch_init(loop, samplerate);
 #endif
 
   use_dirty_compressor = dirty_compressor;
+}
+
+extern void audio_close(void) {
+#ifdef FEEDBACK
+  free_loop(loop);
+#endif
+  if (delays) free(delays);
+
+  // free all active sounds, if any
+  for (int i = 0; i < MAXSOUNDS; ++i) {
+    if (sounds[i].active) {
+      free_vcf(&sounds[i]);
+      free_formant_history(&sounds[i]);
+    }
+  }
 }
