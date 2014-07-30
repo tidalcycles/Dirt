@@ -84,8 +84,8 @@ int main (int argc, char **argv) {
 
       case 'c':
         num_channels = atoi(optarg);
-        if (num_channels < 1 || num_channels > MAX_CHANNELS) {
-          fprintf(stderr, "invalid number of channels: %u. resetting to default\n", num_channels);
+        if (num_channels < MIN_CHANNELS || num_channels > MAX_CHANNELS) {
+          fprintf(stderr, "invalid number of channels: %u (min: %u, max: %u). resetting to default\n", num_channels, MIN_CHANNELS, MAX_CHANNELS);
           num_channels = DEFAULT_CHANNELS;
         }
         g_num_channels = num_channels;
