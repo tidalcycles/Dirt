@@ -231,8 +231,64 @@ void init_vcf (t_sound *sound) {
   }
 }
 
+void init_hpf (t_sound *sound) {
+  sound->hpf = malloc(g_num_channels * sizeof(t_vcf));
+  if (!sound->hpf) {
+    fprintf(stderr, "no memory to allocate hpf struct\n");
+    exit(1);
+  }
+
+  for (int channel = 0; channel < g_num_channels; ++channel) {
+    t_vcf *vcf = &(sound->hpf[channel]);
+    vcf->f     = 2 * sound->hcutoff;
+    vcf->k     = 3.6 * vcf->f - 1.6 * vcf->f * vcf->f -1;
+    vcf->p     = (vcf->k+1) * 0.5;
+    vcf->scale = exp((1-vcf->p)*1.386249);
+    vcf->r     = sound->hresonance * vcf->scale;
+    vcf->y1    = 0;
+    vcf->y2    = 0;
+    vcf->y3    = 0;
+    vcf->y4    = 0;
+    vcf->oldx  = 0;
+    vcf->oldy1 = 0;
+    vcf->oldy2 = 0;
+    vcf->oldy3 = 0;
+  }
+}
+
+void init_bpf (t_sound *sound) {
+  sound->bpf = malloc(g_num_channels * sizeof(t_vcf));
+  if (!sound->bpf) {
+    fprintf(stderr, "no memory to allocate bpf struct\n");
+    exit(1);
+  }
+  // I've changed the meaning of some of these a bit
+  for (int channel = 0; channel < g_num_channels; ++channel) {
+    t_vcf *vcf = &(sound->bpf[channel]);
+    vcf->f     = sound->bandf;
+    vcf->r     = sound->bandq;
+    vcf->k     = vcf->f / vcf->r;
+    vcf->p     = 2.0 - vcf->f * vcf->f;
+    vcf->scale = 1.0 / (1.0 + vcf->k);
+    vcf->y1    = 0;
+    vcf->y2    = 0;
+    vcf->y3    = 0;
+    vcf->y4    = 0;
+    vcf->oldx  = 0;
+    vcf->oldy1 = 0;
+    vcf->oldy2 = 0;
+    vcf->oldy3 = 0;
+  }
+}
+
 void free_vcf(t_sound *sound) {
   if (sound->vcf) free(sound->vcf);
+}
+void free_hpf(t_sound *sound) {
+  if (sound->hpf) free(sound->hpf);
+}
+void free_bpf(t_sound *sound) {
+  if (sound->bpf) free(sound->bpf);
 }
 
 float effect_vcf(float in, t_sound *sound, int channel) {
@@ -253,6 +309,41 @@ float effect_vcf(float in, t_sound *sound, int channel) {
   
   return vcf->y4;
 }
+
+float effect_hpf(float in, t_sound *sound, int channel) {
+  t_vcf *vcf = &(sound->hpf[channel]);
+  vcf->x  = in - vcf->r * vcf->y4;
+  
+  vcf->y1 = vcf->x  * vcf->p + vcf->oldx  * vcf->p - vcf->k * vcf->y1;
+  vcf->y2 = vcf->y1 * vcf->p + vcf->oldy1 * vcf->p - vcf->k * vcf->y2;
+  vcf->y3 = vcf->y2 * vcf->p + vcf->oldy2 * vcf->p - vcf->k * vcf->y3;
+  vcf->y4 = vcf->y3 * vcf->p + vcf->oldy3 * vcf->p - vcf->k * vcf->y4;
+  
+  vcf->y4 = vcf->y4 - pow(vcf->y4,3) / 6;
+  
+  vcf->oldx  = vcf->x;
+  vcf->oldy1 = vcf->y1;
+  vcf->oldy2 = vcf->y2;
+  vcf->oldy3 = vcf->y3;
+  
+  return (in - vcf->y4);
+}
+
+float effect_bpf(float in, t_sound *sound, int channel) {
+  t_vcf *vcf = &(sound->bpf[channel]);
+  vcf->x  = in;
+
+  vcf->y3 = vcf->p * vcf->y2 - vcf->y1 + vcf->k * (vcf->x - vcf->oldx +
+        vcf->y2);
+  vcf->y3 = vcf->scale * vcf->y3;
+  
+  vcf->oldx  = vcf->x;
+  vcf->y1 = vcf->y2;
+  vcf->y2 = vcf->y3;
+  return (vcf->y3);
+}
+
+/**/
 
 /**/
 
@@ -313,6 +404,8 @@ t_sound *new_sound() {
     if (sounds[i].active == 0) {
       result = &sounds[i];
       free_vcf(result);
+      free_hpf(result);
+      free_bpf(result);
       free_formant_history(result);
       memset(result, 0, sizeof(t_sound));
       break;
@@ -321,7 +414,12 @@ t_sound *new_sound() {
   return(result);
 }
 
-extern int audio_play(double when, char *samplename, float offset, float start, float end, float speed, float pan, float velocity, int vowelnum, float cutoff, float resonance, float accelerate, float shape, int kriole_chunk, float gain, int cutgroup, float delay, float delaytime, float delayfeedback) {
+extern int audio_play(double when, char *samplename, float offset, float
+      start, float end, float speed, float pan, float velocity, int vowelnum,
+      float cutoff, float resonance, float accelerate, float shape, int
+      kriole_chunk, float gain, int cutgroup, float delay, float delaytime,
+      float delayfeedback, float crush, int coarse, float hcutoff, float
+      hresonance, float bandf, float bandq) {
   struct timeval tv;
 #ifdef FEEDBACK
   int is_kriole = 0;
@@ -436,15 +534,30 @@ extern int audio_play(double when, char *samplename, float offset, float start, 
   new->offset = offset;
 
   new->cutoff = cutoff;
+  new->hcutoff = hcutoff;
   new->resonance = resonance;
+  new->hresonance = hresonance;
+  new->bandf = bandf;
+  new->bandq = bandq;
   new->cutgroup = cutgroup;
 
   if (shape != 0) {
     new->shape = 1;
     new->shape_k = (2.0f * shape) / (1.0f - shape);
   }
+  if (crush != 0) {
+     new->crush = 1;
+     new->crush_bits = crush;
+  }
+  if (coarse != 0) {
+     new->coarse = coarse;
+     new->coarse_ind = 0;
+     new->coarse_last = 0;
+  }
 
   init_vcf(new);
+  init_hpf(new);
+  init_bpf(new);
 
   new->accelerate = accelerate;
   new->delay = delay;
@@ -653,6 +766,13 @@ void playback(float **buffers, int frame, sampletime_t now) {
 	  && p->cutoff > 0 && p->cutoff < 1) {
 	value = effect_vcf(value, p, channel);
       }
+      if (p->hresonance > 0 && p->hresonance < 1 
+          && p->hcutoff > 0 && p->hcutoff < 1) {
+        value = effect_hpf(value, p, channel);
+      }
+      if (p->bandf > 0 && p->bandf < 1 && p->bandq > 0) {
+         value = effect_bpf(value, p, channel);
+      }
 
       if ((p->end - p->position) < ROUNDOFF) {
         // TODO what if end < ROUNDOFF?)
@@ -667,8 +787,22 @@ void playback(float **buffers, int frame, sampletime_t now) {
         }
       }
 
+      if (p->coarse) {
+         (p->coarse_ind)++;
+         if (p->coarse_ind == p->coarse) {
+            p->coarse_ind = 0;
+            p->coarse_last = value;
+         } else {
+            value = p->coarse_last;
+         }
+      }
       if (p->shape) {
         value = (1+p->shape_k)*value/(1+p->shape_k*fabs(value));
+      }
+      if (p->crush) {
+        //value = (1.0 + log(fabs(value)) / 16.63553) * (value / fabs(value));
+        value = trunc(pow(2,p->crush_bits-1) * value) / pow(2,p->crush_bits-1);
+        //value = exp( (fabs(value) - 1.0) * 16.63553 ) * (value / fabs(value));
       }
 
       value *= p->gain;
@@ -1004,6 +1138,8 @@ extern void audio_close(void) {
   for (int i = 0; i < MAXSOUNDS; ++i) {
     if (sounds[i].active) {
       free_vcf(&sounds[i]);
+      free_hpf(&sounds[i]);
+      free_bpf(&sounds[i]);
       free_formant_history(&sounds[i]);
     }
   }
