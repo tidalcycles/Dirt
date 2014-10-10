@@ -177,6 +177,11 @@ void *zmqthread(void *data){
 		       NULL
 		       );
 
+  lo_server_add_method(s, "/play", "iisffffffsffffififff",
+		       play_handler, 
+		       NULL
+		       );
+
   lo_server_add_method(s, "/play", "iisffffffsffffifi",
 		       play_handler, 
 		       NULL
@@ -219,6 +224,11 @@ extern int server_init(void) {
   lo_server_thread st = lo_server_thread_new(OSC_PORT, error);
 
   lo_server_thread_add_method(st, "/play", "iisffffffsffffififfffiffff",
+                              play_handler, 
+                              NULL
+                             );
+
+  lo_server_thread_add_method(st, "/play", "iisffffffsffffififff",
                               play_handler, 
                               NULL
                              );
