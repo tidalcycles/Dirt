@@ -527,6 +527,11 @@ extern int audio_play(double when, char *samplename, float offset, float
 #ifdef FAKECHANNELS
   new->pan *= (float) g_num_channels / FAKECHANNELS;
 #endif
+#ifdef SCALEPAN
+  if (g_num_channels > 2) {
+    new->pan *= (float) g_num_channels;
+  }
+#endif
   new->velocity = velocity;
 
   init_formant_history(new);
