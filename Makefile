@@ -4,7 +4,7 @@ CC=gcc
 CFLAGS += -g -I/usr/local/include -Wall -O3 -std=gnu99
 LDFLAGS += -lm -L/usr/local/lib -llo -lsndfile -lsamplerate
 
-dirt: CFLAGS += -DJACK
+dirt: CFLAGS += -DJACK -DSCALEPAN
 dirt: LDFLAGS += -ljack
 dirt-pa: LDFLAGS += -lportaudio
 
