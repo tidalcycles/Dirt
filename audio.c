@@ -879,7 +879,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
     }
   } else {
     for (channel = 0; channel < g_num_channels; ++channel) {
-      buffers[channel][frame] *= 0.4;
+      buffers[channel][frame] *= 2;
     }
   }
 }
