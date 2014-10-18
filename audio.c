@@ -518,7 +518,7 @@ extern int audio_play(double when, char *samplename, float offset, float
   new->reverse  = speed < 0;
   new->speed    = fabsf(speed);
   new->pan      = pan;
-  if (new->channels == 2 && new->pan == 0.5) {
+  if (new->channels == 2 && g_num_channels == 2 && new->pan == 0.5) {
     new->pan = 0;
   }
   else {
