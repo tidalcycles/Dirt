@@ -806,7 +806,8 @@ void playback(float **buffers, int frame, sampletime_t now) {
       }
       if (p->crush) {
         //value = (1.0 + log(fabs(value)) / 16.63553) * (value / fabs(value));
-        value = trunc(pow(2,p->crush_bits-1) * value) / pow(2,p->crush_bits-1);
+	float tmp = pow(2,p->crush_bits-1);
+        value = trunc(tmp * value) / tmp;
         //value = exp( (fabs(value) - 1.0) * 16.63553 ) * (value / fabs(value));
       }
 
