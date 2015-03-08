@@ -86,6 +86,7 @@ typedef struct t_node {
   int    coarse;
   int    coarse_ind;
   float  coarse_last;
+  float  coarse_sum;
   float  hcutoff;
   float  hresonance;
   t_vcf  *hpf;
@@ -104,7 +105,7 @@ extern int audio_play(double when, char *samplename, float offset, float
       float cutoff, float resonance, float accelerate, float shape, int
       kriole_chunk, float gain, int cutgroup, float delay, float delaytime,
       float delayfeedback, float crush, int coarse, float hcutoff, float
-      hresonance, float bandf, float bandq);
+      hresonance, float bandf, float bandq, float stretchTo, float matchcps);
 
 extern void audio_kriole(double when, 
                          float duration, 
