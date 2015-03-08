@@ -120,6 +120,12 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   float bandf = argc > 24 ? argv[24]->f : 0;
   float bandq = argc > 25 ? argv[25]->f : 0;
 
+  float stretchTo = argc > 26 ? argv[26]->f : 0;
+  float matchcps = argc > 27 ? argv[27]->f : 0;
+  if (argc > 28) {
+    printf("play server unexpectedly received extra parameters, maybe update Dirt?\n");
+  }
+
   int vowelnum = -1;
 
   switch(vowel_s[0]) {
@@ -155,7 +161,9 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
              hcutoff,
              hresonance,
              bandf,
-             bandq
+             bandq,
+             stretchTo,
+             matchcps
              );
   free(sample_name);
   return 0;
@@ -223,6 +231,11 @@ extern int server_init(void) {
 
   lo_server_thread st = lo_server_thread_new(OSC_PORT, error);
 
+  lo_server_thread_add_method(st, "/play", "iisffffffsffffififfffiffffff",
+                              play_handler, 
+                              NULL
+                             );
+
   lo_server_thread_add_method(st, "/play", "iisffffffsffffififfffiffff",
                               play_handler, 
                               NULL
@@ -260,6 +273,7 @@ extern int server_init(void) {
                              );
 #endif
 
+  lo_server_thread_add_method(st, "/play", NULL, play_handler, NULL);
   lo_server_thread_add_method(st, NULL, NULL, generic_handler, NULL);
   lo_server_thread_start(st);
 
