@@ -423,7 +423,7 @@ extern int audio_play(double when, float cps, char *samplename, float offset, fl
       float cutoff, float resonance, float accelerate, float shape, int
       kriole_chunk, float gain, int cutgroup, float delay, float delaytime,
       float delayfeedback, float crush, int coarse, float hcutoff, float
-      hresonance, float bandf, float bandq, int unitnum) {
+      hresonance, float bandf, float bandq, char unit) {
   struct timeval tv;
 #ifdef FEEDBACK
   int is_kriole = 0;
@@ -517,14 +517,16 @@ extern int audio_play(double when, float cps, char *samplename, float offset, fl
   new->startT = when - epochOffset;
 #endif
 
-  if (unitnum == 1) { // unit = "sec"
+  if (unit == 's') { // unit = "sec"
     accelerate = accelerate / speed; // change rate by 1 per specified duration
     speed = sample->info->frames / speed / samplerate;
   }
-  if (unitnum == 2) { // unit = "cps"
+  else if (unit == 'c') { // unit = "cps"
     accelerate = accelerate * speed * cps; // change rate by 1 per cycle
     speed = sample->info->frames * speed * cps / samplerate;
   }
+  // otherwise, unit is rate/ratio, 
+  // i.e. 2 = twice as fast, -1 = normal but backwards
    
   new->next = NULL;
   new->prev = NULL;

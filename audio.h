@@ -105,7 +105,7 @@ extern int audio_play(double when, float cps, char *samplename, float offset, fl
       float cutoff, float resonance, float accelerate, float shape, int
       kriole_chunk, float gain, int cutgroup, float delay, float delaytime,
       float delayfeedback, float crush, int coarse, float hcutoff, float
-      hresonance, float bandf, float bandq, int unitnum);
+      hresonance, float bandf, float bandq, char unit);
 
 extern void audio_kriole(double when, 
                          float duration, 
