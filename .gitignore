@@ -1,8 +1,5 @@
 *.o
 dirt
 dirt-pa
-
-
-Makefile
 *.wav
-
+Makefile
