@@ -265,7 +265,7 @@ void init_bpf (t_sound *sound) {
   // I've changed the meaning of some of these a bit
   for (int channel = 0; channel < g_num_channels; ++channel) {
     t_vcf *vcf = &(sound->bpf[channel]);
-    vcf->f     = sound->bandf;
+    vcf->f     = fabsf(sound->bandf);
     vcf->r     = sound->bandq;
     vcf->k     = vcf->f / vcf->r;
     vcf->p     = 2.0 - vcf->f * vcf->f;
@@ -414,12 +414,12 @@ t_sound *new_sound() {
   return(result);
 }
 
-extern int audio_play(double when, char *samplename, float offset, float
+extern int audio_play(double when, float cps, char *samplename, float offset, float
       start, float end, float speed, float pan, float velocity, int vowelnum,
       float cutoff, float resonance, float accelerate, float shape, int
       kriole_chunk, float gain, int cutgroup, float delay, float delaytime,
       float delayfeedback, float crush, int coarse, float hcutoff, float
-      hresonance, float bandf, float bandq) {
+      hresonance, float bandf, float bandq, int unitnum) {
   struct timeval tv;
 #ifdef FEEDBACK
   int is_kriole = 0;
@@ -513,6 +513,15 @@ extern int audio_play(double when, char *samplename, float offset, float
   new->startT = when - epochOffset;
 #endif
 
+  if (unitnum == 1) { // unit = "sec"
+    accelerate = accelerate / speed; // change rate by 1 per specified duration
+    speed = sample->info->frames / speed / samplerate;
+  }
+  if (unitnum == 2) { // unit = "cps"
+    accelerate = accelerate * speed * cps; // change rate by 1 per cycle
+    speed = sample->info->frames * speed * cps / samplerate;
+  }
+   
   new->next = NULL;
   new->prev = NULL;
   new->reverse  = speed < 0;
@@ -551,8 +560,8 @@ extern int audio_play(double when, char *samplename, float offset, float
     new->shape_k = (2.0f * shape) / (1.0f - shape);
   }
   if (crush != 0) {
-     new->crush = 1;
-     new->crush_bits = crush;
+     new->crush = (crush > 0) ? 1 : -1;
+     new->crush_bits = fabsf(crush);
   }
   if (coarse != 0) {
      new->coarse = coarse;
@@ -702,7 +711,7 @@ float compressdave(float in) {
 /**/
 
 void playback(float **buffers, int frame, sampletime_t now) {
-  int channel;
+  int channel, isgn;
   t_sound *p = playing;
 
   for (channel = 0; channel < g_num_channels; ++channel) {
@@ -777,6 +786,8 @@ void playback(float **buffers, int frame, sampletime_t now) {
       }
       if (p->bandf > 0 && p->bandf < 1 && p->bandq > 0) {
          value = effect_bpf(value, p, channel);
+      } else if (p->bandf < 0 && p->bandf > -1 && p->bandq > 0) {
+         value = value - effect_bpf(value, p, channel);
       }
 
       if ((p->end - p->position) < ROUNDOFF) {
@@ -792,23 +803,40 @@ void playback(float **buffers, int frame, sampletime_t now) {
         }
       }
 
-      if (p->coarse) {
-         (p->coarse_ind)++;
-         if (p->coarse_ind == p->coarse) {
-            p->coarse_ind = 0;
-            p->coarse_last = value;
-         } else {
-            value = p->coarse_last;
-         }
+      if (p->coarse > 0) {
+        (p->coarse_ind)++;
+        if (p->coarse_ind == p->coarse) {
+          p->coarse_ind = 0;
+          p->coarse_last = value;
+        } else {
+          value = p->coarse_last;
+        }
+      } else if (p->coarse < 0) {
+        if (p->coarse_ind == -(p->coarse)) {
+          p->coarse_last = p->coarse_sum;
+          p->coarse_ind = 0;
+          p->coarse_sum = 0;
+        } else {
+          p->coarse_sum += value / (float) -(p->coarse);
+        }
+        value = p->coarse_last;
+        (p->coarse_ind)++;
       }
+            
       if (p->shape) {
         value = (1+p->shape_k)*value/(1+p->shape_k*fabs(value));
       }
-      if (p->crush) {
+      if (p->crush > 0) {
         //value = (1.0 + log(fabs(value)) / 16.63553) * (value / fabs(value));
         value = trunc(pow(2,p->crush_bits-1) * value) / pow(2,p->crush_bits-1);
         //value = exp( (fabs(value) - 1.0) * 16.63553 ) * (value / fabs(value));
+      } else if (p->crush < 0) {
+        isgn = (value >= 0) ? 1 : -1;
+        value = isgn * pow(fabsf(value), 0.125);
+        value = trunc(pow(2,p->crush_bits-1) * value) / pow(2,p->crush_bits-1);
+        value = isgn * pow(value, 8.0);
       }
+
 
       value *= p->gain;
       value *= roundoff;
