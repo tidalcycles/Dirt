@@ -414,12 +414,12 @@ t_sound *new_sound() {
   return(result);
 }
 
-extern int audio_play(double when, char *samplename, float offset, float
+extern int audio_play(double when, float cps, char *samplename, float offset, float
       start, float end, float speed, float pan, float velocity, int vowelnum,
       float cutoff, float resonance, float accelerate, float shape, int
       kriole_chunk, float gain, int cutgroup, float delay, float delaytime,
       float delayfeedback, float crush, int coarse, float hcutoff, float
-      hresonance, float bandf, float bandq, float stretchTo, float matchcps) {
+      hresonance, float bandf, float bandq, int unitnum) {
   struct timeval tv;
 #ifdef FEEDBACK
   int is_kriole = 0;
@@ -513,19 +513,15 @@ extern int audio_play(double when, char *samplename, float offset, float
   new->startT = when - epochOffset;
 #endif
 
-  // stretchTo overrides speed and accel to play the sample for the specified
-  // duration (in seconds)
-  if (stretchTo != 0) {
-     accelerate = 0;
-     speed = sample->info->frames / stretchTo / samplerate;
+  if (unitnum == 1) { // unit = "sec"
+    accelerate = accelerate / speed; // change rate by 1 per specified duration
+    speed = sample->info->frames / speed / samplerate;
   }
-  // matchcps is the same thing but for the specified cycles per second instead
-  // of duration
-  if (matchcps != 0) {
-     accelerate = 0;
-     speed = sample->info->frames * matchcps / samplerate;
+  if (unitnum == 2) { // unit = "cps"
+    accelerate = accelerate * speed * cps; // change rate by 1 per cycle
+    speed = sample->info->frames * speed * cps / samplerate;
   }
-
+   
   new->next = NULL;
   new->prev = NULL;
   new->reverse  = speed < 0;
