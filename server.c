@@ -91,38 +91,45 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 #ifdef SUBLATENCY
   when -= SUBLATENCY;
 #endif
-  char *sample_name = strdup((char *) argv[2]);
+  int poffset = 2;
 
-  float offset = argv[3]->f;
-  float start = argv[4]->f;
-  float end  = argv[5]->f;
-  float speed  = argv[6]->f;
-  float pan  = argv[7]->f;
-  float velocity  = argv[8]->f;
-  char *vowel_s = (char *) argv[9];
-  float cutoff = argv[10]->f;
-  float resonance = argv[11]->f;
-  float accelerate = argv[12]->f;
-  float shape = argv[13]->f;
-  int kriole_chunk = argv[14]->i;
+  float cps = argv[2]->f;
+  poffset = 3;
+  //printf("timing info: when, cps = %f\t%f\n", when, cps);
+
+  char *sample_name = strdup((char *) argv[0+poffset]);
+
+  float offset = argv[1+poffset]->f;
+  float start = argv[2+poffset]->f;
+  float end  = argv[3+poffset]->f;
+  float speed  = argv[4+poffset]->f;
+  float pan  = argv[5+poffset]->f;
+  float velocity  = argv[6+poffset]->f;
+  char *vowel_s = (char *) argv[7+poffset];
+  float cutoff = argv[8+poffset]->f;
+  float resonance = argv[9+poffset]->f;
+  float accelerate = argv[10+poffset]->f;
+  float shape = argv[11+poffset]->f;
+  int kriole_chunk = argv[12+poffset]->i;
   
-  float gain = argc > 15 ? argv[15]->f : 0;
-  int cutgroup = argc > 16 ? argv[16]->i : 0;
+  float gain = argc > (13+poffset) ? argv[13+poffset]->f : 0;
+  int cutgroup = argc > (14+poffset) ? argv[14+poffset]->i : 0;
 
-  float delay = argc > 17 ? argv[17]->f : 0;
-  float delaytime = argc > 18 ? argv[18]->f : 0;
-  float delayfeedback = argc > 19 ? argv[19]->f : 0;
+  float delay = argc > (15+poffset) ? argv[15+poffset]->f : 0;
+  float delaytime = argc > (16+poffset) ? argv[16+poffset]->f : 0;
+  float delayfeedback = argc > (17+poffset) ? argv[17+poffset]->f : 0;
   
-  float crush = argc > 20 ? argv[20]->f : 0;
-  int coarse = argc > 21 ? argv[21]->i : 0;
-  float hcutoff = argc > 22 ? argv[22]->f : 0;
-  float hresonance = argc > 23 ? argv[23]->f : 0;
-  float bandf = argc > 24 ? argv[24]->f : 0;
-  float bandq = argc > 25 ? argv[25]->f : 0;
+  float crush = argc > (18+poffset) ? argv[18+poffset]->f : 0;
+  int coarse = argc > (19+poffset) ? argv[19+poffset]->i : 0;
+  float hcutoff = argc > (20+poffset) ? argv[20+poffset]->f : 0;
+  float hresonance = argc > (21+poffset) ? argv[21+poffset]->f : 0;
+  float bandf = argc > (22+poffset) ? argv[22+poffset]->f : 0;
+  float bandq = argc > (23+poffset) ? argv[23+poffset]->f : 0;
 
-  float stretchTo = argc > 26 ? argv[26]->f : 0;
-  float matchcps = argc > 27 ? argv[27]->f : 0;
-  if (argc > 28) {
+  char *unit_name = argc > (24+poffset) ? strdup((char *) argv[24+poffset]) : 0;
+  //float stretchTo = argc > (24+poffset) ? argv[24+poffset]->f : 0;
+  //float matchcps = argc > (25+poffset) ? argv[25+poffset]->f : 0;
+  if (argc > 25+poffset) {
     printf("play server unexpectedly received extra parameters, maybe update Dirt?\n");
   }
 
@@ -137,7 +144,15 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   }
   //printf("vowel: %s num: %d\n", vowel_s, vowelnum);
 
+  int unitnum = -1;
+  switch(unit_name[0]) {
+     case 'r': case 'R': unitnum = 0; break;
+     case 's': case 'S': unitnum = 1; break;
+     case 'c': case 'C': unitnum = 2; break;
+  }
+
   audio_play(when,
+             cps,
              sample_name,
              offset,
              start, 
@@ -162,8 +177,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
              hresonance,
              bandf,
              bandq,
-             stretchTo,
-             matchcps
+             unitnum
              );
   free(sample_name);
   return 0;
@@ -231,7 +245,7 @@ extern int server_init(void) {
 
   lo_server_thread st = lo_server_thread_new(OSC_PORT, error);
 
-  lo_server_thread_add_method(st, "/play", "iisffffffsffffififfffiffffff",
+  lo_server_thread_add_method(st, "/play", "iisffffffsffffififfffifffff",
                               play_handler, 
                               NULL
                              );
