@@ -732,9 +732,9 @@ void playback(float **buffers, int frame, sampletime_t now) {
       continue;
     }
     if ((!p->started) && p->checks == 0 && p->startT < now) {
-      printf("started late by %f frames (%d checks)\n",
+      /*      printf("started late by %f frames (%d checks)\n",
 	     now - p->startT, p->checks
-	     );
+	     );*/
       p->started = 1;
     }
     //printf("playing %s\n", p->samplename);
