@@ -11,6 +11,10 @@
 
 #ifdef JACK
 #include "jack.h"
+#elif PULSE
+#include <pulse/simple.h>
+#include <pulse/error.h>
+#include <pulse/gccmacro.h>
 #else
 #include "portaudio.h"
 
@@ -719,9 +723,9 @@ void playback(float **buffers, int frame, sampletime_t now) {
       continue;
     }
     if ((!p->started) && p->checks == 0 && p->startT < now) {
-      /*printf("started late by %d frames\n",
-	     frametime - p->startFrame	     
-	     );*/
+      printf("started late by %f frames (%d checks)\n",
+	     now - p->startT, p->checks
+	     );
       p->started = 1;
     }
     //printf("playing %s\n", p->samplename);
@@ -938,6 +942,78 @@ extern int jack_callback(int frames, float *input, float **outputs) {
   }
   return(0);
 }
+#elif PULSE
+
+void run_pulse() {
+  #define FRAMES 64
+  static double prevnow = 0;
+  struct timeval tv;
+  double samplelength = (((double) 1)/((double) samplerate));
+
+  float *buf[g_num_channels];
+  for (int i = 0 ; i < g_num_channels; ++i) {
+    buf[i] = (float*) malloc(sizeof(float)*FRAMES);
+  }
+  float interlaced[g_num_channels*FRAMES];
+
+  pa_sample_spec ss;
+  ss.format = PA_SAMPLE_FLOAT32LE;
+  ss.rate = samplerate;
+  ss.channels = g_num_channels;
+
+  pa_simple *s = NULL;
+  //  int ret = 1;
+  int error;
+  if (!(s = pa_simple_new(NULL, "dirt", PA_STREAM_PLAYBACK, NULL, 
+    "playback", &ss, NULL, NULL, &error))) {
+    fprintf(stderr, __FILE__": pa_simple_new() failed: %s\n", 
+    pa_strerror(error));
+    goto finish;
+  }
+
+  for (;;) {
+    
+    pa_usec_t latency;
+    if ((latency = pa_simple_get_latency(s, &error)) == (pa_usec_t) -1) {
+      fprintf(stderr, __FILE__": pa_simple_get_latency() failed: %s\n", 
+	      pa_strerror(error));
+      goto finish;
+    }
+    fprintf(stderr, "%f sec    \n", ((float)latency)/1000000.0);
+    
+    gettimeofday(&tv, NULL);
+    double now = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0));
+    printf("diff %f\n", framenow - prevnow);
+    prevnow = framenow;
+    //now += (latency / 1000000);
+    for (int i=0; i < FRAMES; ++i) {
+      double framenow = now + (samplelength * (double) i);
+  //printf("framenow %f prevnow %f", framenow, prevnow);
+      playback(buf, i, framenow);
+      //printf("now %f\n", framenow);
+      for (int j=0; j < g_num_channels; ++j) {
+	interlaced[g_num_channels*i+j] = buf[j][i];
+      }
+      dequeue(framenow);
+    }
+    
+    if (pa_simple_write(s, interlaced, sizeof(interlaced), &error) < 0) {
+      fprintf(stderr, __FILE__": pa_simple_write() failed: %s\n", pa_strerror(error));
+      goto finish;
+    }
+  }
+  /* Make sure that every single sample was played */
+  if (pa_simple_drain(s, &error) < 0) {
+    fprintf(stderr, __FILE__": pa_simple_drain() failed: %s\n", pa_strerror(error));
+    goto finish;
+  }
+  //    ret = 0;
+ finish:
+  if (s)
+    pa_simple_free(s);
+  //    return ret;
+}
+
 #else
 
 
@@ -948,22 +1024,20 @@ static int pa_callback(const void *inputBuffer, void *outputBuffer,
 		       void *userData) {
   
   struct timeval tv;
-  
+
   if (epochOffset == 0) {
     gettimeofday(&tv, NULL);
     epochOffset = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0))
       - timeInfo->outputBufferDacTime;
-    printf("set offset (%f - %f) to %f\n", ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0))
-	   , timeInfo->outputBufferDacTime, epochOffset);
+    /* printf("set offset (%f - %f) to %f\n", ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0))
+       , timeInfo->outputBufferDacTime, epochOffset); */
   }
-
   double now = timeInfo->outputBufferDacTime;
 
   float **buffers = (float **) outputBuffer;
 
   for (int i=0; i < framesPerBuffer; ++i) {
     double framenow = now + (((double) i)/((double) samplerate));
-    //printf("i: %d %f\n", i, framenow);
     playback(buffers, i, framenow);
     dequeue(framenow);
   }
@@ -1015,6 +1089,11 @@ void audio_pause_input(int paused) {
 void jack_init(bool autoconnect) {
   jack_client = jack_start(jack_callback, autoconnect);
   samplerate = jack_get_sample_rate(jack_client);
+}
+#elif PULSE
+void pulse_init() {
+  //  pulse = pa_threaded_mainloop_new();
+  //  pa_threaded_mainloop_set_name(pulse, "dirt");
 }
 #else
 
@@ -1120,10 +1199,15 @@ extern void audio_init(bool dirty_compressor, bool autoconnect) {
   pthread_mutex_init(&queue_waiting_lock, NULL);
 #ifdef JACK
   jack_init(autoconnect);
+#elif PULSE
+  samplerate = 44100;
+  pthread_t t;
+  pthread_create(&t, NULL, (void *(*)(void *)) run_pulse, NULL);
+  //sleep(1);
 #else
   pa_init();
 #endif
-printf("hm.\n");
+  printf("hm. %d\n", samplerate);
   compression_speed = 1000 / samplerate;
   file_set_samplerate(samplerate);
 
