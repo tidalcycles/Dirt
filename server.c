@@ -126,9 +126,8 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   float bandf = argc > (22+poffset) ? argv[22+poffset]->f : 0;
   float bandq = argc > (23+poffset) ? argv[23+poffset]->f : 0;
 
-  char *unit_name = argc > (24+poffset) ? strdup((char *) argv[24+poffset]) : 0;
-  //float stretchTo = argc > (24+poffset) ? argv[24+poffset]->f : 0;
-  //float matchcps = argc > (25+poffset) ? argv[25+poffset]->f : 0;
+  char *unit_name = argc > (24+poffset) ? (char *) argv[24+poffset] : "r";
+
   if (argc > 25+poffset) {
     printf("play server unexpectedly received extra parameters, maybe update Dirt?\n");
   }
@@ -144,11 +143,14 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   }
   //printf("vowel: %s num: %d\n", vowel_s, vowelnum);
 
-  int unitnum = -1;
+  int unit = -1;
   switch(unit_name[0]) {
-     case 'r': case 'R': unitnum = 0; break;
-     case 's': case 'S': unitnum = 1; break;
-     case 'c': case 'C': unitnum = 2; break;
+     // rate
+     case 'r': case 'R': unit = 'r'; break;
+     // sec
+     case 's': case 'S': unit = 's'; break;
+     // cycle
+     case 'c': case 'C': unit = 'c'; break;
   }
 
   audio_play(when,
@@ -177,7 +179,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
              hresonance,
              bandf,
              bandq,
-             unitnum
+             unit
              );
   free(sample_name);
   return 0;
@@ -199,17 +201,12 @@ void *zmqthread(void *data){
 		       NULL
 		       );
 
+  lo_server_add_method(s, "/play", "iisffffffsffffififfffifff",
+		       play_handler, 
+		       NULL
+		       );
+
   lo_server_add_method(s, "/play", "iisffffffsffffififff",
-		       play_handler, 
-		       NULL
-		       );
-
-  lo_server_add_method(s, "/play", "iisffffffsffffifi",
-		       play_handler, 
-		       NULL
-		       );
-
-  lo_server_add_method(s, "/play", "iisffffffsffffi",
 		       play_handler, 
 		       NULL
 		       );
