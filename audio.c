@@ -976,7 +976,6 @@ extern int jack_callback(int frames, float *input, float **outputs) {
 
 void run_pulse() {
   #define FRAMES 64
-  static double prevnow = 0;
   struct timeval tv;
   double samplelength = (((double) 1)/((double) samplerate));
 
@@ -1009,18 +1008,14 @@ void run_pulse() {
 	      pa_strerror(error));
       goto finish;
     }
-    fprintf(stderr, "%f sec    \n", ((float)latency)/1000000.0);
+    //fprintf(stderr, "%f sec    \n", ((float)latency)/1000000.0);
     
     gettimeofday(&tv, NULL);
     double now = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0));
-    printf("diff %f\n", framenow - prevnow);
-    prevnow = framenow;
-    //now += (latency / 1000000);
+
     for (int i=0; i < FRAMES; ++i) {
       double framenow = now + (samplelength * (double) i);
-  //printf("framenow %f prevnow %f", framenow, prevnow);
       playback(buf, i, framenow);
-      //printf("now %f\n", framenow);
       for (int j=0; j < g_num_channels; ++j) {
 	interlaced[g_num_channels*i+j] = buf[j][i];
       }
