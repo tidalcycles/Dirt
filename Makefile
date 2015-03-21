@@ -1,8 +1,10 @@
 CC=gcc
 
-
 CFLAGS += -g -I/usr/local/include -Wall -O3 -std=gnu99
 LDFLAGS += -lm -L/usr/local/lib -llo -lsndfile -lsamplerate
+
+SOURCES=dirt.c common.c audio.c file.c server.c jobqueue.c
+OBJECTS=$(SOURCES:.c=.o)
 
 dirt: CFLAGS += -DJACK -DSCALEPAN
 dirt: LDFLAGS += -ljack
@@ -13,20 +15,18 @@ all: dirt
 clean:
 	rm -f *.o *~ dirt dirt-analyse
 
-dirt: dirt.o common.o jack.o audio.o file.o server.o  Makefile
-	$(CC) dirt.o common.o jack.o audio.o file.o server.o $(CFLAGS) $(LDFLAGS) -o dirt
+dirt: $(OBJECTS) jack.o Makefile
+	$(CC) $(OBJECTS) jack.o $(CFLAGS) $(LDFLAGS) -o $@
 
-dirt-pa: dirt.o common.o audio.o file.o server.o  Makefile
-	$(CC) dirt.o common.o audio.o file.o server.o $(CFLAGS) $(LDFLAGS) -o dirt-pa
+dirt-pa: $(OBJECTS) Makefile
+	$(CC) $(OBJECTS) $(CFLAGS) $(LDFLAGS) -o $@
 
-dirt-analyse: dirt.o common.o jack.o audio.o file.o server.o pitch.o Makefile
-	$(CC) dirt.o common.o jack.o audio.o file.o server.o pitch.o $(CFLAGS) $(LDFLAGS) -o dirt-analyse
+dirt-analyse: $(OBJECTS) jack.o pitch.o Makefile
+	$(CC) $(OBJECTS) jack.o pitch.o $(CFLAGS) $(LDFLAGS) -o $@
 
-test : test.c Makefile
+test: test.c Makefile
 	$(CC) test.c -llo -o test
 
 install: dirt
 	install -d $(DESTDIR)/bin/
 	install -m 0755 dirt $(DESTDIR)/bin/dirt
-
-
