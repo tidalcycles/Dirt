@@ -12,6 +12,7 @@ static int dirty_compressor_flag = 1;
 #ifdef JACK
 static int jack_auto_connect_flag = 1;
 #endif
+static int late_trigger_flag = 1;
 
 
 int main (int argc, char **argv) {
@@ -34,6 +35,8 @@ int main (int argc, char **argv) {
       {"jack-auto-connect",     no_argument, &jack_auto_connect_flag, 1},
       {"no-jack-auto-connect",  no_argument, &jack_auto_connect_flag, 0},
 #endif
+      {"late-trigger",          no_argument, &late_trigger_flag, 1},
+      {"no-late-trigger",       no_argument, &late_trigger_flag, 0},
 
       {"version", no_argument, 0, 'v'},
       {"help",    no_argument, 0, 'h'},
@@ -77,6 +80,8 @@ int main (int argc, char **argv) {
                "      --jack-auto-connect         automatically connect to writable clients (default)\n"
                "      --no-jack-auto-connect      do not connect to writable clients  \n"
 #endif
+               "      --late-trigger              enable sample retrigger after loading (default)\n"
+               "      --no-late-trigger           disable sample retrigger after loading\n"
                "  -h, --help                      display this help and exit\n"
                "  -v, --version                   output version information and exit\n",
                OSC_PORT, DEFAULT_CHANNELS);
@@ -112,11 +117,15 @@ int main (int argc, char **argv) {
   }
 #endif
 
+  if (!late_trigger_flag) {
+    fprintf(stderr, "late trigger disabled\n");
+  }
+
   fprintf(stderr, "init audio\n");
 #ifdef JACK
-  audio_init(dirty_compressor_flag, jack_auto_connect_flag);
+  audio_init(dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag);
 #else
-  audio_init(dirty_compressor_flag, true);
+  audio_init(dirty_compressor_flag, true, late_trigger_flag);
 #endif
 
   fprintf(stderr, "init open sound control\n");

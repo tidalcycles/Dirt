@@ -8,6 +8,7 @@
 
 #include "common.h"
 #include "config.h"
+#include "thpool.h"
 
 #ifdef JACK
 #include "jack.h"
@@ -29,6 +30,7 @@ PaStream *stream;
 #define HALF_PI 1.5707963267948966
 
 pthread_mutex_t queue_waiting_lock;
+pthread_mutex_t mutex_sounds;
 
 t_sound *waiting = NULL;
 t_sound *playing = NULL;
@@ -53,6 +55,31 @@ float delay_time = 0.1;
 float delay_feedback = 0.7;
 
 bool use_dirty_compressor = false;
+bool use_late_trigger = false;
+
+const int READ_FILE_POOL_SIZE = 4;
+thpool_t* read_file_pool;
+
+typedef struct {
+  char* samplename;
+  t_play_args* play_args;
+} read_file_args_t;
+
+
+static t_play_args* copy_play_args(const t_play_args* orig_args);
+static void free_play_args(t_play_args* args);
+
+
+void read_file_func(void* raw_args) {
+  read_file_args_t* args = raw_args;
+  file_get(args->samplename);
+  if (args->play_args) {
+    audio_play(args->play_args);
+    free_play_args(args->play_args);
+  }
+  free(args->samplename);
+  free(args);
+}
 
 
 int queue_size(t_sound *queue) {
@@ -404,6 +431,7 @@ extern void audio_kriole(double when,
 
 t_sound *new_sound() {
   t_sound *result = NULL;
+  pthread_mutex_lock(&mutex_sounds);
   for (int i = 0; i < MAXSOUNDS; ++i) {
     if (sounds[i].active == 0) {
       result = &sounds[i];
@@ -415,10 +443,9 @@ t_sound *new_sound() {
       break;
     }
   }
+  pthread_mutex_unlock(&mutex_sounds);
   return(result);
 }
-
-
 
 
 extern int audio_play(t_play_args* a) {
@@ -434,9 +461,23 @@ extern int audio_play(t_play_args* a) {
   }
   else {
 #endif
-    sample = file_get(a->samplename);
+    sample = file_get_from_cache(a->samplename);
 
     if (sample == NULL) {
+      printf("add_job('%s')\n", a->samplename);
+
+      read_file_args_t* args = malloc(sizeof(read_file_args_t));
+      if (!args) {
+        fprintf(stderr, "audio_play: Could not allocate memory for read_file_args_t\n");
+        return 0;
+      }
+      args->samplename = strdup(a->samplename);
+      args->play_args = use_late_trigger ? copy_play_args(a) : NULL;
+
+      if (!thpool_add_job(read_file_pool, (void*) read_file_func, (void*) args)) {
+        fprintf(stderr, "audio_play: Could not add file reading job for '%s'\n", a->samplename);
+      }
+
       return 0;
     }
 #ifdef FEEDBACK
@@ -1202,7 +1243,7 @@ error:
 }
 #endif
 
-extern void audio_init(bool dirty_compressor, bool autoconnect) {
+extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger) {
   struct timeval tv;
 
   atexit(audio_close);
@@ -1220,6 +1261,14 @@ extern void audio_init(bool dirty_compressor, bool autoconnect) {
   }
 
   pthread_mutex_init(&queue_waiting_lock, NULL);
+  pthread_mutex_init(&mutex_sounds, NULL);
+
+  read_file_pool = thpool_init(READ_FILE_POOL_SIZE);
+  if (!read_file_pool) {
+    fprintf(stderr, "could not initialize `read_file_pool'\n");
+    exit(1);
+  }
+
 #ifdef JACK
   jack_init(autoconnect);
 #elif PULSE
@@ -1239,6 +1288,7 @@ extern void audio_init(bool dirty_compressor, bool autoconnect) {
 #endif
 
   use_dirty_compressor = dirty_compressor;
+  use_late_trigger = late_trigger;
 }
 
 extern void audio_close(void) {
@@ -1246,8 +1296,10 @@ extern void audio_close(void) {
   free_loop(loop);
 #endif
   if (delays) free(delays);
+  if (read_file_pool) thpool_destroy(read_file_pool);
 
   // free all active sounds, if any
+  pthread_mutex_lock(&mutex_sounds);
   for (int i = 0; i < MAXSOUNDS; ++i) {
     if (sounds[i].active) {
       free_vcf(&sounds[i]);
@@ -1256,4 +1308,22 @@ extern void audio_close(void) {
       free_formant_history(&sounds[i]);
     }
   }
+  pthread_mutex_unlock(&mutex_sounds);
+}
+
+
+static t_play_args* copy_play_args(const t_play_args* orig_args) {
+  t_play_args* args = malloc(sizeof(t_play_args));
+  if (args == NULL) {
+    fprintf(stderr, "no memory to allocate play arguments struct\n");
+    return NULL;
+  }
+  memcpy(args, orig_args, sizeof(t_play_args));
+  args->samplename = strdup(orig_args->samplename);
+  return args;
+}
+
+static void free_play_args(t_play_args* args) {
+  free(args->samplename);
+  free(args);
 }
