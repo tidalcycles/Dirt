@@ -3,7 +3,7 @@ CC=gcc
 CFLAGS += -g -I/usr/local/include -Wall -O3 -std=gnu99
 LDFLAGS += -lm -L/usr/local/lib -llo -lsndfile -lsamplerate
 
-SOURCES=dirt.c common.c audio.c file.c server.c jobqueue.c
+SOURCES=dirt.c common.c audio.c file.c server.c jobqueue.c thpool.c
 OBJECTS=$(SOURCES:.c=.o)
 
 dirt: CFLAGS += -DJACK -DSCALEPAN
