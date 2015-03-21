@@ -26,7 +26,7 @@ bool jobqueue_push (jobqueue_t* q, job_t j);
 bool jobqueue_is_empty(const jobqueue_t* q);
 
 // Returns a reference to the job at the top of the queue
-job_t* jobqueue_top (const jobqueue_t* q);
+job_t* jobqueue_top (jobqueue_t* q);
 
 // Removes top job and returns a copy of it
 //
