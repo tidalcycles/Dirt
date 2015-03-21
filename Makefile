@@ -1,7 +1,7 @@
 CC=gcc
 
 CFLAGS += -g -I/usr/local/include -Wall -O3 -std=gnu99
-LDFLAGS += -lm -L/usr/local/lib -llo -lsndfile -lsamplerate
+LDFLAGS += -lm -L/usr/local/lib -llo -lsndfile -lsamplerate -lpthread
 
 SOURCES=dirt.c common.c audio.c file.c server.c jobqueue.c thpool.c
 OBJECTS=$(SOURCES:.c=.o)
