@@ -57,7 +57,6 @@ float delay_feedback = 0.7;
 bool use_dirty_compressor = false;
 bool use_late_trigger = false;
 
-const int READ_FILE_POOL_SIZE = 4;
 thpool_t* read_file_pool;
 
 typedef struct {
@@ -1255,7 +1254,7 @@ error:
 }
 #endif
 
-extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger) {
+extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers) {
   struct timeval tv;
 
   atexit(audio_close);
@@ -1275,7 +1274,7 @@ extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigge
   pthread_mutex_init(&queue_waiting_lock, NULL);
   pthread_mutex_init(&mutex_sounds, NULL);
 
-  read_file_pool = thpool_init(READ_FILE_POOL_SIZE);
+  read_file_pool = thpool_init(num_workers);
   if (!read_file_pool) {
     fprintf(stderr, "could not initialize `read_file_pool'\n");
     exit(1);
@@ -1344,18 +1343,18 @@ static void free_play_args(t_play_args* args) {
 }
 
 static void init_samples_loading() {
-  samples_loading = malloc(sizeof(char*) * READ_FILE_POOL_SIZE);
+  samples_loading = malloc(sizeof(char*) * thpool_size(read_file_pool));
   if (!samples_loading) {
     fprintf(stderr, "no memory to allocate `samples_loading'\n");
     exit(1);
   }
-  for (int i = 0; i < READ_FILE_POOL_SIZE; i++) {
+  for (int i = 0; i < thpool_size(read_file_pool); i++) {
     samples_loading[i] = NULL;
   }
 }
 
 static bool is_sample_loading(const char* samplename) {
-  for (int i = 0; i < READ_FILE_POOL_SIZE; i++) {
+  for (int i = 0; i < thpool_size(read_file_pool); i++) {
     if (samples_loading[i] != NULL && strcmp(samples_loading[i], samplename) == 0) {
       return true;
     }
@@ -1365,7 +1364,7 @@ static bool is_sample_loading(const char* samplename) {
 
 static void mark_as_loading(const char* samplename) {
   int i;
-  for (i = 0; i < READ_FILE_POOL_SIZE; i++) {
+  for (i = 0; i < thpool_size(read_file_pool); i++) {
     if (samples_loading[i] == NULL) break;
   }
   samples_loading[i] = strdup(samplename);
@@ -1373,7 +1372,7 @@ static void mark_as_loading(const char* samplename) {
 
 static void unmark_as_loading(const char* samplename) {
   int i;
-  for (i = 0; i < READ_FILE_POOL_SIZE; i++) {
+  for (i = 0; i < thpool_size(read_file_pool); i++) {
     const char* sn = samples_loading[i];
     if (sn != NULL && strcmp(sn, samplename) == 0) break;
   }

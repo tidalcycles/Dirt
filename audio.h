@@ -128,7 +128,7 @@ typedef struct {
 
 
 extern int audio_callback(int frames, float *input, float **outputs);
-extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger);
+extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers);
 extern void audio_close(void);
 extern int audio_play(t_play_args*);
 
