@@ -418,72 +418,70 @@ t_sound *new_sound() {
   return(result);
 }
 
-extern int audio_play(double when, float cps, char *samplename, float offset, float
-      start, float end, float speed, float pan, float velocity, int vowelnum,
-      float cutoff, float resonance, float accelerate, float shape, int
-      kriole_chunk, float gain, int cutgroup, float delay, float delaytime,
-      float delayfeedback, float crush, int coarse, float hcutoff, float
-      hresonance, float bandf, float bandq, char unit) {
-  struct timeval tv;
+
+
+
+extern int audio_play(t_play_args* a) {
 #ifdef FEEDBACK
   int is_kriole = 0;
 #endif
+
   t_sample *sample = NULL;
-  t_sound *new;
-  
-  gettimeofday(&tv, NULL);
-
-  if (delay > 1) {
-    delay = 1;
-  }
-
-  if (delaytime > 1) {
-    delaytime = 1;
-  }
-
-  if (delayfeedback >= 1) {
-    delayfeedback = 0.9999;
-  }
-  if (delayfeedback < 0) {
-    delayfeedback = 0;
-  }
-
 
 #ifdef FEEDBACK
-  if (strcmp(samplename, "kriole") == 0) {
+  if (strcmp(a->samplename, "kriole") == 0) {
     is_kriole = 1;
   }
   else {
 #endif
-    sample = file_get(samplename);
+    sample = file_get(a->samplename);
+
     if (sample == NULL) {
-      return(0);
+      return 0;
     }
 #ifdef FEEDBACK
   }
 #endif
-  
+
+  t_sound *new;
+
+  if (a->delay > 1) {
+    a->delay = 1;
+  }
+
+  if (a->delaytime > 1) {
+    a->delaytime = 1;
+  }
+
+  if (a->delayfeedback >= 1) {
+    a->delayfeedback = 0.9999;
+  }
+
+  if (a->delayfeedback < 0) {
+    a->delayfeedback = 0;
+  }
+
   new = new_sound();
   if (new == NULL) {
     printf("hit max sounds (%d)\n", MAXSOUNDS);
     return(-1);
   }
-  
+
   new->active = 1;
-  //printf("samplename: %s when: %f\n", samplename, when);
-  strncpy(new->samplename, samplename, MAXPATHSIZE);
+  //printf("samplename: %s when: %f\n", a->samplename, a->when);
+  strncpy(new->samplename, a->samplename, MAXPATHSIZE);
   
 #ifdef FEEDBACK
   if (is_kriole) {
     new->loop    = loop;
-    //printf("calculating chunk %d\n", kriole_chunk);
-    new->kriole_chunk = kriole_chunk;
+    //printf("calculating chunk %d\n", a->kriole_chunk);
+    new->kriole_chunk = a->kriole_chunk;
     
     //printf("now %d\n", loop->now);
     //printf("since_chunk %d\n", loop->since_chunk);
     int last_chunk_start = (loop->now - loop->since_chunk);
     //printf("last_chunk_start %d\n", last_chunk_start);
-    int chunks_back = loop->chunk_n - kriole_chunk;
+    int chunks_back = loop->chunk_n - a->kriole_chunk;
     //printf("chunks_back %d\n", chunks_back);
     int samples_back = (chunks_back * loop->chunksz);
     //printf("samples_back %d\n", samples_back);
@@ -491,7 +489,7 @@ extern int audio_play(double when, float cps, char *samplename, float offset, fl
     //printf("unmodded %d\n", unmodded);
     int modded = unmodded % loop->frames;
     //printf("modded %d\n", modded);
-    new->start = modded;
+    new->start = a->modded;
     new->end      = new->start + loop->chunksz;
     new->items    = loop->items;
     new->channels = 1;
@@ -512,27 +510,27 @@ extern int audio_play(double when, float cps, char *samplename, float offset, fl
 
 #ifdef JACK
   new->startT = 
-    jack_time_to_frames(jack_client, ((when-epochOffset) * 1000000));
+    jack_time_to_frames(jack_client, ((a->when-epochOffset) * 1000000));
 # else
-  new->startT = when - epochOffset;
+  new->startT = a->when - epochOffset;
 #endif
 
-  if (unit == 's') { // unit = "sec"
-    accelerate = accelerate / speed; // change rate by 1 per specified duration
-    speed = sample->info->frames / speed / samplerate;
+  if (a->unit == 's') { // unit = "sec"
+    a->accelerate = a->accelerate / a->speed; // change rate by 1 per specified duration
+    a->speed = sample->info->frames / a->speed / samplerate;
   }
-  else if (unit == 'c') { // unit = "cps"
-    accelerate = accelerate * speed * cps; // change rate by 1 per cycle
-    speed = sample->info->frames * speed * cps / samplerate;
+  else if (a->unit == 'c') { // unit = "cps"
+    a->accelerate = a->accelerate * a->speed * a->cps; // change rate by 1 per cycle
+    a->speed = sample->info->frames * a->speed * a->cps / samplerate;
   }
   // otherwise, unit is rate/ratio, 
   // i.e. 2 = twice as fast, -1 = normal but backwards
    
   new->next = NULL;
   new->prev = NULL;
-  new->reverse  = speed < 0;
-  new->speed    = fabsf(speed);
-  new->pan      = pan;
+  new->reverse  = a->speed < 0;
+  new->speed    = fabsf(a->speed);
+  new->pan      = a->pan;
   if (new->channels == 2 && g_num_channels == 2 && new->pan == 0.5) {
     new->pan = 0;
   }
@@ -547,30 +545,30 @@ extern int audio_play(double when, float cps, char *samplename, float offset, fl
     new->pan *= (float) g_num_channels;
   }
 #endif
-  new->velocity = velocity;
+  new->velocity = a->velocity;
 
   init_formant_history(new);
   
-  new->offset = offset;
+  new->offset = a->offset;
 
-  new->cutoff = cutoff;
-  new->hcutoff = hcutoff;
-  new->resonance = resonance;
-  new->hresonance = hresonance;
-  new->bandf = bandf;
-  new->bandq = bandq;
-  new->cutgroup = cutgroup;
+  new->cutoff = a->cutoff;
+  new->hcutoff = a->hcutoff;
+  new->resonance = a->resonance;
+  new->hresonance = a->hresonance;
+  new->bandf = a->bandf;
+  new->bandq = a->bandq;
+  new->cutgroup = a->cutgroup;
 
-  if (shape != 0) {
+  if (a->shape != 0) {
     new->shape = 1;
-    new->shape_k = (2.0f * shape) / (1.0f - shape);
+    new->shape_k = (2.0f * a->shape) / (1.0f - a->shape);
   }
-  if (crush != 0) {
-     new->crush = (crush > 0) ? 1 : -1;
-     new->crush_bits = fabsf(crush);
+  if (a->crush != 0) {
+     new->crush = (a->crush > 0) ? 1 : -1;
+     new->crush_bits = fabsf(a->crush);
   }
-  if (coarse != 0) {
-     new->coarse = coarse;
+  if (a->coarse != 0) {
+     new->coarse = a->coarse;
      new->coarse_ind = 0;
      new->coarse_last = 0;
   }
@@ -579,31 +577,31 @@ extern int audio_play(double when, float cps, char *samplename, float offset, fl
   init_hpf(new);
   init_bpf(new);
 
-  new->accelerate = accelerate;
-  new->delay = delay;
+  new->accelerate = a->accelerate;
+  new->delay = a->delay;
 
-  if (delaytime >= 0) {
-    delay_time = delaytime;
+  if (a->delaytime >= 0) {
+    delay_time = a->delaytime;
   }
   if (delay_feedback >= 0) {
-    delay_feedback = delayfeedback;
+    delay_feedback = a->delayfeedback;
   }
 
   if (new->reverse) {
     float tmp;
-    tmp = start;
-    start = 1 - end;
-    end = 1 - tmp;
+    tmp = a->start;
+    a->start = 1 - a->end;
+    a->end = 1 - tmp;
   }
 
 
   //printf("frames: %f\n", new->end);
-  if (start > 0 && start <= 1) {
-    new->start = start * new->end;
+  if (a->start > 0 && a->start <= 1) {
+    new->start = a->start * new->end;
   }
   
-  if (end > 0 && end < 1) {
-    new->end *= end;
+  if (a->end > 0 && a->end < 1) {
+    new->end *= a->end;
   }
 
   /*  if (new->speed < 0) {
@@ -615,14 +613,14 @@ extern int audio_play(double when, float cps, char *samplename, float offset, fl
   */
   new->position = new->start;
   //printf("position: %f\n", new->position);
-  new->formant_vowelnum = vowelnum;
-  new->gain = powf(gain/2, 4);
-  
+  new->formant_vowelnum = a->vowelnum;
+  new->gain = powf(a->gain/2, 4);
+
   pthread_mutex_lock(&queue_waiting_lock);
   queue_add(&waiting, new);
   //printf("added: %d\n", waiting != NULL);
   pthread_mutex_unlock(&queue_waiting_lock);
-  
+
   return(1);
 }
 
