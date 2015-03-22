@@ -65,14 +65,24 @@ typedef struct {
   t_play_args* play_args;
 } read_file_args_t;
 
+char** samples_loading;
+
 
 static t_play_args* copy_play_args(const t_play_args* orig_args);
 static void free_play_args(t_play_args* args);
 
+static void init_samples_loading();
+static bool is_sample_loading(const char* samplename);
+static void mark_as_loading(const char* samplename);
+static void unmark_as_loading(const char* samplename);
+
 
 void read_file_func(void* raw_args) {
   read_file_args_t* args = raw_args;
+
   file_get(args->samplename);
+  unmark_as_loading(args->samplename);
+
   if (args->play_args) {
     audio_play(args->play_args);
     free_play_args(args->play_args);
@@ -464,18 +474,20 @@ extern int audio_play(t_play_args* a) {
     sample = file_get_from_cache(a->samplename);
 
     if (sample == NULL) {
-      printf("add_job('%s')\n", a->samplename);
+      if (!is_sample_loading(a->samplename)) {
+        mark_as_loading(a->samplename);
 
-      read_file_args_t* args = malloc(sizeof(read_file_args_t));
-      if (!args) {
-        fprintf(stderr, "audio_play: Could not allocate memory for read_file_args_t\n");
-        return 0;
-      }
-      args->samplename = strdup(a->samplename);
-      args->play_args = use_late_trigger ? copy_play_args(a) : NULL;
+        read_file_args_t* args = malloc(sizeof(read_file_args_t));
+        if (!args) {
+          fprintf(stderr, "audio_play: Could not allocate memory for read_file_args_t\n");
+          return 0;
+        }
+        args->samplename = strdup(a->samplename);
+        args->play_args = use_late_trigger ? copy_play_args(a) : NULL;
 
-      if (!thpool_add_job(read_file_pool, (void*) read_file_func, (void*) args)) {
-        fprintf(stderr, "audio_play: Could not add file reading job for '%s'\n", a->samplename);
+        if (!thpool_add_job(read_file_pool, (void*) read_file_func, (void*) args)) {
+          fprintf(stderr, "audio_play: Could not add file reading job for '%s'\n", a->samplename);
+        }
       }
 
       return 0;
@@ -1269,6 +1281,8 @@ extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigge
     exit(1);
   }
 
+  init_samples_loading();
+
 #ifdef JACK
   jack_init(autoconnect);
 #elif PULSE
@@ -1297,6 +1311,7 @@ extern void audio_close(void) {
 #endif
   if (delays) free(delays);
   if (read_file_pool) thpool_destroy(read_file_pool);
+  if (samples_loading) free(samples_loading);
 
   // free all active sounds, if any
   pthread_mutex_lock(&mutex_sounds);
@@ -1326,4 +1341,42 @@ static t_play_args* copy_play_args(const t_play_args* orig_args) {
 static void free_play_args(t_play_args* args) {
   free(args->samplename);
   free(args);
+}
+
+static void init_samples_loading() {
+  samples_loading = malloc(sizeof(char*) * READ_FILE_POOL_SIZE);
+  if (!samples_loading) {
+    fprintf(stderr, "no memory to allocate `samples_loading'\n");
+    exit(1);
+  }
+  for (int i = 0; i < READ_FILE_POOL_SIZE; i++) {
+    samples_loading[i] = NULL;
+  }
+}
+
+static bool is_sample_loading(const char* samplename) {
+  for (int i = 0; i < READ_FILE_POOL_SIZE; i++) {
+    if (samples_loading[i] != NULL && strcmp(samples_loading[i], samplename) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static void mark_as_loading(const char* samplename) {
+  int i;
+  for (i = 0; i < READ_FILE_POOL_SIZE; i++) {
+    if (samples_loading[i] == NULL) break;
+  }
+  samples_loading[i] = strdup(samplename);
+}
+
+static void unmark_as_loading(const char* samplename) {
+  int i;
+  for (i = 0; i < READ_FILE_POOL_SIZE; i++) {
+    const char* sn = samples_loading[i];
+    if (sn != NULL && strcmp(sn, samplename) == 0) break;
+  }
+  free(samples_loading[i]);
+  samples_loading[i] = NULL;
 }
