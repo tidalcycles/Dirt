@@ -8,6 +8,7 @@
 
 #include "common.h"
 #include "config.h"
+#include "thpool.h"
 
 #ifdef JACK
 #include "jack.h"
@@ -29,6 +30,7 @@ PaStream *stream;
 #define HALF_PI 1.5707963267948966
 
 pthread_mutex_t queue_waiting_lock;
+pthread_mutex_t mutex_sounds;
 
 t_sound *waiting = NULL;
 t_sound *playing = NULL;
@@ -53,6 +55,40 @@ float delay_time = 0.1;
 float delay_feedback = 0.7;
 
 bool use_dirty_compressor = false;
+bool use_late_trigger = false;
+
+thpool_t* read_file_pool;
+
+typedef struct {
+  char* samplename;
+  t_play_args* play_args;
+} read_file_args_t;
+
+char** samples_loading;
+
+
+static t_play_args* copy_play_args(const t_play_args* orig_args);
+static void free_play_args(t_play_args* args);
+
+static void init_samples_loading();
+static bool is_sample_loading(const char* samplename);
+static void mark_as_loading(const char* samplename);
+static void unmark_as_loading(const char* samplename);
+
+
+void read_file_func(void* raw_args) {
+  read_file_args_t* args = raw_args;
+
+  file_get(args->samplename);
+  unmark_as_loading(args->samplename);
+
+  if (args->play_args) {
+    audio_play(args->play_args);
+    free_play_args(args->play_args);
+  }
+  free(args->samplename);
+  free(args);
+}
 
 
 int queue_size(t_sound *queue) {
@@ -404,6 +440,7 @@ extern void audio_kriole(double when,
 
 t_sound *new_sound() {
   t_sound *result = NULL;
+  pthread_mutex_lock(&mutex_sounds);
   for (int i = 0; i < MAXSOUNDS; ++i) {
     if (sounds[i].active == 0) {
       result = &sounds[i];
@@ -415,75 +452,88 @@ t_sound *new_sound() {
       break;
     }
   }
+  pthread_mutex_unlock(&mutex_sounds);
   return(result);
 }
 
-extern int audio_play(double when, float cps, char *samplename, float offset, float
-      start, float end, float speed, float pan, float velocity, int vowelnum,
-      float cutoff, float resonance, float accelerate, float shape, int
-      kriole_chunk, float gain, int cutgroup, float delay, float delaytime,
-      float delayfeedback, float crush, int coarse, float hcutoff, float
-      hresonance, float bandf, float bandq, char unit) {
-  struct timeval tv;
+
+extern int audio_play(t_play_args* a) {
 #ifdef FEEDBACK
   int is_kriole = 0;
 #endif
+
   t_sample *sample = NULL;
-  t_sound *new;
-  
-  gettimeofday(&tv, NULL);
-
-  if (delay > 1) {
-    delay = 1;
-  }
-
-  if (delaytime > 1) {
-    delaytime = 1;
-  }
-
-  if (delayfeedback >= 1) {
-    delayfeedback = 0.9999;
-  }
-  if (delayfeedback < 0) {
-    delayfeedback = 0;
-  }
-
 
 #ifdef FEEDBACK
-  if (strcmp(samplename, "kriole") == 0) {
+  if (strcmp(a->samplename, "kriole") == 0) {
     is_kriole = 1;
   }
   else {
 #endif
-    sample = file_get(samplename);
+    sample = file_get_from_cache(a->samplename);
+
     if (sample == NULL) {
-      return(0);
+      if (!is_sample_loading(a->samplename)) {
+        mark_as_loading(a->samplename);
+
+        read_file_args_t* args = malloc(sizeof(read_file_args_t));
+        if (!args) {
+          fprintf(stderr, "audio_play: Could not allocate memory for read_file_args_t\n");
+          return 0;
+        }
+        args->samplename = strdup(a->samplename);
+        args->play_args = use_late_trigger ? copy_play_args(a) : NULL;
+
+        if (!thpool_add_job(read_file_pool, (void*) read_file_func, (void*) args)) {
+          fprintf(stderr, "audio_play: Could not add file reading job for '%s'\n", a->samplename);
+        }
+      }
+
+      return 0;
     }
 #ifdef FEEDBACK
   }
 #endif
-  
+
+  t_sound *new;
+
+  if (a->delay > 1) {
+    a->delay = 1;
+  }
+
+  if (a->delaytime > 1) {
+    a->delaytime = 1;
+  }
+
+  if (a->delayfeedback >= 1) {
+    a->delayfeedback = 0.9999;
+  }
+
+  if (a->delayfeedback < 0) {
+    a->delayfeedback = 0;
+  }
+
   new = new_sound();
   if (new == NULL) {
     printf("hit max sounds (%d)\n", MAXSOUNDS);
     return(-1);
   }
-  
+
   new->active = 1;
-  //printf("samplename: %s when: %f\n", samplename, when);
-  strncpy(new->samplename, samplename, MAXPATHSIZE);
+  //printf("samplename: %s when: %f\n", a->samplename, a->when);
+  strncpy(new->samplename, a->samplename, MAXPATHSIZE);
   
 #ifdef FEEDBACK
   if (is_kriole) {
     new->loop    = loop;
-    //printf("calculating chunk %d\n", kriole_chunk);
-    new->kriole_chunk = kriole_chunk;
+    //printf("calculating chunk %d\n", a->kriole_chunk);
+    new->kriole_chunk = a->kriole_chunk;
     
     //printf("now %d\n", loop->now);
     //printf("since_chunk %d\n", loop->since_chunk);
     int last_chunk_start = (loop->now - loop->since_chunk);
     //printf("last_chunk_start %d\n", last_chunk_start);
-    int chunks_back = loop->chunk_n - kriole_chunk;
+    int chunks_back = loop->chunk_n - a->kriole_chunk;
     //printf("chunks_back %d\n", chunks_back);
     int samples_back = (chunks_back * loop->chunksz);
     //printf("samples_back %d\n", samples_back);
@@ -491,7 +541,7 @@ extern int audio_play(double when, float cps, char *samplename, float offset, fl
     //printf("unmodded %d\n", unmodded);
     int modded = unmodded % loop->frames;
     //printf("modded %d\n", modded);
-    new->start = modded;
+    new->start = a->modded;
     new->end      = new->start + loop->chunksz;
     new->items    = loop->items;
     new->channels = 1;
@@ -512,27 +562,27 @@ extern int audio_play(double when, float cps, char *samplename, float offset, fl
 
 #ifdef JACK
   new->startT = 
-    jack_time_to_frames(jack_client, ((when-epochOffset) * 1000000));
+    jack_time_to_frames(jack_client, ((a->when-epochOffset) * 1000000));
 # else
-  new->startT = when - epochOffset;
+  new->startT = a->when - epochOffset;
 #endif
 
-  if (unit == 's') { // unit = "sec"
-    accelerate = accelerate / speed; // change rate by 1 per specified duration
-    speed = sample->info->frames / speed / samplerate;
+  if (a->unit == 's') { // unit = "sec"
+    a->accelerate = a->accelerate / a->speed; // change rate by 1 per specified duration
+    a->speed = sample->info->frames / a->speed / samplerate;
   }
-  else if (unit == 'c') { // unit = "cps"
-    accelerate = accelerate * speed * cps; // change rate by 1 per cycle
-    speed = sample->info->frames * speed * cps / samplerate;
+  else if (a->unit == 'c') { // unit = "cps"
+    a->accelerate = a->accelerate * a->speed * a->cps; // change rate by 1 per cycle
+    a->speed = sample->info->frames * a->speed * a->cps / samplerate;
   }
   // otherwise, unit is rate/ratio, 
   // i.e. 2 = twice as fast, -1 = normal but backwards
    
   new->next = NULL;
   new->prev = NULL;
-  new->reverse  = speed < 0;
-  new->speed    = fabsf(speed);
-  new->pan      = pan;
+  new->reverse  = a->speed < 0;
+  new->speed    = fabsf(a->speed);
+  new->pan      = a->pan;
   if (new->channels == 2 && g_num_channels == 2 && new->pan == 0.5) {
     new->pan = 0;
   }
@@ -547,30 +597,30 @@ extern int audio_play(double when, float cps, char *samplename, float offset, fl
     new->pan *= (float) g_num_channels;
   }
 #endif
-  new->velocity = velocity;
+  new->velocity = a->velocity;
 
   init_formant_history(new);
   
-  new->offset = offset;
+  new->offset = a->offset;
 
-  new->cutoff = cutoff;
-  new->hcutoff = hcutoff;
-  new->resonance = resonance;
-  new->hresonance = hresonance;
-  new->bandf = bandf;
-  new->bandq = bandq;
-  new->cutgroup = cutgroup;
+  new->cutoff = a->cutoff;
+  new->hcutoff = a->hcutoff;
+  new->resonance = a->resonance;
+  new->hresonance = a->hresonance;
+  new->bandf = a->bandf;
+  new->bandq = a->bandq;
+  new->cutgroup = a->cutgroup;
 
-  if (shape != 0) {
+  if (a->shape != 0) {
     new->shape = 1;
-    new->shape_k = (2.0f * shape) / (1.0f - shape);
+    new->shape_k = (2.0f * a->shape) / (1.0f - a->shape);
   }
-  if (crush != 0) {
-     new->crush = (crush > 0) ? 1 : -1;
-     new->crush_bits = fabsf(crush);
+  if (a->crush != 0) {
+     new->crush = (a->crush > 0) ? 1 : -1;
+     new->crush_bits = fabsf(a->crush);
   }
-  if (coarse != 0) {
-     new->coarse = coarse;
+  if (a->coarse != 0) {
+     new->coarse = a->coarse;
      new->coarse_ind = 0;
      new->coarse_last = 0;
   }
@@ -579,31 +629,31 @@ extern int audio_play(double when, float cps, char *samplename, float offset, fl
   init_hpf(new);
   init_bpf(new);
 
-  new->accelerate = accelerate;
-  new->delay = delay;
+  new->accelerate = a->accelerate;
+  new->delay = a->delay;
 
-  if (delaytime >= 0) {
-    delay_time = delaytime;
+  if (a->delaytime >= 0) {
+    delay_time = a->delaytime;
   }
   if (delay_feedback >= 0) {
-    delay_feedback = delayfeedback;
+    delay_feedback = a->delayfeedback;
   }
 
   if (new->reverse) {
     float tmp;
-    tmp = start;
-    start = 1 - end;
-    end = 1 - tmp;
+    tmp = a->start;
+    a->start = 1 - a->end;
+    a->end = 1 - tmp;
   }
 
 
   //printf("frames: %f\n", new->end);
-  if (start > 0 && start <= 1) {
-    new->start = start * new->end;
+  if (a->start > 0 && a->start <= 1) {
+    new->start = a->start * new->end;
   }
   
-  if (end > 0 && end < 1) {
-    new->end *= end;
+  if (a->end > 0 && a->end < 1) {
+    new->end *= a->end;
   }
 
   /*  if (new->speed < 0) {
@@ -615,14 +665,14 @@ extern int audio_play(double when, float cps, char *samplename, float offset, fl
   */
   new->position = new->start;
   //printf("position: %f\n", new->position);
-  new->formant_vowelnum = vowelnum;
-  new->gain = powf(gain/2, 4);
-  
+  new->formant_vowelnum = a->vowelnum;
+  new->gain = powf(a->gain/2, 4);
+
   pthread_mutex_lock(&queue_waiting_lock);
   queue_add(&waiting, new);
   //printf("added: %d\n", waiting != NULL);
   pthread_mutex_unlock(&queue_waiting_lock);
-  
+
   return(1);
 }
 
@@ -1204,7 +1254,7 @@ error:
 }
 #endif
 
-extern void audio_init(bool dirty_compressor, bool autoconnect) {
+extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers) {
   struct timeval tv;
 
   atexit(audio_close);
@@ -1222,6 +1272,16 @@ extern void audio_init(bool dirty_compressor, bool autoconnect) {
   }
 
   pthread_mutex_init(&queue_waiting_lock, NULL);
+  pthread_mutex_init(&mutex_sounds, NULL);
+
+  read_file_pool = thpool_init(num_workers);
+  if (!read_file_pool) {
+    fprintf(stderr, "could not initialize `read_file_pool'\n");
+    exit(1);
+  }
+
+  init_samples_loading();
+
 #ifdef JACK
   jack_init(autoconnect);
 #elif PULSE
@@ -1241,6 +1301,7 @@ extern void audio_init(bool dirty_compressor, bool autoconnect) {
 #endif
 
   use_dirty_compressor = dirty_compressor;
+  use_late_trigger = late_trigger;
 }
 
 extern void audio_close(void) {
@@ -1248,8 +1309,11 @@ extern void audio_close(void) {
   free_loop(loop);
 #endif
   if (delays) free(delays);
+  if (read_file_pool) thpool_destroy(read_file_pool);
+  if (samples_loading) free(samples_loading);
 
   // free all active sounds, if any
+  pthread_mutex_lock(&mutex_sounds);
   for (int i = 0; i < MAXSOUNDS; ++i) {
     if (sounds[i].active) {
       free_vcf(&sounds[i]);
@@ -1258,4 +1322,60 @@ extern void audio_close(void) {
       free_formant_history(&sounds[i]);
     }
   }
+  pthread_mutex_unlock(&mutex_sounds);
+}
+
+
+static t_play_args* copy_play_args(const t_play_args* orig_args) {
+  t_play_args* args = malloc(sizeof(t_play_args));
+  if (args == NULL) {
+    fprintf(stderr, "no memory to allocate play arguments struct\n");
+    return NULL;
+  }
+  memcpy(args, orig_args, sizeof(t_play_args));
+  args->samplename = strdup(orig_args->samplename);
+  return args;
+}
+
+static void free_play_args(t_play_args* args) {
+  free(args->samplename);
+  free(args);
+}
+
+static void init_samples_loading() {
+  samples_loading = malloc(sizeof(char*) * thpool_size(read_file_pool));
+  if (!samples_loading) {
+    fprintf(stderr, "no memory to allocate `samples_loading'\n");
+    exit(1);
+  }
+  for (int i = 0; i < thpool_size(read_file_pool); i++) {
+    samples_loading[i] = NULL;
+  }
+}
+
+static bool is_sample_loading(const char* samplename) {
+  for (int i = 0; i < thpool_size(read_file_pool); i++) {
+    if (samples_loading[i] != NULL && strcmp(samples_loading[i], samplename) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static void mark_as_loading(const char* samplename) {
+  int i;
+  for (i = 0; i < thpool_size(read_file_pool); i++) {
+    if (samples_loading[i] == NULL) break;
+  }
+  samples_loading[i] = strdup(samplename);
+}
+
+static void unmark_as_loading(const char* samplename) {
+  int i;
+  for (i = 0; i < thpool_size(read_file_pool); i++) {
+    const char* sn = samples_loading[i];
+    if (sn != NULL && strcmp(sn, samplename) == 0) break;
+  }
+  free(samples_loading[i]);
+  samples_loading[i] = NULL;
 }
