@@ -95,17 +95,42 @@ typedef struct t_node {
   t_vcf  *bpf;
 } t_sound;
 
+typedef struct {
+  double when;
+  float cps;
+  char *samplename;
+  float offset;
+  float start;
+  float end;
+  float speed;
+  float pan;
+  float velocity;
+  int vowelnum;
+  float cutoff;
+  float resonance;
+  float accelerate;
+  float shape;
+  int kriole_chunk;
+  float gain;
+  int cutgroup;
+  float delay;
+  float delaytime;
+  float delayfeedback;
+  float crush;
+  int coarse;
+  float hcutoff;
+  float hresonance;
+  float bandf;
+  float bandq;
+  char unit;
+} t_play_args;
+
 
 
 extern int audio_callback(int frames, float *input, float **outputs);
-extern void audio_init(bool dirty_compressor, bool autoconnect);
+extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers);
 extern void audio_close(void);
-extern int audio_play(double when, float cps, char *samplename, float offset, float
-      start, float end, float speed, float pan, float velocity, int vowelnum,
-      float cutoff, float resonance, float accelerate, float shape, int
-      kriole_chunk, float gain, int cutgroup, float delay, float delaytime,
-      float delayfeedback, float crush, int coarse, float hcutoff, float
-      hresonance, float bandf, float bandq, char unit);
+extern int audio_play(t_play_args*);
 
 extern void audio_kriole(double when, 
                          float duration, 
