@@ -54,6 +54,10 @@ bool thpool_add_job(thpool_t* p, void *(*function)(void*), void* args) {
     return res;
 }
 
+unsigned int thpool_size(const thpool_t* p) {
+    return p->num_threads;
+}
+
 void thpool_destroy(thpool_t* p) {
     p->running = false;
 

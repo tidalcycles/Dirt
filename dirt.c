@@ -21,6 +21,8 @@ int main (int argc, char **argv) {
   int c;
   int num_channels;
 
+  unsigned int num_workers = DEFAULT_WORKERS;
+
   while (1)
   {
     static struct option long_options[] =
@@ -37,6 +39,7 @@ int main (int argc, char **argv) {
 #endif
       {"late-trigger",          no_argument, &late_trigger_flag, 1},
       {"no-late-trigger",       no_argument, &late_trigger_flag, 0},
+      {"workers",               required_argument, 0, 'w'},
 
       {"version", no_argument, 0, 'v'},
       {"help",    no_argument, 0, 'h'},
@@ -51,7 +54,7 @@ int main (int argc, char **argv) {
       required_argument: ":"
       optional_argument: "::" */
 
-    c = getopt_long(argc, argv, "c:vh",
+    c = getopt_long(argc, argv, "c:w:vh",
                     long_options, &option_index);
 
     if (c == -1)
@@ -82,9 +85,10 @@ int main (int argc, char **argv) {
 #endif
                "      --late-trigger              enable sample retrigger after loading (default)\n"
                "      --no-late-trigger           disable sample retrigger after loading\n"
+               "  -w, --workers                   number of sample-reading workers (default: %u)\n"
                "  -h, --help                      display this help and exit\n"
                "  -v, --version                   output version information and exit\n",
-               OSC_PORT, DEFAULT_CHANNELS);
+               OSC_PORT, DEFAULT_CHANNELS, DEFAULT_WORKERS);
         return 1;
 
       case 'c':
@@ -94,6 +98,14 @@ int main (int argc, char **argv) {
           num_channels = DEFAULT_CHANNELS;
         }
         g_num_channels = num_channels;
+        break;
+
+      case 'w':
+        num_workers = atoi(optarg);
+        if (num_workers < 1) {
+          fprintf(stderr, "invalid number of workers: %u. resetting to default\n", num_workers);
+          num_workers = DEFAULT_WORKERS;
+        }
         break;
 
       case '?':
@@ -121,11 +133,13 @@ int main (int argc, char **argv) {
     fprintf(stderr, "late trigger disabled\n");
   }
 
+  fprintf(stderr, "workers: %u\n", num_workers);
+
   fprintf(stderr, "init audio\n");
 #ifdef JACK
-  audio_init(dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag);
+  audio_init(dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag, num_workers);
 #else
-  audio_init(dirty_compressor_flag, true, late_trigger_flag);
+  audio_init(dirty_compressor_flag, true, late_trigger_flag, num_workers);
 #endif
 
   fprintf(stderr, "init open sound control\n");
