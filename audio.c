@@ -75,6 +75,8 @@ static bool is_sample_loading(const char* samplename);
 static void mark_as_loading(const char* samplename);
 static void unmark_as_loading(const char* samplename);
 
+static void reset_sound(t_sound* s);
+
 
 void read_file_func(void* raw_args) {
   read_file_args_t* args = raw_args;
@@ -217,26 +219,32 @@ float formant_filter(float in, t_sound *sound, int channel) {
   return res;
 }
 
-void init_formant_history(t_sound *sound) {
-  bool failed = false;
-
-  sound->formant_history = malloc(g_num_channels * sizeof(double*));
+void init_formant_history (t_sound *sound) {
+  // If uninitialized, create arrays
   if (!sound->formant_history) {
-    failed = true;
+    bool failed = false;
+
+    sound->formant_history = malloc(g_num_channels * sizeof(double*));
+    if (!sound->formant_history) failed = true;
+
+    for (int c = 0; c < g_num_channels; c++) {
+      sound->formant_history[c] = malloc(10 * sizeof(double));
+      if (!sound->formant_history[c]) failed = true;
+    }
+
+    if (failed) {
+      fprintf(stderr, "no memory to allocate `formant_history' array\n");
+      exit(1);
+    }
   }
 
-  for (int c = 0; !failed && c < g_num_channels; c++) {
-    sound->formant_history[c] = calloc(10, sizeof(double));
-    if (!sound->formant_history[c]) failed = true;
-  }
-
-  if (failed) {
-    fprintf(stderr, "no memory to allocate `formant_history' array\n");
-    exit(1);
+  // Clean history for each channel
+  for (int c = 0; c < g_num_channels; c++) {
+    memset(sound->formant_history[c], 0, 10 * sizeof(double));
   }
 }
 
-void free_formant_history(t_sound *sound) {
+void free_formant_history (t_sound *sound) {
   if (sound->formant_history) {
     for (int c = 0; c < g_num_channels; c++) {
       double* fh = sound->formant_history[c];
@@ -244,14 +252,19 @@ void free_formant_history(t_sound *sound) {
     }
     free(sound->formant_history);
   }
+  sound->formant_history = NULL;
 }
 
 void init_vcf (t_sound *sound) {
-  sound->vcf = malloc(g_num_channels * sizeof(t_vcf));
   if (!sound->vcf) {
-    fprintf(stderr, "no memory to allocate vcf struct\n");
-    exit(1);
+    sound->vcf = malloc(g_num_channels * sizeof(t_vcf));
+    if (!sound->vcf) {
+      fprintf(stderr, "no memory to allocate vcf struct\n");
+      exit(1);
+    }
   }
+
+  memset(sound->vcf, 0, g_num_channels * sizeof(t_vcf));
 
   for (int channel = 0; channel < g_num_channels; ++channel) {
     t_vcf *vcf = &(sound->vcf[channel]);
@@ -272,10 +285,12 @@ void init_vcf (t_sound *sound) {
 }
 
 void init_hpf (t_sound *sound) {
-  sound->hpf = malloc(g_num_channels * sizeof(t_vcf));
   if (!sound->hpf) {
-    fprintf(stderr, "no memory to allocate hpf struct\n");
-    exit(1);
+    sound->hpf = malloc(g_num_channels * sizeof(t_vcf));
+    if (!sound->hpf) {
+      fprintf(stderr, "no memory to allocate hpf struct\n");
+      exit(1);
+    }
   }
 
   for (int channel = 0; channel < g_num_channels; ++channel) {
@@ -297,11 +312,14 @@ void init_hpf (t_sound *sound) {
 }
 
 void init_bpf (t_sound *sound) {
-  sound->bpf = malloc(g_num_channels * sizeof(t_vcf));
   if (!sound->bpf) {
-    fprintf(stderr, "no memory to allocate bpf struct\n");
-    exit(1);
+    sound->bpf = malloc(g_num_channels * sizeof(t_vcf));
+    if (!sound->bpf) {
+      fprintf(stderr, "no memory to allocate bpf struct\n");
+      exit(1);
+    }
   }
+
   // I've changed the meaning of some of these a bit
   for (int channel = 0; channel < g_num_channels; ++channel) {
     t_vcf *vcf = &(sound->bpf[channel]);
@@ -321,13 +339,15 @@ void init_bpf (t_sound *sound) {
   }
 }
 
-void free_vcf(t_sound *sound) {
+void free_vcf (t_sound *sound) {
   if (sound->vcf) free(sound->vcf);
 }
-void free_hpf(t_sound *sound) {
+
+void free_hpf (t_sound *sound) {
   if (sound->hpf) free(sound->hpf);
 }
-void free_bpf(t_sound *sound) {
+
+void free_bpf (t_sound *sound) {
   if (sound->bpf) free(sound->bpf);
 }
 
@@ -444,18 +464,13 @@ t_sound *new_sound() {
   for (int i = 0; i < MAXSOUNDS; ++i) {
     if (sounds[i].active == 0) {
       result = &sounds[i];
-      free_vcf(result);
-      free_hpf(result);
-      free_bpf(result);
-      free_formant_history(result);
-      memset(result, 0, sizeof(t_sound));
+      reset_sound(&sounds[i]);
       break;
     }
   }
   pthread_mutex_unlock(&mutex_sounds);
   return(result);
 }
-
 
 extern int audio_play(t_play_args* a) {
 #ifdef FEEDBACK
@@ -600,7 +615,7 @@ extern int audio_play(t_play_args* a) {
   new->velocity = a->velocity;
 
   init_formant_history(new);
-  
+
   new->offset = a->offset;
 
   new->cutoff = a->cutoff;
@@ -1378,4 +1393,22 @@ static void unmark_as_loading(const char* samplename) {
   }
   free(samples_loading[i]);
   samples_loading[i] = NULL;
+}
+
+// Reset sound structure for reutilization
+//
+// This clears structure except for pointer to arrays, to avoid the need of
+// reallocating them.
+static void reset_sound(t_sound* s) {
+  t_vcf *old_vcf = s->vcf;
+  t_vcf *old_hpf = s->hpf;
+  t_vcf *old_bpf = s->bpf;
+  double **old_formant_history = s->formant_history;
+
+  memset(s, 0, sizeof(t_sound));
+
+  s->vcf = old_vcf;
+  s->hpf = old_hpf;
+  s->bpf = old_bpf;
+  s->formant_history = old_formant_history;
 }
