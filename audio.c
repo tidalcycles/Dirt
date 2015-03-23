@@ -31,6 +31,7 @@ PaStream *stream;
 
 pthread_mutex_t queue_waiting_lock;
 pthread_mutex_t mutex_sounds;
+pthread_mutex_t mutex_samples_loading;
 
 t_sound *waiting = NULL;
 t_sound *playing = NULL;
@@ -1363,14 +1364,20 @@ static bool is_sample_loading(const char* samplename) {
 }
 
 static void mark_as_loading(const char* samplename) {
+  pthread_mutex_lock(&mutex_samples_loading);
+
   int i;
   for (i = 0; i < thpool_size(read_file_pool); i++) {
     if (samples_loading[i] == NULL) break;
   }
   samples_loading[i] = strdup(samplename);
+
+  pthread_mutex_unlock(&mutex_samples_loading);
 }
 
 static void unmark_as_loading(const char* samplename) {
+  pthread_mutex_lock(&mutex_samples_loading);
+
   int i;
   for (i = 0; i < thpool_size(read_file_pool); i++) {
     const char* sn = samples_loading[i];
@@ -1378,4 +1385,6 @@ static void unmark_as_loading(const char* samplename) {
   }
   free(samples_loading[i]);
   samples_loading[i] = NULL;
+
+  pthread_mutex_unlock(&mutex_samples_loading);
 }
