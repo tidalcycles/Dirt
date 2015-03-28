@@ -108,7 +108,6 @@ extern t_sample *file_get(char *samplename) {
       mutex_samples_init = true;
     }
 
-    t_sample *sample = NULL;
     SNDFILE *sndfile;
     char path[MAXPATHSIZE];
     char error[62];
