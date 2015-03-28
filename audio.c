@@ -81,11 +81,12 @@ static void reset_sound(t_sound* s);
 
 void read_file_func(void* raw_args) {
   read_file_args_t* args = raw_args;
+  t_sample *sample = NULL;
 
-  file_get(args->samplename);
+  sample = file_get(args->samplename);
   unmark_as_loading(args->samplename);
 
-  if (args->play_args) {
+  if (sample && args->play_args) {
     audio_play(args->play_args);
     free_play_args(args->play_args);
   }
