@@ -66,7 +66,7 @@ typedef struct {
 } read_file_args_t;
 
 char** samples_loading;
-
+const char* sampleroot;
 
 static t_play_args* copy_play_args(const t_play_args* orig_args);
 static void free_play_args(t_play_args* args);
@@ -78,12 +78,11 @@ static void unmark_as_loading(const char* samplename);
 
 static void reset_sound(t_sound* s);
 
-
 void read_file_func(void* raw_args) {
   read_file_args_t* args = raw_args;
   t_sample *sample = NULL;
 
-  sample = file_get(args->samplename);
+  sample = file_get(args->samplename, sampleroot);
   unmark_as_loading(args->samplename);
 
   if (sample && args->play_args) {
@@ -1144,13 +1143,13 @@ void preload_kriol(char *dir) {
   char path[MAXPATHSIZE];
   struct dirent **namelist = NULL;
 
-  snprintf(path, MAXPATHSIZE -1, "%s/%s", SAMPLEROOT, dir);
+  snprintf(path, MAXPATHSIZE -1, "%s/%s", sampleroot, dir);
   n = scandir(path, &namelist, wav_filter, alphasort);
   for (int i = 0; i < n; ++i) {
     snprintf(path, MAXPATHSIZE -1, 
              "kriol_preload/%s", namelist[i]->d_name
              );
-    t_sample *sample = file_get(path);
+    t_sample *sample = file_get(path, sampleroot);
     if (sample == NULL) {
       printf("failed to preload %s\n", path);
     }
@@ -1271,12 +1270,13 @@ error:
 }
 #endif
 
-extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers) {
+ extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, char *sroot) {
   struct timeval tv;
 
   atexit(audio_close);
 
   gettimeofday(&tv, NULL);
+  sampleroot = sroot;
   starttime = (float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0);
 #ifdef FEEDBACK
   loop = new_loop(60 * 60);
