@@ -95,7 +95,7 @@ void fix_samplerate (t_sample *sample) {
   //printf("end samplerate: %d frames: %d\n", (int) sample->info->samplerate, sample->info->frames);
 }
 
-extern t_sample *file_get(char *samplename) {
+extern t_sample *file_get(char *samplename, const char *sampleroot) {
   t_sample* sample;
 
   sample = find_sample(samplename);
@@ -122,21 +122,21 @@ extern t_sample *file_get(char *samplename) {
     // load it from disk
     if (sscanf(samplename, "%[a-z0-9A-Z]%[/:]%d", set, sep, &set_n)) {
       int n;
-      snprintf(path, MAXPATHSIZE -1, "%s/%s", SAMPLEROOT, set);
+      snprintf(path, MAXPATHSIZE -1, "%s/%s", sampleroot, set);
       //printf("looking in %s\n", set);
       n = scandir(path, &namelist, wav_filter, alphasort);
       if (n > 0) {
         snprintf(path, MAXPATHSIZE -1,
-            "%s/%s/%s", SAMPLEROOT, set, namelist[set_n % n]->d_name);
+	    "%s/%s/%s", sampleroot, set, namelist[set_n % n]->d_name);
         while (n--) {
           free(namelist[n]);
         }
         free(namelist);
       } else {
-        snprintf(path, MAXPATHSIZE -1, "%s/%s", SAMPLEROOT, samplename);
+	snprintf(path, MAXPATHSIZE -1, "%s/%s", sampleroot, samplename);
       }
     } else {
-      snprintf(path, MAXPATHSIZE -1, "%s/%s", SAMPLEROOT, samplename);
+      snprintf(path, MAXPATHSIZE -1, "%s/%s", sampleroot, samplename);
     }
 
     info = (SF_INFO *) calloc(1, sizeof(SF_INFO));
