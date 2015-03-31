@@ -93,6 +93,7 @@ typedef struct t_node {
   float  bandf;
   float  bandq;
   t_vcf  *bpf;
+  int    sample_loop;
 } t_sound;
 
 typedef struct {
@@ -123,6 +124,7 @@ typedef struct {
   float bandf;
   float bandq;
   char unit;
+  int sample_loop;
 } t_play_args;
 
 

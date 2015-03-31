@@ -641,6 +641,7 @@ extern int audio_play(t_play_args* a) {
      new->coarse_ind = 0;
      new->coarse_last = 0;
   }
+  new->sample_loop = a->sample_loop;
 
   init_vcf(new);
   init_hpf(new);
@@ -954,8 +955,12 @@ void playback(float **buffers, int frame, sampletime_t now) {
     tmp = p;
     p = p->next;
     if (tmp->position >= tmp->end || tmp->position < tmp->start) {
-      //printf("remove %s %f\n", tmp->samplename, tmp->position);
-      queue_remove(&playing, tmp);
+      if (--(tmp->sample_loop) > 0) {
+        tmp->position = tmp->start;
+      } else {
+        //printf("remove %s %f\n", tmp->samplename, tmp->position);
+        queue_remove(&playing, tmp);
+      }
     }
   }
 
