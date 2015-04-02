@@ -641,7 +641,10 @@ extern int audio_play(t_play_args* a) {
      new->coarse_ind = 0;
      new->coarse_last = 0;
   }
-  new->sample_loop = a->sample_loop;
+  new->sample_loop = (int) trunc(a->end) - (int) trunc(a->start);
+  a->end = a->end - trunc(a->end - 1e-6); // 1e-6 is so 1.0 stays as 1.0
+  a->start = a->start - trunc(a->start);
+  //printf("loop/start/end: %d\t%f\t%f\n", new->sample_loop, a->start, a->end);
 
   init_vcf(new);
   init_hpf(new);
