@@ -127,9 +127,8 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   float bandq = argc > (23+poffset) ? argv[23+poffset]->f : 0;
 
   char *unit_name = argc > (24+poffset) ? (char *) argv[24+poffset] : "r";
-  int sample_loop = argc > (25+poffset) ? argv[25+poffset]->i : 0;
 
-  if (argc > 26+poffset) {
+  if (argc > 25+poffset) {
     printf("play server unexpectedly received extra parameters, maybe update Dirt?\n");
   }
 
@@ -181,8 +180,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
     hresonance,
     bandf,
     bandq,
-    unit,
-    sample_loop
+    unit
   };
   audio_play(&args);
   free(sample_name);
@@ -245,11 +243,6 @@ void *zmqthread(void *data){
 extern int server_init(void) {
 
   lo_server_thread st = lo_server_thread_new(OSC_PORT, error);
-
-  lo_server_thread_add_method(st, "/play", "iisffffffsffffififfffifffffi",
-                              play_handler, 
-                              NULL
-                             );
 
   lo_server_thread_add_method(st, "/play", "iisffffffsffffififfffifffff",
                               play_handler, 
