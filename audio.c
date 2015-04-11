@@ -476,14 +476,14 @@ t_sound *new_sound() {
 
 extern int audio_play(t_play_args* a) {
 #ifdef FEEDBACK
-  int is_kriole = 0;
+  int is_loop = 0;
 #endif
 
   t_sample *sample = NULL;
 
 #ifdef FEEDBACK
-  if (strcmp(a->samplename, "kriole") == 0) {
-    is_kriole = 1;
+  if (strcmp(a->samplename, "loop") == 0) {
+    is_loop = 1;
   }
   else {
 #endif
@@ -541,28 +541,15 @@ extern int audio_play(t_play_args* a) {
   strncpy(new->samplename, a->samplename, MAXPATHSIZE);
   
 #ifdef FEEDBACK
-  if (is_kriole) {
+  if (is_loop) {
     new->loop    = loop;
-    //printf("calculating chunk %d\n", a->kriole_chunk);
-    new->kriole_chunk = a->kriole_chunk;
-    
-    //printf("now %d\n", loop->now);
-    //printf("since_chunk %d\n", loop->since_chunk);
-    int last_chunk_start = (loop->now - loop->since_chunk);
-    //printf("last_chunk_start %d\n", last_chunk_start);
-    int chunks_back = loop->chunk_n - a->kriole_chunk;
-    //printf("chunks_back %d\n", chunks_back);
-    int samples_back = (chunks_back * loop->chunksz);
-    //printf("samples_back %d\n", samples_back);
-    int unmodded = last_chunk_start - samples_back;
-    //printf("unmodded %d\n", unmodded);
-    int modded = unmodded % loop->frames;
+    //int unmodded = last_chunk_start - samples_back;
+    //int modded = unmodded % loop->frames;
     //printf("modded %d\n", modded);
-    new->start = a->modded;
-    new->end      = new->start + loop->chunksz;
+    new->start    = 0;
+    new->end      = loop->frames;
     new->items    = loop->items;
     new->channels = 1;
-    //printf("kriole %d: start %f end %f\n", new->kriole_chunk, new->start, new->end);
     new->loop_start = (loop->now + (loop->frames / 2)) % loop->frames;
   }
   else {
@@ -574,7 +561,7 @@ extern int audio_play(t_play_args* a) {
     new->channels = sample->info->channels;
 #ifdef FEEDBACK
   }
-  new->is_kriole = is_kriole;
+  new->is_loop = is_loop;
 #endif
 
 #ifdef JACK
@@ -815,7 +802,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
       float value;
 
 #ifdef FEEDBACK
-      if (p->is_kriole) {
+      if (p->is_loop) {
         unsigned int i = ((int) (p->position)
                           % p->loop->frames
                           );
@@ -830,7 +817,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
 
       int pos = ((int) p->position) + 1;
 #ifdef FEEDBACK
-      if ((!p->is_kriole) && pos < p->end) {
+      if ((!p->is_loop) && pos < p->end) {
 #else
       if (pos < p->end) {
 #endif
@@ -993,21 +980,6 @@ void loop_input(float s) {
     loop->now = 0;
     loop->loops++;
   }
-  if (loop->since_chunk == loop->chunksz) {
-    loop->since_chunk = 0;
-    float *extracted = pitch_calc(loop);
-    if (extracted != NULL) {
-      float pitch = extracted[0];
-      float flux = extracted[1];
-      float centroid = extracted[2];
-      
-      if (pitch >= 0) {
-        osc_send_pitch(starttime, loop->chunk_n, pitch, flux, centroid);
-      }
-    }
-    loop->chunk_n++;
-  }
-  loop->since_chunk++;
 }
 #endif
 
@@ -1027,13 +999,9 @@ extern int jack_callback(int frames, float *input, float **outputs) {
     playback(outputs, i, now + i);
 
 #ifdef FEEDBACK
-#ifdef INPUT
     if (! input_paused) {
       loop_input(input[i]);
     }
-#else
-    loop_input(outputs[0][i]);
-#endif
 #endif
     dequeue(now + i);
   }
@@ -1279,7 +1247,7 @@ extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigge
   gettimeofday(&tv, NULL);
   starttime = (float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0);
 #ifdef FEEDBACK
-  loop = new_loop(60 * 60);
+  loop = new_loop(2);
 #endif
 
   delays = calloc(g_num_channels, sizeof(t_line));
@@ -1314,7 +1282,7 @@ extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigge
   file_set_samplerate(samplerate);
 
 #ifdef FEEDBACK
-  pitch_init(loop, samplerate);
+  //pitch_init(loop, samplerate);
 #endif
 
   use_dirty_compressor = dirty_compressor;
