@@ -257,6 +257,17 @@ void free_formant_history (t_sound *sound) {
   sound->formant_history = NULL;
 }
 
+void init_crs(t_sound *sound) {
+  if (!sound->coarsef) {
+    sound->coarsef = malloc(g_num_channels * sizeof(t_crs));
+    if (!sound->coarsef) {
+      fprintf(stderr, "no memory to allocate crs struct\n");
+      exit(1);
+    }
+  }
+  memset(sound->coarsef, 0, g_num_channels * sizeof(t_crs));
+}
+
 void init_vcf (t_sound *sound) {
   if (!sound->vcf) {
     sound->vcf = malloc(g_num_channels * sizeof(t_vcf));
@@ -352,6 +363,28 @@ void free_hpf (t_sound *sound) {
 void free_bpf (t_sound *sound) {
   if (sound->bpf) free(sound->bpf);
 }
+
+float effect_coarse(float in, t_sound *sound, int channel) {
+  t_crs *crs = &(sound->coarsef[channel]);
+
+  (crs->index)++;
+  if (sound->coarse > 0) {
+    if (crs->index == sound->coarse) {
+      crs->index = 0;
+      crs->last = in;
+    } 
+  }
+  if (sound->coarse < 0) {
+    crs->sum += in / (float) -(sound->coarse);
+    if (crs->index == -(sound->coarse)) {
+      crs->last = crs->sum;
+      crs->index = 0;
+      crs->sum = 0;
+    }
+  }
+  return crs->last;
+}
+
 
 float effect_vcf(float in, t_sound *sound, int channel) {
   t_vcf *vcf = &(sound->vcf[channel]);
@@ -636,11 +669,9 @@ extern int audio_play(t_play_args* a) {
      new->crush = (a->crush > 0) ? 1 : -1;
      new->crush_bits = fabsf(a->crush);
   }
-  if (a->coarse != 0) {
-     new->coarse = a->coarse;
-     new->coarse_ind = 0;
-     new->coarse_last = 0;
-  }
+  new->coarse = a->coarse;
+  init_crs(new);
+
   new->sample_loop = (int) trunc(a->end) - (int) trunc(a->start);
   a->end = a->end - trunc(a->end - 1e-6); // 1e-6 is so 1.0 stays as 1.0
   a->start = a->start - trunc(a->start);
@@ -880,26 +911,10 @@ void playback(float **buffers, int frame, sampletime_t now) {
         }
       }
 
-      if (p->coarse > 0) {
-        (p->coarse_ind)++;
-        if (p->coarse_ind == p->coarse) {
-          p->coarse_ind = 0;
-          p->coarse_last = value;
-        } else {
-          value = p->coarse_last;
-        }
-      } else if (p->coarse < 0) {
-        if (p->coarse_ind == -(p->coarse)) {
-          p->coarse_last = p->coarse_sum;
-          p->coarse_ind = 0;
-          p->coarse_sum = 0;
-        } else {
-          p->coarse_sum += value / (float) -(p->coarse);
-        }
-        value = p->coarse_last;
-        (p->coarse_ind)++;
+      if (p->coarse != 0) {
+        value = effect_coarse(value, p, channel);
       }
-            
+
       if (p->shape) {
         value = (1+p->shape_k)*value/(1+p->shape_k*fabs(value));
       }
