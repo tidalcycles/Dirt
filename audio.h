@@ -98,6 +98,7 @@ typedef struct t_node {
   float  bandq;
   t_vcf  *bpf;
   int    sample_loop;
+  int    cut_continue;
 } t_sound;
 
 typedef struct {
