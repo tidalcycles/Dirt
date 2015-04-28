@@ -97,7 +97,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   poffset = 3;
   //printf("timing info: when, cps = %f\t%f\n", when, cps);
 
-  char *sample_name = strdup((char *) argv[0+poffset]);
+  char *sample_name = (char *) argv[0+poffset];
 
   float offset = argv[1+poffset]->f;
   float start = argv[2+poffset]->f;
@@ -130,6 +130,10 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 
   if (argc > 25+poffset) {
     printf("play server unexpectedly received extra parameters, maybe update Dirt?\n");
+  }
+
+  if (speed == 0) {
+    return(0);
   }
 
   int vowelnum = -1;
@@ -183,8 +187,8 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
     unit
   };
   audio_play(&args);
-  free(sample_name);
-  return 0;
+
+  return(0);
 }
 
 /**/
