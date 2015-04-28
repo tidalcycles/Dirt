@@ -616,6 +616,10 @@ extern int audio_play(t_play_args* a) {
   new->cutgroup = a->cutgroup;
 
   if (a->shape != 0) {
+    a->shape = fabs(a->shape);
+    if (a->shape > 0.99) {
+      a->shape = 0.99;
+    }
     new->shape = 1;
     new->shape_k = (2.0f * a->shape) / (1.0f - a->shape);
   }
