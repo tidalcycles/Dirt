@@ -37,6 +37,12 @@ typedef struct {
 } t_vcf;
 
 typedef struct {
+  int index;
+  float last;
+  float sum;
+} t_crs;
+
+typedef struct {
   float samples[MAXLINE];
   int   point;
 } t_line;
@@ -84,15 +90,15 @@ typedef struct t_node {
   int    crush;
   float  crush_bits;
   int    coarse;
-  int    coarse_ind;
-  float  coarse_last;
-  float  coarse_sum;
+  t_crs  *coarsef;
   float  hcutoff;
   float  hresonance;
   t_vcf  *hpf;
   float  bandf;
   float  bandq;
   t_vcf  *bpf;
+  int    sample_loop;
+  int    cut_continue;
 } t_sound;
 
 typedef struct {
@@ -123,6 +129,7 @@ typedef struct {
   float bandf;
   float bandq;
   char unit;
+  int sample_loop;
 } t_play_args;
 
 
