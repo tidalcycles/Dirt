@@ -248,31 +248,7 @@ extern int server_init(void) {
 
   lo_server_thread st = lo_server_thread_new(OSC_PORT, error);
 
-  lo_server_thread_add_method(st, "/play", "iisffffffsffffififfffifffff",
-                              play_handler, 
-                              NULL
-                             );
-
-  lo_server_thread_add_method(st, "/play", "iisffffffsffffififfffiffff",
-                              play_handler, 
-                              NULL
-                             );
-
-  lo_server_thread_add_method(st, "/play", "iisffffffsffffififff",
-                              play_handler, 
-                              NULL
-                             );
-
-  lo_server_thread_add_method(st, "/play", "iisffffffsffffifi",
-                              play_handler, 
-                              NULL
-                             );
-  
-  // last two optional, for backward compatibility
-  lo_server_thread_add_method(st, "/play", "iisffffffsffffi",
-                              play_handler, 
-                              NULL
-                             );
+  lo_server_thread_add_method(st, "/play", NULL, play_handler, NULL);
 
   lo_server_thread_add_method(st, "/kriole", "iifff",
                               kriole_handler, 
@@ -290,7 +266,6 @@ extern int server_init(void) {
                              );
 #endif
 
-  lo_server_thread_add_method(st, "/play", NULL, play_handler, NULL);
   lo_server_thread_add_method(st, NULL, NULL, generic_handler, NULL);
   lo_server_thread_start(st);
 
