@@ -14,12 +14,12 @@ static int jack_auto_connect_flag = 1;
 #endif
 static int late_trigger_flag = 1;
 
-
 int main (int argc, char **argv) {
   /* Use getopt to parse command-line arguments */
   /* see http://www.gnu.org/savannah-checkouts/gnu/libc/manual/html_node/Getopt.html */
   int c;
   int num_channels;
+  char *sampleroot = "./samples";
 
   unsigned int num_workers = DEFAULT_WORKERS;
 
@@ -39,6 +39,7 @@ int main (int argc, char **argv) {
 #endif
       {"late-trigger",          no_argument, &late_trigger_flag, 1},
       {"no-late-trigger",       no_argument, &late_trigger_flag, 0},
+      {"samples-root-path",     required_argument, 0, 's'},
       {"workers",               required_argument, 0, 'w'},
 
       {"version", no_argument, 0, 'v'},
@@ -54,7 +55,7 @@ int main (int argc, char **argv) {
       required_argument: ":"
       optional_argument: "::" */
 
-    c = getopt_long(argc, argv, "c:w:vh",
+    c = getopt_long(argc, argv, "cs:w:vh",
                     long_options, &option_index);
 
     if (c == -1)
@@ -85,6 +86,7 @@ int main (int argc, char **argv) {
 #endif
                "      --late-trigger              enable sample retrigger after loading (default)\n"
                "      --no-late-trigger           disable sample retrigger after loading\n"
+	       "  -s  --samples-root-path         set a samples root directory path\n"
                "  -w, --workers                   number of sample-reading workers (default: %u)\n"
                "  -h, --help                      display this help and exit\n"
                "  -v, --version                   output version information and exit\n",
@@ -100,6 +102,9 @@ int main (int argc, char **argv) {
         g_num_channels = num_channels;
         break;
 
+      case 's':
+	sampleroot = optarg;
+	break;
       case 'w':
         num_workers = atoi(optarg);
         if (num_workers < 1) {
@@ -137,9 +142,9 @@ int main (int argc, char **argv) {
 
   fprintf(stderr, "init audio\n");
 #ifdef JACK
-  audio_init(dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag, num_workers);
+  audio_init(dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag, num_workers, sampleroot);
 #else
-  audio_init(dirty_compressor_flag, true, late_trigger_flag, num_workers);
+  audio_init(dirty_compressor_flag, true, late_trigger_flag, num_workers, sampleroot);
 #endif
 
   fprintf(stderr, "init open sound control\n");

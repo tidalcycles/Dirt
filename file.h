@@ -5,8 +5,6 @@
 #define MAXFILES 4096
 #define MAXPATHSIZE 256
 
-#define SAMPLEROOT "./samples"
-
 typedef struct {
   char name[MAXPATHSIZE];
   SF_INFO *info;
@@ -36,7 +34,7 @@ typedef struct {
 
 int wav_filter (const struct dirent *d);
 extern void file_set_samplerate(int s);
-extern t_sample *file_get(char *samplename);
+extern t_sample *file_get(char *samplename, const char *sampleroot);
 extern t_sample *file_get_from_cache(char *samplename);
 t_loop *new_loop(float seconds);
 void free_loop(t_loop*);
