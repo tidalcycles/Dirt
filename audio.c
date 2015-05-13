@@ -172,30 +172,30 @@ void queue_remove(t_sound **queue, t_sound *old) {
 const double coeff[5][11]= {
   { 3.11044e-06,
     8.943665402,    -36.83889529,    92.01697887,    -154.337906,    181.6233289,
-    -151.8651235,   89.09614114,    -35.10298511,    8.388101016,    -0.923313471  
+    -151.8651235,   89.09614114,    -35.10298511,    8.388101016,    -0.923313471
   },
   {4.36215e-06,
-   8.90438318,    -36.55179099,    91.05750846,    -152.422234,    179.1170248,  
+   8.90438318,    -36.55179099,    91.05750846,    -152.422234,    179.1170248,
    -149.6496211,87.78352223,    -34.60687431,    8.282228154,    -0.914150747
   },
   { 3.33819e-06,
     8.893102966,    -36.49532826,    90.96543286,    -152.4545478,    179.4835618,
-    -150.315433,    88.43409371,    -34.98612086,    8.407803364,    -0.932568035  
+    -150.315433,    88.43409371,    -34.98612086,    8.407803364,    -0.932568035
 },
   {1.13572e-06,
-   8.994734087,    -37.2084849,    93.22900521,    -156.6929844,    184.596544,   
+   8.994734087,    -37.2084849,    93.22900521,    -156.6929844,    184.596544,
    -154.3755513,    90.49663749,    -35.58964535,    8.478996281,    -0.929252233
   },
   {4.09431e-07,
-   8.997322763,    -37.20218544,    93.11385476,    -156.2530937,    183.7080141,  
+   8.997322763,    -37.20218544,    93.11385476,    -156.2530937,    183.7080141,
    -153.2631681,    89.59539726,    -35.12454591,    8.338655623,    -0.910251753
   }
 };
 
 float formant_filter(float in, t_sound *sound, int channel) {
-  float res = 
+  float res =
     (float) ( coeff[sound->formant_vowelnum][0] * in +
-              coeff[sound->formant_vowelnum][1] * sound->formant_history[channel][0] +  
+              coeff[sound->formant_vowelnum][1] * sound->formant_history[channel][0] +
               coeff[sound->formant_vowelnum][2] * sound->formant_history[channel][1] +
               coeff[sound->formant_vowelnum][3] * sound->formant_history[channel][2] +
               coeff[sound->formant_vowelnum][4] * sound->formant_history[channel][3] +
@@ -204,7 +204,7 @@ float formant_filter(float in, t_sound *sound, int channel) {
               coeff[sound->formant_vowelnum][7] * sound->formant_history[channel][6] +
               coeff[sound->formant_vowelnum][8] * sound->formant_history[channel][7] +
               coeff[sound->formant_vowelnum][9] * sound->formant_history[channel][8] +
-              coeff[sound->formant_vowelnum][10] * sound->formant_history[channel][9] 
+              coeff[sound->formant_vowelnum][10] * sound->formant_history[channel][9]
              );
 
   sound->formant_history[channel][9] = sound->formant_history[channel][8];
@@ -254,6 +254,17 @@ void free_formant_history (t_sound *sound) {
     free(sound->formant_history);
   }
   sound->formant_history = NULL;
+}
+
+void init_crs(t_sound *sound) {
+  if (!sound->coarsef) {
+    sound->coarsef = malloc(g_num_channels * sizeof(t_crs));
+    if (!sound->coarsef) {
+      fprintf(stderr, "no memory to allocate crs struct\n");
+      exit(1);
+    }
+  }
+  memset(sound->coarsef, 0, g_num_channels * sizeof(t_crs));
 }
 
 void init_vcf (t_sound *sound) {
@@ -352,41 +363,63 @@ void free_bpf (t_sound *sound) {
   if (sound->bpf) free(sound->bpf);
 }
 
+float effect_coarse(float in, t_sound *sound, int channel) {
+  t_crs *crs = &(sound->coarsef[channel]);
+
+  (crs->index)++;
+  if (sound->coarse > 0) {
+    if (crs->index == sound->coarse) {
+      crs->index = 0;
+      crs->last = in;
+    }
+  }
+  if (sound->coarse < 0) {
+    crs->sum += in / (float) -(sound->coarse);
+    if (crs->index == -(sound->coarse)) {
+      crs->last = crs->sum;
+      crs->index = 0;
+      crs->sum = 0;
+    }
+  }
+  return crs->last;
+}
+
+
 float effect_vcf(float in, t_sound *sound, int channel) {
   t_vcf *vcf = &(sound->vcf[channel]);
   vcf->x  = in - vcf->r * vcf->y4;
-  
+
   vcf->y1 = vcf->x  * vcf->p + vcf->oldx  * vcf->p - vcf->k * vcf->y1;
   vcf->y2 = vcf->y1 * vcf->p + vcf->oldy1 * vcf->p - vcf->k * vcf->y2;
   vcf->y3 = vcf->y2 * vcf->p + vcf->oldy2 * vcf->p - vcf->k * vcf->y3;
   vcf->y4 = vcf->y3 * vcf->p + vcf->oldy3 * vcf->p - vcf->k * vcf->y4;
-  
+
   vcf->y4 = vcf->y4 - pow(vcf->y4,3) / 6;
-  
+
   vcf->oldx  = vcf->x;
   vcf->oldy1 = vcf->y1;
   vcf->oldy2 = vcf->y2;
   vcf->oldy3 = vcf->y3;
-  
+
   return vcf->y4;
 }
 
 float effect_hpf(float in, t_sound *sound, int channel) {
   t_vcf *vcf = &(sound->hpf[channel]);
   vcf->x  = in - vcf->r * vcf->y4;
-  
+
   vcf->y1 = vcf->x  * vcf->p + vcf->oldx  * vcf->p - vcf->k * vcf->y1;
   vcf->y2 = vcf->y1 * vcf->p + vcf->oldy1 * vcf->p - vcf->k * vcf->y2;
   vcf->y3 = vcf->y2 * vcf->p + vcf->oldy2 * vcf->p - vcf->k * vcf->y3;
   vcf->y4 = vcf->y3 * vcf->p + vcf->oldy3 * vcf->p - vcf->k * vcf->y4;
-  
+
   vcf->y4 = vcf->y4 - pow(vcf->y4,3) / 6;
-  
+
   vcf->oldx  = vcf->x;
   vcf->oldy1 = vcf->y1;
   vcf->oldy2 = vcf->y2;
   vcf->oldy3 = vcf->y3;
-  
+
   return (in - vcf->y4);
 }
 
@@ -397,7 +430,7 @@ float effect_bpf(float in, t_sound *sound, int channel) {
   vcf->y3 = vcf->p * vcf->y2 - vcf->y1 + vcf->k * (vcf->x - vcf->oldx +
         vcf->y2);
   vcf->y3 = vcf->scale * vcf->y3;
-  
+
   vcf->oldx  = vcf->x;
   vcf->y1 = vcf->y2;
   vcf->y2 = vcf->y3;
@@ -427,15 +460,15 @@ float shift_delay(t_line *line) {
 
 /**/
 
-extern void audio_kriole(double when, 
-                         float duration, 
-                         float pitch_start, 
+extern void audio_kriole(double when,
+                         float duration,
+                         float pitch_start,
                          float pitch_stop
 			 ) {
 #ifdef FEEDBACK
-  
+
   int lowchunk = loop->chunk_n - (loop->frames / loop->chunksz);
-  
+
   // subtract a bit for some legroom..
   lowchunk -= 16;
 
@@ -538,7 +571,7 @@ extern int audio_play(t_play_args* a) {
   new->active = 1;
   //printf("samplename: %s when: %f\n", a->samplename, a->when);
   strncpy(new->samplename, a->samplename, MAXPATHSIZE);
-  
+
 #ifdef FEEDBACK
   if (is_loop) {
     new->loop    = loop;
@@ -564,7 +597,7 @@ extern int audio_play(t_play_args* a) {
 #endif
 
 #ifdef JACK
-  new->startT = 
+  new->startT =
     jack_time_to_frames(jack_client, ((a->when-epochOffset) * 1000000));
 # else
   new->startT = a->when - epochOffset;
@@ -578,9 +611,9 @@ extern int audio_play(t_play_args* a) {
     a->accelerate = a->accelerate * a->speed * a->cps; // change rate by 1 per cycle
     a->speed = sample->info->frames * a->speed * a->cps / samplerate;
   }
-  // otherwise, unit is rate/ratio, 
+  // otherwise, unit is rate/ratio,
   // i.e. 2 = twice as fast, -1 = normal but backwards
-   
+
   new->next = NULL;
   new->prev = NULL;
   new->reverse  = a->speed < 0;
@@ -626,11 +659,15 @@ extern int audio_play(t_play_args* a) {
      new->crush = (a->crush > 0) ? 1 : -1;
      new->crush_bits = fabsf(a->crush);
   }
-  if (a->coarse != 0) {
-     new->coarse = a->coarse;
-     new->coarse_ind = 0;
-     new->coarse_last = 0;
+  new->coarse = a->coarse;
+  init_crs(new);
+
+  new->cut_continue = 0;
+  if (a->start < 0) {
+    a->start = 0;
+    new->cut_continue = 1;
   }
+  new->sample_loop = a->sample_loop;
 
   init_vcf(new);
   init_hpf(new);
@@ -658,7 +695,7 @@ extern int audio_play(t_play_args* a) {
   if (a->start > 0 && a->start <= 1) {
     new->start = a->start * new->end;
   }
-  
+
   if (a->end > 0 && a->end < 1) {
     new->end *= a->end;
   }
@@ -674,6 +711,7 @@ extern int audio_play(t_play_args* a) {
   //printf("position: %f\n", new->position);
   new->formant_vowelnum = a->vowelnum;
   new->gain = powf(a->gain/2, 4);
+
 
   pthread_mutex_lock(&queue_waiting_lock);
   queue_add(&waiting, new);
@@ -713,7 +751,15 @@ void cut(t_sound *s) {
         // unless it's dying soon anyway..
         if (newend < p->end) {
           p->end = newend;
+          // cut_continue means start the next where the prev is leaving off
+          if (s->cut_continue > 0 && p->position < s->end) {
+            s->start = p->position;
+            s->position = p->position;
+            s->cut_continue = 0;
+          }
         }
+        // cut should also kill any looping
+        p->sample_loop = 0;
       }
       p = p->next;
     }
@@ -727,7 +773,7 @@ void dequeue(sampletime_t now) {
 #ifdef DEBUG
     int s = queue_size(playing);
 #endif
-    
+
     cut(p);
     p->prev = NULL;
     p->next = playing;
@@ -738,7 +784,7 @@ void dequeue(sampletime_t now) {
 #ifdef DEBUG
     assert(s == (queue_size(playing) - 1));
 #endif
-    
+
     //printf("done.\n");
   }
   pthread_mutex_unlock(&queue_waiting_lock);
@@ -759,10 +805,10 @@ float compressdave(float in) {
   float result = in;
   // square input (to abs and make logarithmic)
   float t=in*in;
-  
+
   // blend to create simple envelope follower
   env = env*(1-compression_speed) + t*compression_speed;
-  
+
   // if we are over the threshold
   if (env > threshold) {
     // calculate the gain related to amount over thresh
@@ -784,7 +830,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
   while (p != NULL) {
     int channels;
     t_sound *tmp;
-    
+
     if (p->startT > now) {
       p->checks++;
       p = p->next;
@@ -824,7 +870,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
 #else
       if (pos < p->end) {
 #endif
-        float next = 
+        float next =
           p->items[(channels * (p->reverse ? p->sample->info->frames - pos : pos))
                     + channel
                     ];
@@ -839,11 +885,11 @@ void playback(float **buffers, int frame, sampletime_t now) {
       }
 
       // why 44000 (or 44100)? init_vcf divides by samplerate..
-      if (p->resonance > 0 && p->resonance < 1 
+      if (p->resonance > 0 && p->resonance < 1
 	  && p->cutoff > 0 && p->cutoff < 1) {
 	value = effect_vcf(value, p, channel);
       }
-      if (p->hresonance > 0 && p->hresonance < 1 
+      if (p->hresonance > 0 && p->hresonance < 1
           && p->hcutoff > 0 && p->hcutoff < 1) {
         value = effect_hpf(value, p, channel);
       }
@@ -866,26 +912,10 @@ void playback(float **buffers, int frame, sampletime_t now) {
         }
       }
 
-      if (p->coarse > 0) {
-        (p->coarse_ind)++;
-        if (p->coarse_ind == p->coarse) {
-          p->coarse_ind = 0;
-          p->coarse_last = value;
-        } else {
-          value = p->coarse_last;
-        }
-      } else if (p->coarse < 0) {
-        if (p->coarse_ind == -(p->coarse)) {
-          p->coarse_last = p->coarse_sum;
-          p->coarse_ind = 0;
-          p->coarse_sum = 0;
-        } else {
-          p->coarse_sum += value / (float) -(p->coarse);
-        }
-        value = p->coarse_last;
-        (p->coarse_ind)++;
+      if (p->coarse != 0) {
+        value = effect_coarse(value, p, channel);
       }
-            
+
       if (p->shape) {
         value = (1+p->shape_k)*value/(1+p->shape_k*fabs(value));
       }
@@ -931,7 +961,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
         break;
       }
     }
-      
+
     if (p->accelerate != 0) {
       // ->startFrame ->end ->position
       p->speed += p->accelerate/samplerate;
@@ -944,8 +974,12 @@ void playback(float **buffers, int frame, sampletime_t now) {
     tmp = p;
     p = p->next;
     if (tmp->position >= tmp->end || tmp->position < tmp->start) {
-      //printf("remove %s %f\n", tmp->samplename, tmp->position);
-      queue_remove(&playing, tmp);
+      if (--(tmp->sample_loop) > 0) {
+        tmp->position = tmp->start;
+      } else {
+        //printf("remove %s %f\n", tmp->samplename, tmp->position);
+        queue_remove(&playing, tmp);
+      }
     }
   }
 
@@ -992,12 +1026,12 @@ extern int jack_callback(int frames, float *input, float **outputs) {
 
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    epochOffset = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0)) 
+    epochOffset = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0))
       - ((double) jack_get_time() / 1000000.0);
     //printf("jack time: %d tv_sec %d epochOffset: %f\n", jack_get_time(), tv.tv_sec, epochOffset);
 
   now = jack_last_frame_time(jack_client);
-  
+
   for (int i=0; i < frames; ++i) {
     playback(outputs, i, now + i);
 
@@ -1031,23 +1065,23 @@ void run_pulse() {
   pa_simple *s = NULL;
   //  int ret = 1;
   int error;
-  if (!(s = pa_simple_new(NULL, "dirt", PA_STREAM_PLAYBACK, NULL, 
+  if (!(s = pa_simple_new(NULL, "dirt", PA_STREAM_PLAYBACK, NULL,
     "playback", &ss, NULL, NULL, &error))) {
-    fprintf(stderr, __FILE__": pa_simple_new() failed: %s\n", 
+    fprintf(stderr, __FILE__": pa_simple_new() failed: %s\n",
     pa_strerror(error));
     goto finish;
   }
 
   for (;;) {
-    
+
     pa_usec_t latency;
     if ((latency = pa_simple_get_latency(s, &error)) == (pa_usec_t) -1) {
-      fprintf(stderr, __FILE__": pa_simple_get_latency() failed: %s\n", 
+      fprintf(stderr, __FILE__": pa_simple_get_latency() failed: %s\n",
 	      pa_strerror(error));
       goto finish;
     }
     //fprintf(stderr, "%f sec    \n", ((float)latency)/1000000.0);
-    
+
     gettimeofday(&tv, NULL);
     double now = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0));
 
@@ -1059,7 +1093,7 @@ void run_pulse() {
       }
       dequeue(framenow);
     }
-    
+
     if (pa_simple_write(s, interlaced, sizeof(interlaced), &error) < 0) {
       fprintf(stderr, __FILE__": pa_simple_write() failed: %s\n", pa_strerror(error));
       goto finish;
@@ -1085,7 +1119,7 @@ static int pa_callback(const void *inputBuffer, void *outputBuffer,
 		       const PaStreamCallbackTimeInfo* timeInfo,
 		       PaStreamCallbackFlags statusFlags,
 		       void *userData) {
-  
+
   struct timeval tv;
 
   if (epochOffset == 0) {
@@ -1118,7 +1152,7 @@ void preload_kriol(char *dir) {
   snprintf(path, MAXPATHSIZE -1, "%s/%s", sampleroot, dir);
   n = scandir(path, &namelist, wav_filter, alphasort);
   for (int i = 0; i < n; ++i) {
-    snprintf(path, MAXPATHSIZE -1, 
+    snprintf(path, MAXPATHSIZE -1,
              "kriol_preload/%s", namelist[i]->d_name
              );
     t_sample *sample = file_get(path, sampleroot);
@@ -1197,7 +1231,7 @@ void pa_init(void) {
   }
   printf("default device: %s\n", Pa_GetDeviceInfo(outputParameters.device)->name);
   outputParameters.channelCount = g_num_channels;
-  outputParameters.sampleFormat = paFloat32 | paNonInterleaved; 
+  outputParameters.sampleFormat = paFloat32 | paNonInterleaved;
   outputParameters.suggestedLatency = 0.050;
   // Pa_GetDeviceInfo( outputParameters.device )->defaultLowOutputLatency;
   outputParameters.hostApiSpecificStreamInfo = NULL;
@@ -1210,22 +1244,22 @@ void pa_init(void) {
             samplerate,
             PA_FRAMES_PER_BUFFER,
             paNoFlag,
-            pa_callback, 
+            pa_callback,
             (void *) foo );
     if( err != paNoError ) {
       printf("failed to open stream.\n");
       goto error;
-    } 
+    }
 
     err = Pa_SetStreamFinishedCallback( stream, &StreamFinished );
     if( err != paNoError ) {
       goto error;
-    } 
+    }
 
     err = Pa_StartStream(stream);
     if( err != paNoError ) {
       goto error;
-    } 
+    }
 
   return;
 error:
