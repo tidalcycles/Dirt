@@ -11,7 +11,8 @@ dirt: LDFLAGS += -ljack
 dirt-pa: LDFLAGS += -lportaudio
 dirt-pulse: CFLAGS += -DPULSE `pkg-config --cflags libpulse-simple`
 dirt-pulse: LDFLAGS += `pkg-config --libs libpulse-simple` -lpthread
-
+dirt-feedback: CFLAGS += -DFEEDBACK -DINPUT
+dirt-feedback: dirt
 all: dirt
 
 clean:
