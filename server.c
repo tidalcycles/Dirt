@@ -100,6 +100,9 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   char *sample_name = (char *) argv[0+poffset];
 
   float offset = argv[1+poffset]->f;
+  
+  //when += offset;
+
   float start = argv[2+poffset]->f;
   float end  = argv[3+poffset]->f;
   float speed  = argv[4+poffset]->f;
@@ -127,8 +130,9 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   float bandq = argc > (23+poffset) ? argv[23+poffset]->f : 0;
 
   char *unit_name = argc > (24+poffset) ? (char *) argv[24+poffset] : "r";
+  int sample_loop = argc >  (25+poffset) ? argv[25+poffset]->i : 0;
 
-  if (argc > 25+poffset) {
+  if (argc > 26+poffset) {
     printf("play server unexpectedly received extra parameters, maybe update Dirt?\n");
   }
 
@@ -184,7 +188,8 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
     hresonance,
     bandf,
     bandq,
-    unit
+    unit,
+    sample_loop
   };
   audio_play(&args);
 
@@ -244,9 +249,9 @@ void *zmqthread(void *data){
 
 /**/
 
-extern int server_init(void) {
+extern int server_init(int osc_port) {
 
-  lo_server_thread st = lo_server_thread_new(OSC_PORT, error);
+  lo_server_thread st = lo_server_thread_new(osc_port, error);
 
   lo_server_thread_add_method(st, "/play", NULL, play_handler, NULL);
 

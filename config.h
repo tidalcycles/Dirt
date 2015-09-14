@@ -3,7 +3,7 @@
 
 //#define FEEDBACK
 //#define INPUT
-#define OSC_PORT "7771"
+#define DEFAULT_OSC_PORT "7771"
 
 #define DEFAULT_CHANNELS 2
 #define MIN_CHANNELS 1
