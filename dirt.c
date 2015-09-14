@@ -14,12 +14,13 @@ static int jack_auto_connect_flag = 1;
 #endif
 static int late_trigger_flag = 1;
 
-
 int main (int argc, char **argv) {
   /* Use getopt to parse command-line arguments */
   /* see http://www.gnu.org/savannah-checkouts/gnu/libc/manual/html_node/Getopt.html */
   int c;
   int num_channels;
+  int osc_port = DEFAULT_OSC_PORT;
+  char *sampleroot = "./samples";
 
   unsigned int num_workers = DEFAULT_WORKERS;
 
@@ -30,6 +31,7 @@ int main (int argc, char **argv) {
       /* Use flags like so:
       {"verbose",  no_argument,  &verbose_flag, 'V'}*/
       /* Argument styles: no_argument, required_argument, optional_argument */
+      {"port",                  required_argument, 0, 'p'},
       {"channels",              required_argument, 0, 'c'},
       {"dirty-compressor",      no_argument, &dirty_compressor_flag, 1},
       {"no-dirty-compressor",   no_argument, &dirty_compressor_flag, 0},
@@ -39,6 +41,7 @@ int main (int argc, char **argv) {
 #endif
       {"late-trigger",          no_argument, &late_trigger_flag, 1},
       {"no-late-trigger",       no_argument, &late_trigger_flag, 0},
+      {"samples-root-path",     required_argument, 0, 's'},
       {"workers",               required_argument, 0, 'w'},
 
       {"version", no_argument, 0, 'v'},
@@ -54,7 +57,7 @@ int main (int argc, char **argv) {
       required_argument: ":"
       optional_argument: "::" */
 
-    c = getopt_long(argc, argv, "c:w:vh",
+    c = getopt_long(argc, argv, "cs:w:vh",
                     long_options, &option_index);
 
     if (c == -1)
@@ -73,9 +76,8 @@ int main (int argc, char **argv) {
                "Dirt - a software sampler, mainly used with Tidal: http://yaxu.org/tidal/\n"
                "Released as free software under the terms of the GNU Public License version 3.0 and later.\n"
                "\n"
-               "Listens to OSC messages on port %s.\n"
-               "\n"
                "Arguments:\n"
+	       "  -p, --port                      OSC port to listen to (default: %s)\n"
                "  -c, --channels                  number of output channels (default: %u)\n"
                "      --dirty-compressor          enable dirty compressor on audio output (default)\n"
                "      --no-dirty-compressor       disable dirty compressor on audio output\n"
@@ -85,12 +87,16 @@ int main (int argc, char **argv) {
 #endif
                "      --late-trigger              enable sample retrigger after loading (default)\n"
                "      --no-late-trigger           disable sample retrigger after loading\n"
+	       "  -s  --samples-root-path         set a samples root directory path\n"
                "  -w, --workers                   number of sample-reading workers (default: %u)\n"
                "  -h, --help                      display this help and exit\n"
                "  -v, --version                   output version information and exit\n",
-               OSC_PORT, DEFAULT_CHANNELS, DEFAULT_WORKERS);
+               DEFAULT_OSC_PORT, DEFAULT_CHANNELS, DEFAULT_WORKERS);
         return 1;
 
+      case 'p':
+        osc_port = atoi(optarg);
+	break;
       case 'c':
         num_channels = atoi(optarg);
         if (num_channels < MIN_CHANNELS || num_channels > MAX_CHANNELS) {
@@ -100,6 +106,9 @@ int main (int argc, char **argv) {
         g_num_channels = num_channels;
         break;
 
+      case 's':
+	sampleroot = optarg;
+	break;
       case 'w':
         num_workers = atoi(optarg);
         if (num_workers < 1) {
@@ -137,13 +146,13 @@ int main (int argc, char **argv) {
 
   fprintf(stderr, "init audio\n");
 #ifdef JACK
-  audio_init(dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag, num_workers);
+  audio_init(dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag, num_workers, sampleroot);
 #else
-  audio_init(dirty_compressor_flag, true, late_trigger_flag, num_workers);
+  audio_init(dirty_compressor_flag, true, late_trigger_flag, num_workers, sampleroot);
 #endif
 
   fprintf(stderr, "init open sound control\n");
-  server_init();
+  server_init(osc_port);
 
   sleep(-1);
   return(0);
