@@ -19,7 +19,7 @@ int main (int argc, char **argv) {
   /* see http://www.gnu.org/savannah-checkouts/gnu/libc/manual/html_node/Getopt.html */
   int c;
   int num_channels;
-  int osc_port = DEFAULT_OSC_PORT;
+  char *osc_port = DEFAULT_OSC_PORT;
   char *sampleroot = "./samples";
 
   unsigned int num_workers = DEFAULT_WORKERS;
@@ -95,7 +95,7 @@ int main (int argc, char **argv) {
         return 1;
 
       case 'p':
-        osc_port = atoi(optarg);
+        osc_port = optarg;
 	break;
       case 'c':
         num_channels = atoi(optarg);
@@ -126,6 +126,7 @@ int main (int argc, char **argv) {
     }
   }
 
+  fprintf(stderr, "port: %s\n", osc_port);
   fprintf(stderr, "channels: %u\n", g_num_channels);
 
   if (!dirty_compressor_flag) {

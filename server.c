@@ -249,7 +249,7 @@ void *zmqthread(void *data){
 
 /**/
 
-extern int server_init(int osc_port) {
+extern int server_init(char *osc_port) {
 
   lo_server_thread st = lo_server_thread_new(osc_port, error);
 
