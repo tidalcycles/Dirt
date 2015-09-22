@@ -17,6 +17,7 @@ all: dirt
 
 clean:
 	rm -f *.o *~ dirt dirt-analyse
+all: dirt
 
 dirt: $(OBJECTS) jack.o Makefile
 	$(CC) $(OBJECTS) jack.o $(CFLAGS) $(LDFLAGS) -o $@
@@ -31,5 +32,6 @@ test: test.c Makefile
 	$(CC) test.c -llo -o test
 
 install: dirt
-	install -d $(DESTDIR)/bin/
-	install -m 0755 dirt $(DESTDIR)/bin/dirt
+	install -d $(PREFIX)/bin
+	install -m 0755 dirt $(PREFIX)/bin/dirt
+
