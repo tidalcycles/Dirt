@@ -21,6 +21,7 @@ int main (int argc, char **argv) {
   int num_channels;
   char *osc_port = DEFAULT_OSC_PORT;
   char *sampleroot = "./samples";
+  char *version = "1.0.0";
 
   unsigned int num_workers = DEFAULT_WORKERS;
 
@@ -70,6 +71,8 @@ int main (int argc, char **argv) {
         if (long_options[option_index].flag != 0) break;
 
       case 'v':
+        printf("%s\n", version);
+        return 1;
       case 'h':
         printf("Usage: dirt [OPTION]...\n"
                "\n"
