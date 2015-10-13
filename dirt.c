@@ -58,7 +58,7 @@ int main (int argc, char **argv) {
       required_argument: ":"
       optional_argument: "::" */
 
-    c = getopt_long(argc, argv, "cs:w:vh",
+    c = getopt_long(argc, argv, "c:s:w:vh",
                     long_options, &option_index);
 
     if (c == -1)
