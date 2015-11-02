@@ -916,6 +916,9 @@ void playback(float **buffers, int frame, sampletime_t now) {
 
       if (p->shape) {
         value = (1+p->shape_k)*value/(1+p->shape_k*fabs(value));
+        // gain compensation, fine-tuned by ear
+        float gcomp = 1.0 - (0.15 * p->shape_k / (p->shape_k + 2.0));
+        value *= gcomp * gcomp;
       }
       if (p->crush > 0) {
         //value = (1.0 + log(fabs(value)) / 16.63553) * (value / fabs(value));
@@ -999,11 +1002,11 @@ void playback(float **buffers, int frame, sampletime_t now) {
     }
     float factor = compress(max);
     for (channel = 0; channel < g_num_channels; ++channel) {
-      buffers[channel][frame] *= factor * 0.4;
+      buffers[channel][frame] *= factor * g_gain/5.0;
     }
   } else {
     for (channel = 0; channel < g_num_channels; ++channel) {
-      buffers[channel][frame] *= 2;
+      buffers[channel][frame] *= g_gain;
     }
   }
 }

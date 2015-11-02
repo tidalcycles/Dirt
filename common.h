@@ -6,5 +6,6 @@
 #define bool _Bool
 
 extern int g_num_channels;
+extern float g_gain;
 
 #endif // __COMMON_H__
