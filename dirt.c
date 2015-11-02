@@ -14,6 +14,7 @@ static int dirty_compressor_flag = 1;
 static int jack_auto_connect_flag = 1;
 #endif
 static int late_trigger_flag = 1;
+static int shape_gain_comp_flag = 0;
 
 int main (int argc, char **argv) {
   /* Use getopt to parse command-line arguments */
@@ -38,6 +39,8 @@ int main (int argc, char **argv) {
       {"channels",              required_argument, 0, 'c'},
       {"dirty-compressor",      no_argument, &dirty_compressor_flag, 1},
       {"no-dirty-compressor",   no_argument, &dirty_compressor_flag, 0},
+      {"shape-gain-compensation",      no_argument, &shape_gain_comp_flag, 1},
+      {"no-shape-gain-compensation",   no_argument, &shape_gain_comp_flag, 0},
 #ifdef JACK
       {"jack-auto-connect",     no_argument, &jack_auto_connect_flag, 1},
       {"no-jack-auto-connect",  no_argument, &jack_auto_connect_flag, 0},
@@ -84,21 +87,23 @@ int main (int argc, char **argv) {
                "Released as free software under the terms of the GNU Public License version 3.0 and later.\n"
                "\n"
                "Arguments:\n"
-	       "  -p, --port                      OSC port to listen to (default: %s)\n"
-               "  -c, --channels                  number of output channels (default: %u)\n"
-               "      --dirty-compressor          enable dirty compressor on audio output (default)\n"
-               "      --no-dirty-compressor       disable dirty compressor on audio output\n"
-               "  -g, --gain                      gain adjustment (default %f db)\n"
+	             "  -p, --port                       OSC port to listen to (default: %s)\n"
+               "  -c, --channels                   number of output channels (default: %u)\n"
+               "      --dirty-compressor           enable dirty compressor on audio output (default)\n"
+               "      --no-dirty-compressor        disable dirty compressor on audio output\n"
+               "      --shape-gain-compensation    enable distortion gain compensation\n"
+               "      --no-shape-gain-compensation disable distortion gain compensation (default)\n"
+               "  -g, --gain                       gain adjustment (default %f db)\n"
 #ifdef JACK
-               "      --jack-auto-connect         automatically connect to writable clients (default)\n"
-               "      --no-jack-auto-connect      do not connect to writable clients  \n"
+               "      --jack-auto-connect          automatically connect to writable clients (default)\n"
+               "      --no-jack-auto-connect       do not connect to writable clients  \n"
 #endif
-               "      --late-trigger              enable sample retrigger after loading (default)\n"
-               "      --no-late-trigger           disable sample retrigger after loading\n"
-	       "  -s  --samples-root-path         set a samples root directory path\n"
-               "  -w, --workers                   number of sample-reading workers (default: %u)\n"
-               "  -h, --help                      display this help and exit\n"
-               "  -v, --version                   output version information and exit\n",
+               "      --late-trigger               enable sample retrigger after loading (default)\n"
+               "      --no-late-trigger            disable sample retrigger after loading\n"
+	             "  -s  --samples-root-path          set a samples root directory path\n"
+               "  -w, --workers                    number of sample-reading workers (default: %u)\n"
+               "  -h, --help                       display this help and exit\n"
+               "  -v, --version                    output version information and exit\n",
                DEFAULT_OSC_PORT, DEFAULT_CHANNELS,
                20.0*log10(DEFAULT_GAIN/16.0),
                DEFAULT_WORKERS);
@@ -151,6 +156,9 @@ int main (int argc, char **argv) {
   if (!dirty_compressor_flag) {
     fprintf(stderr, "dirty compressor disabled\n");
   }
+  if (shape_gain_comp_flag) {
+    fprintf(stderr, "distortion gain compensation enabled\n");
+  }
 
 #ifdef JACK
   if (!jack_auto_connect_flag) {
@@ -166,9 +174,9 @@ int main (int argc, char **argv) {
 
   fprintf(stderr, "init audio\n");
 #ifdef JACK
-  audio_init(dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag, num_workers, sampleroot);
+  audio_init(dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag, num_workers, sampleroot, shape_gain_comp_flag);
 #else
-  audio_init(dirty_compressor_flag, true, late_trigger_flag, num_workers, sampleroot);
+  audio_init(dirty_compressor_flag, true, late_trigger_flag, num_workers, sampleroot, shape_gain_comp_flag);
 #endif
 
   fprintf(stderr, "init open sound control\n");
