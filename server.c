@@ -132,8 +132,10 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   char *unit_name = argc > (24+poffset) ? (char *) argv[24+poffset] : "r";
   int sample_loop = argc >  (25+poffset) ? argv[25+poffset]->i : 0;
 
-  if (argc > 26+poffset) {
+  static bool extraWarned = false;
+  if (argc > 26+poffset && !extraWarned) {
     printf("play server unexpectedly received extra parameters, maybe update Dirt?\n");
+    extraWarned = true;
   }
 
   if (speed == 0) {

@@ -57,6 +57,7 @@ float delay_feedback = 0.7;
 
 bool use_dirty_compressor = false;
 bool use_late_trigger = false;
+bool use_shape_gain_comp = false;
 
 thpool_t* read_file_pool;
 
@@ -916,6 +917,11 @@ void playback(float **buffers, int frame, sampletime_t now) {
 
       if (p->shape) {
         value = (1+p->shape_k)*value/(1+p->shape_k*fabs(value));
+        // gain compensation, fine-tuned by ear
+        if (use_shape_gain_comp) {
+          float gcomp = 1.0 - (0.15 * p->shape_k / (p->shape_k + 2.0));
+          value *= gcomp * gcomp;
+        }
       }
       if (p->crush > 0) {
         //value = (1.0 + log(fabs(value)) / 16.63553) * (value / fabs(value));
@@ -999,11 +1005,11 @@ void playback(float **buffers, int frame, sampletime_t now) {
     }
     float factor = compress(max);
     for (channel = 0; channel < g_num_channels; ++channel) {
-      buffers[channel][frame] *= factor * 0.4;
+      buffers[channel][frame] *= factor * g_gain/5.0;
     }
   } else {
     for (channel = 0; channel < g_num_channels; ++channel) {
-      buffers[channel][frame] *= 2;
+      buffers[channel][frame] *= g_gain;
     }
   }
 }
@@ -1274,7 +1280,7 @@ error:
 }
 #endif
 
- extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, char *sroot) {
+ extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, char *sroot, bool shape_gain_comp) {
   struct timeval tv;
 
   atexit(audio_close);
@@ -1323,6 +1329,7 @@ error:
 
   use_dirty_compressor = dirty_compressor;
   use_late_trigger = late_trigger;
+  use_shape_gain_comp = shape_gain_comp;
 }
 
 extern void audio_close(void) {
