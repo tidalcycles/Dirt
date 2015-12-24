@@ -10,3 +10,6 @@ Released under the GNU Public Licence version 3
 * [jack](http://jackaudio.org/)
   * FreeBSD: ```pkg install jackit```
   * Debian: ```apt-get install libjack-jackd2-dev jackd```
+* [libsamplerate](http://www.mega-nerd.com/SRC/)
+  * FreeBSD: ```pkg install libsamplerate```
+  * Debian: ```apt-get install libsamplerate0-dev```
