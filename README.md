@@ -13,3 +13,6 @@ Released under the GNU Public Licence version 3
 * [libsamplerate](http://www.mega-nerd.com/SRC/)
   * FreeBSD: ```pkg install libsamplerate```
   * Debian: ```apt-get install libsamplerate0-dev```
+* [libsndfile](http://www.mega-nerd.com/libsndfile/)
+  * FreeBSD: ```pkg install libsndfile```
+  * Debian: ```apt-get install libsndfile1-dev```
