@@ -571,7 +571,13 @@ extern int audio_play(t_play_args* a) {
 
   new->active = 1;
   //printf("samplename: %s when: %f\n", a->samplename, a->when);
-  strncpy(new->samplename, a->samplename, MAXPATHSIZE);
+
+  if (a->sample_n) {
+    snprintf(new->samplename, MAXPATHSIZE, "%s:%d", a->samplename, a->sample_n);
+  }
+  else {
+    strncpy(new->samplename, a->samplename, MAXPATHSIZE);
+  }
 
 #ifdef FEEDBACK
   if (is_loop) {
