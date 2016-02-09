@@ -570,10 +570,6 @@ extern int audio_play(t_play_args* a) {
     a->delayfeedback = 0.9999;
   }
 
-  if (a->delayfeedback < 0) {
-    a->delayfeedback = 0;
-  }
-
   //printf("samplename: %s when: %f\n", a->samplename, a->when);
 
 #ifdef FEEDBACK
@@ -681,7 +677,7 @@ extern int audio_play(t_play_args* a) {
   if (a->delaytime >= 0) {
     delay_time = a->delaytime;
   }
-  if (delay_feedback >= 0) {
+  if (a->delayfeedback >= 0) {
     delay_feedback = a->delayfeedback;
   }
 
