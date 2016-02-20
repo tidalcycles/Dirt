@@ -130,10 +130,11 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   float bandq = argc > (23+poffset) ? argv[23+poffset]->f : 0;
 
   char *unit_name = argc > (24+poffset) ? (char *) argv[24+poffset] : "r";
-  int sample_loop = argc >  (25+poffset) ? argv[25+poffset]->i : 0;
+  int sample_loop = argc > (25+poffset) ? argv[25+poffset]->i : 0;
+  int sample_n = argc > (26+poffset) ? argv[26+poffset]->i : 0;
 
   static bool extraWarned = false;
-  if (argc > 26+poffset && !extraWarned) {
+  if (argc > 27+poffset && !extraWarned) {
     printf("play server unexpectedly received extra parameters, maybe update Dirt?\n");
     extraWarned = true;
   }
@@ -155,12 +156,12 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 
   int unit = -1;
   switch(unit_name[0]) {
-     // rate
-     case 'r': case 'R': unit = 'r'; break;
-     // sec
-     case 's': case 'S': unit = 's'; break;
-     // cycle
-     case 'c': case 'C': unit = 'c'; break;
+    // rate
+  case 'r': case 'R': unit = 'r'; break;
+    // sec
+  case 's': case 'S': unit = 's'; break;
+    // cycle
+  case 'c': case 'C': unit = 'c'; break;
   }
 
   t_play_args args = {
@@ -191,7 +192,8 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
     bandf,
     bandq,
     unit,
-    sample_loop
+    sample_loop,
+    sample_n
   };
   audio_play(&args);
 

@@ -130,6 +130,7 @@ typedef struct {
   float bandq;
   char unit;
   int sample_loop;
+  int sample_n;
 } t_play_args;
 
 
