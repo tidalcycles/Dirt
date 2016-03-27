@@ -443,8 +443,7 @@ float effect_bpf(float in, t_sound *sound, int channel) {
 /**/
 
 void add_delay(t_line *line, float sample, float delay, float feedback) {
-  float rand_no = rand() / RAND_MAX;
-  int point = (line->point + (int) ( (delay + (rand_no * 0.2)) * MAXLINE )) % MAXLINE;
+  int point = (line->point + (int) ( delay * MAXLINE )) % MAXLINE;
 
   //printf("'feedback': %f\n", feedback);
   line->samples[point] += (sample * feedback);
