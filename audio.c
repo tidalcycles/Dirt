@@ -510,8 +510,21 @@ extern int audio_play(t_play_args* a) {
 #ifdef FEEDBACK
   int is_loop = 0;
 #endif
+  t_sound *new;
+  new = new_sound();
+  if (new == NULL) {
+    printf("hit max sounds (%d)\n", MAXSOUNDS);
+    return(-1);
+  }
+  new->active = 1;
 
   t_sample *sample = NULL;
+  if (a->sample_n) {
+    snprintf(new->samplename, MAXPATHSIZE, "%s:%d", a->samplename, a->sample_n);
+  }
+  else {
+    strncpy(new->samplename, a->samplename, MAXPATHSIZE);
+  }
 
 #ifdef FEEDBACK
   if (strcmp(a->samplename, "loop") == 0) {
@@ -519,22 +532,22 @@ extern int audio_play(t_play_args* a) {
   }
   else {
 #endif
-    sample = file_get_from_cache(a->samplename);
+    sample = file_get_from_cache(new->samplename);
 
     if (sample == NULL) {
-      if (!is_sample_loading(a->samplename)) {
-        mark_as_loading(a->samplename);
+      if (!is_sample_loading(new->samplename)) {
+        mark_as_loading(new->samplename);
 
         read_file_args_t* args = malloc(sizeof(read_file_args_t));
         if (!args) {
           fprintf(stderr, "audio_play: Could not allocate memory for read_file_args_t\n");
           return 0;
         }
-        args->samplename = strdup(a->samplename);
+        args->samplename = strdup(new->samplename);
         args->play_args = use_late_trigger ? copy_play_args(a) : NULL;
 
         if (!thpool_add_job(read_file_pool, (void*) read_file_func, (void*) args)) {
-          fprintf(stderr, "audio_play: Could not add file reading job for '%s'\n", a->samplename);
+          fprintf(stderr, "audio_play: Could not add file reading job for '%s'\n", new->samplename);
         }
       }
 
@@ -543,8 +556,6 @@ extern int audio_play(t_play_args* a) {
 #ifdef FEEDBACK
   }
 #endif
-
-  t_sound *new;
 
   if (a->delay > 1) {
     a->delay = 1;
@@ -558,25 +569,7 @@ extern int audio_play(t_play_args* a) {
     a->delayfeedback = 0.9999;
   }
 
-  if (a->delayfeedback < 0) {
-    a->delayfeedback = 0;
-  }
-
-  new = new_sound();
-  if (new == NULL) {
-    printf("hit max sounds (%d)\n", MAXSOUNDS);
-    return(-1);
-  }
-
-  new->active = 1;
   //printf("samplename: %s when: %f\n", a->samplename, a->when);
-
-  if (a->sample_n) {
-    snprintf(new->samplename, MAXPATHSIZE, "%s:%d", a->samplename, a->sample_n);
-  }
-  else {
-    strncpy(new->samplename, a->samplename, MAXPATHSIZE);
-  }
 
 #ifdef FEEDBACK
   if (is_loop) {
@@ -683,7 +676,7 @@ extern int audio_play(t_play_args* a) {
   if (a->delaytime >= 0) {
     delay_time = a->delaytime;
   }
-  if (delay_feedback >= 0) {
+  if (a->delayfeedback >= 0) {
     delay_feedback = a->delayfeedback;
   }
 
