@@ -630,7 +630,10 @@ extern int audio_play(t_play_args* a) {
   //printf("position: %f\n", new->position);
   new->formant_vowelnum = a->vowelnum;
   new->gain = powf(a->gain/2, 4);
+  
+  pthread_mutex_lock(&queue_waiting_lock);
 
+  new->loading = 1;
 
 #ifdef FEEDBACK
   if (strcmp(a->samplename, "loop") == 0) {
@@ -655,25 +658,23 @@ extern int audio_play(t_play_args* a) {
       new->end   = sample->info->frames;
       new->items    = sample->items;
       new->channels = sample->info->channels;
+      new->loading = 0;
     }
     else {
       if (!is_sample_loading(new->samplename)) {
         if (!thpool_add_job(read_file_pool, (void*) read_file_func, (void*) new)) {
           fprintf(stderr, "audio_play: Could not add file reading job for '%s'\n", new->samplename);
         }
-	new->loading = 1;
       }
     }
 #ifdef FEEDBACK
   }
 #endif
 
-  pthread_mutex_lock(&queue_waiting_lock);
   queue_add(&waiting, new);
-  //printf("added: %d\n", waiting != NULL);
   pthread_mutex_unlock(&queue_waiting_lock);
-
   return(1);
+
 }
 
 t_sound *queue_next(t_sound **queue, sampletime_t now) {
@@ -727,6 +728,7 @@ void dequeue(sampletime_t now) {
   while ((p = queue_next(&waiting, now)) != NULL) {
 #ifdef DEBUG
     int s = queue_size(playing);
+    //printf("q size: %d\n", s);
 #endif
 
     cut(p);
@@ -1310,7 +1312,6 @@ static bool is_sample_loading(const char* samplename) {
   int result = 0;
   t_sound *p;
 
-  pthread_mutex_lock(&queue_waiting_lock);
   p = waiting;
 
   while (p != NULL) {
@@ -1320,14 +1321,13 @@ static bool is_sample_loading(const char* samplename) {
     }
     p = p->next;
   }
-  pthread_mutex_unlock(&queue_waiting_lock);
 
   return(result);
 }
 
 static void unmark_as_loading(const char* samplename, t_sample *sample) {
   t_sound *p;
-
+  int i = 0;
   pthread_mutex_lock(&queue_waiting_lock);
   p = waiting;
   
@@ -1339,10 +1339,11 @@ static void unmark_as_loading(const char* samplename, t_sample *sample) {
       p->end      = sample->info->frames;
       p->items    = sample->items;
       p->channels = sample->info->channels;
+      i++;
     }
     p = p->next;
   }
-
+  //printf("unlock unmark (%d as unloading for %s)\n", i, samplename);
   pthread_mutex_unlock(&queue_waiting_lock);
 }
 
