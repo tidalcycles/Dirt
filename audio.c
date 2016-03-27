@@ -31,7 +31,6 @@ PaStream *stream;
 
 pthread_mutex_t queue_waiting_lock;
 pthread_mutex_t mutex_sounds;
-pthread_mutex_t mutex_samples_loading;
 
 t_sound *waiting = NULL;
 t_sound *playing = NULL;
@@ -61,39 +60,18 @@ bool use_shape_gain_comp = false;
 
 thpool_t* read_file_pool;
 
-typedef struct {
-  char* samplename;
-  t_play_args* play_args;
-} read_file_args_t;
-
-char** samples_loading;
 const char* sampleroot;
 
-static t_play_args* copy_play_args(const t_play_args* orig_args);
-static void free_play_args(t_play_args* args);
-
-static void init_samples_loading();
 static bool is_sample_loading(const char* samplename);
-static void mark_as_loading(const char* samplename);
-static void unmark_as_loading(const char* samplename);
+static void unmark_as_loading(const char* samplename, t_sample *sample);
 
 static void reset_sound(t_sound* s);
 
-void read_file_func(void* raw_args) {
-  read_file_args_t* args = raw_args;
-  t_sample *sample = NULL;
-
-  sample = file_get(args->samplename, sampleroot);
-  unmark_as_loading(args->samplename);
-
-  if (sample && args->play_args) {
-    audio_play(args->play_args);
-    free_play_args(args->play_args);
-  }
-  free(args->samplename);
-  free(args);
+void read_file_func(void* new) {
+  t_sound* sound = new;
+  t_sample *sample = file_get(sound->samplename, sampleroot);
+  unmark_as_loading(sound->samplename, sample);
 }
-
 
 int queue_size(t_sound *queue) {
   int result = 0;
@@ -223,6 +201,7 @@ float formant_filter(float in, t_sound *sound, int channel) {
 
 void init_formant_history (t_sound *sound) {
   // If uninitialized, create arrays
+  // TODO alloc - initialise at startup ?
   if (!sound->formant_history) {
     bool failed = false;
 
@@ -258,6 +237,7 @@ void free_formant_history (t_sound *sound) {
 }
 
 void init_crs(t_sound *sound) {
+  // TODO alloc - init at startup ?
   if (!sound->coarsef) {
     sound->coarsef = malloc(g_num_channels * sizeof(t_crs));
     if (!sound->coarsef) {
@@ -507,9 +487,6 @@ t_sound *new_sound() {
 }
 
 extern int audio_play(t_play_args* a) {
-#ifdef FEEDBACK
-  int is_loop = 0;
-#endif
   t_sound *new;
   new = new_sound();
   if (new == NULL) {
@@ -526,37 +503,6 @@ extern int audio_play(t_play_args* a) {
     strncpy(new->samplename, a->samplename, MAXPATHSIZE);
   }
 
-#ifdef FEEDBACK
-  if (strcmp(a->samplename, "loop") == 0) {
-    is_loop = 1;
-  }
-  else {
-#endif
-    sample = file_get_from_cache(new->samplename);
-
-    if (sample == NULL) {
-      if (!is_sample_loading(new->samplename)) {
-        mark_as_loading(new->samplename);
-
-        read_file_args_t* args = malloc(sizeof(read_file_args_t));
-        if (!args) {
-          fprintf(stderr, "audio_play: Could not allocate memory for read_file_args_t\n");
-          return 0;
-        }
-        args->samplename = strdup(new->samplename);
-        args->play_args = use_late_trigger ? copy_play_args(a) : NULL;
-
-        if (!thpool_add_job(read_file_pool, (void*) read_file_func, (void*) args)) {
-          fprintf(stderr, "audio_play: Could not add file reading job for '%s'\n", new->samplename);
-        }
-      }
-
-      return 0;
-    }
-#ifdef FEEDBACK
-  }
-#endif
-
   if (a->delay > 1) {
     a->delay = 1;
   }
@@ -570,30 +516,6 @@ extern int audio_play(t_play_args* a) {
   }
 
   //printf("samplename: %s when: %f\n", a->samplename, a->when);
-
-#ifdef FEEDBACK
-  if (is_loop) {
-    new->loop    = loop;
-    //int unmodded = last_chunk_start - samples_back;
-    //int modded = unmodded % loop->frames;
-    //printf("modded %d\n", modded);
-    new->start    = 0;
-    new->end      = loop->frames;
-    new->items    = loop->items;
-    new->channels = 1;
-    new->loop_start = (loop->now + (loop->frames / 2)) % loop->frames;
-  }
-  else {
-#endif
-    new->sample   = sample;
-    new->start = 0;
-    new->end   = sample->info->frames;
-    new->items    = sample->items;
-    new->channels = sample->info->channels;
-#ifdef FEEDBACK
-  }
-  new->is_loop = is_loop;
-#endif
 
 #ifdef JACK
   new->startT =
@@ -710,6 +632,42 @@ extern int audio_play(t_play_args* a) {
   new->gain = powf(a->gain/2, 4);
 
 
+#ifdef FEEDBACK
+  if (strcmp(a->samplename, "loop") == 0) {
+    new->is_loop = 1;
+    new->loop    = loop;
+    //int unmodded = last_chunk_start - samples_back;
+    //int modded = unmodded % loop->frames;
+    //printf("modded %d\n", modded);
+    new->start    = 0;
+    new->end      = loop->frames;
+    new->items    = loop->items;
+    new->channels = 1;
+    new->loop_start = (loop->now + (loop->frames / 2)) % loop->frames;
+  }
+  else {
+#endif
+    sample = file_get_from_cache(new->samplename);
+
+    if (sample != NULL) {
+      new->sample   = sample;
+      new->start = 0;
+      new->end   = sample->info->frames;
+      new->items    = sample->items;
+      new->channels = sample->info->channels;
+    }
+    else {
+      if (!is_sample_loading(new->samplename)) {
+        if (!thpool_add_job(read_file_pool, (void*) read_file_func, (void*) new)) {
+          fprintf(stderr, "audio_play: Could not add file reading job for '%s'\n", new->samplename);
+        }
+	new->loading = 1;
+      }
+    }
+#ifdef FEEDBACK
+  }
+#endif
+
   pthread_mutex_lock(&queue_waiting_lock);
   queue_add(&waiting, new);
   //printf("added: %d\n", waiting != NULL);
@@ -721,7 +679,7 @@ extern int audio_play(t_play_args* a) {
 t_sound *queue_next(t_sound **queue, sampletime_t now) {
   t_sound *result = NULL;
   //printf("%f vs %f\n", *queue == NULL ? 0 : (*queue)->startT, now);
-  if (*queue != NULL && (*queue)->startT <= now) {
+  if (*queue != NULL && (*queue)->startT <= now && (*queue)->loading == 0) {
     result = *queue;
     *queue = (*queue)->next;
     if ((*queue) != NULL) {
@@ -1305,8 +1263,6 @@ error:
     exit(1);
   }
 
-  init_samples_loading();
-
 #ifdef JACK
   jack_init(autoconnect);
 #elif PULSE
@@ -1336,7 +1292,6 @@ extern void audio_close(void) {
 #endif
   if (delays) free(delays);
   if (read_file_pool) thpool_destroy(read_file_pool);
-  if (samples_loading) free(samples_loading);
 
   // free all active sounds, if any
   pthread_mutex_lock(&mutex_sounds);
@@ -1351,67 +1306,44 @@ extern void audio_close(void) {
   pthread_mutex_unlock(&mutex_sounds);
 }
 
-
-static t_play_args* copy_play_args(const t_play_args* orig_args) {
-  t_play_args* args = malloc(sizeof(t_play_args));
-  if (args == NULL) {
-    fprintf(stderr, "no memory to allocate play arguments struct\n");
-    return NULL;
-  }
-  memcpy(args, orig_args, sizeof(t_play_args));
-  args->samplename = strdup(orig_args->samplename);
-  return args;
-}
-
-static void free_play_args(t_play_args* args) {
-  free(args->samplename);
-  free(args);
-}
-
-static void init_samples_loading() {
-  samples_loading = malloc(sizeof(char*) * thpool_size(read_file_pool));
-  if (!samples_loading) {
-    fprintf(stderr, "no memory to allocate `samples_loading'\n");
-    exit(1);
-  }
-  for (int i = 0; i < thpool_size(read_file_pool); i++) {
-    samples_loading[i] = NULL;
-  }
-}
-
 static bool is_sample_loading(const char* samplename) {
-  for (int i = 0; i < thpool_size(read_file_pool); i++) {
-    if (samples_loading[i] != NULL && strcmp(samples_loading[i], samplename) == 0) {
-      return true;
+  int result = 0;
+  t_sound *p;
+
+  pthread_mutex_lock(&queue_waiting_lock);
+  p = waiting;
+
+  while (p != NULL) {
+    if (p->loading && strcmp(samplename, p->samplename) == 0) {
+      result = 1;
+      break;
     }
+    p = p->next;
   }
-  return false;
+  pthread_mutex_unlock(&queue_waiting_lock);
+
+  return(result);
 }
 
-static void mark_as_loading(const char* samplename) {
-  pthread_mutex_lock(&mutex_samples_loading);
+static void unmark_as_loading(const char* samplename, t_sample *sample) {
+  t_sound *p;
 
-  int i;
-  for (i = 0; i < thpool_size(read_file_pool); i++) {
-    if (samples_loading[i] == NULL) break;
+  pthread_mutex_lock(&queue_waiting_lock);
+  p = waiting;
+  
+  while (p != NULL) {
+    if (p->loading && strcmp(samplename, p->samplename) == 0) {
+      p->loading = 0;
+      p->sample   = sample;
+      p->start = 0;
+      p->end      = sample->info->frames;
+      p->items    = sample->items;
+      p->channels = sample->info->channels;
+    }
+    p = p->next;
   }
-  samples_loading[i] = strdup(samplename);
 
-  pthread_mutex_unlock(&mutex_samples_loading);
-}
-
-static void unmark_as_loading(const char* samplename) {
-  pthread_mutex_lock(&mutex_samples_loading);
-
-  int i;
-  for (i = 0; i < thpool_size(read_file_pool); i++) {
-    const char* sn = samples_loading[i];
-    if (sn != NULL && strcmp(sn, samplename) == 0) break;
-  }
-  free(samples_loading[i]);
-  samples_loading[i] = NULL;
-
-  pthread_mutex_unlock(&mutex_samples_loading);
+  pthread_mutex_unlock(&queue_waiting_lock);
 }
 
 // Reset sound structure for reutilization

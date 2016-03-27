@@ -52,6 +52,7 @@ float line_feedback_delay;
 
 typedef struct t_node {
   int    active;
+  int    loading;
   sampletime_t startT;
   char samplename[MAXPATHSIZE+1];
   int is_loop;
