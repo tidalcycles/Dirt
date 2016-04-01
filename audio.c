@@ -61,6 +61,7 @@ const char* sampleroot;
 
 void queue_add(t_sound **queue, t_sound *new);
 void init_sound(t_sound *sound);
+int queue_size(t_sound *queue);
 
 static int is_sample_loading(const char* samplename) {
   int result = 0;
@@ -92,6 +93,7 @@ static void unmark_as_loading(const char* samplename) {
   pthread_mutex_lock(&queue_loading_lock);
   t_sound *p = loading;
   while (p != NULL) {
+    t_sound *next = p->next;
     if (strcmp(samplename, p->samplename) == 0) {
       if (p->prev == NULL) {
 	loading = p->next;
@@ -107,12 +109,13 @@ static void unmark_as_loading(const char* samplename) {
 	}
       }
     
-      p->prev = p->next = NULL;
+      p->prev = NULL;
+      p->next = NULL;
       pthread_mutex_lock(&queue_waiting_lock);
       queue_add(&waiting, p);
       pthread_mutex_unlock(&queue_waiting_lock);
     }
-    p = p->next;
+    p = next;
   }
   pthread_mutex_unlock(&queue_loading_lock);
 }
@@ -142,6 +145,8 @@ int queue_size(t_sound *queue) {
 
 void queue_add(t_sound **queue, t_sound *new) {
   int added = 0;
+  assert(new->next != new);
+  assert(new->prev != new);
   if (*queue == NULL) {
     *queue = new;
     added++;
@@ -501,6 +506,8 @@ extern int audio_play(t_sound* sound) {
   if (sample != NULL) {
     sound->sample = sample;
     init_sound(sound);
+    sound->prev = NULL;
+    sound->next = NULL;
     pthread_mutex_lock(&queue_waiting_lock);
     queue_add(&waiting, sound);
     pthread_mutex_unlock(&queue_waiting_lock);
@@ -508,11 +515,11 @@ extern int audio_play(t_sound* sound) {
   else {
     pthread_mutex_lock(&queue_loading_lock);
     if (!is_sample_loading(sound->samplename)) {
-      mark_as_loading(sound);
       if (!thpool_add_job(read_file_pool, (void*) read_file_func, (void*) sound)) {
 	fprintf(stderr, "audio_play: Could not add file reading job for '%s'\n", sound->samplename);
       }
     }
+    mark_as_loading(sound);
     pthread_mutex_unlock(&queue_loading_lock);
   }
 
@@ -641,15 +648,15 @@ void init_sound(t_sound *sound) {
 
 t_sound *queue_next(t_sound **queue, sampletime_t now) {
   t_sound *result = NULL;
+  // printf("queue_next - waiting sz %d / %d\n", queue_size(*queue), queue_size(waiting));
   //printf("%f vs %f\n", *queue == NULL ? 0 : (*queue)->startT, now);
-  while (*queue != NULL && (*queue)->startT <= now) {
+  if (*queue != NULL && (*queue)->startT <= now) {
     result = *queue;
     *queue = (*queue)->next;
     if ((*queue) != NULL) {
       (*queue)->prev = NULL;
     }
   }
-
   return(result);
 }
 
@@ -687,12 +694,10 @@ void cut(t_sound *s) {
 void dequeue(sampletime_t now) {
   t_sound *p;
   pthread_mutex_lock(&queue_waiting_lock);
-  while ((p = queue_next(&waiting, now)) != NULL) {
-#ifdef DEBUG
-    int s = queue_size(playing);
-    //printf("q size: %d\n", s);
-#endif
+  assert(waiting == NULL || waiting->next != waiting);
 
+  while ((p = queue_next(&waiting, now)) != NULL) {
+    int s = queue_size(playing);
     cut(p);
     p->prev = NULL;
     p->next = playing;
@@ -885,7 +890,6 @@ void playback(float **buffers, int frame, sampletime_t now) {
       if (--(tmp->sample_loop) > 0) {
         tmp->position = tmp->start;
       } else {
-        //printf("remove %s %f\n", tmp->samplename, tmp->position);
         queue_remove(&playing, tmp);
       }
     }
@@ -1155,6 +1159,7 @@ error:
   }
 
   pthread_mutex_init(&queue_waiting_lock, NULL);
+  pthread_mutex_init(&queue_loading_lock, NULL);
   pthread_mutex_init(&mutex_sounds, NULL);
 
   read_file_pool = thpool_init(num_workers);
