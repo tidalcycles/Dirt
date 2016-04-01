@@ -136,36 +136,35 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
     printf("hit max sounds (%d)\n", MAXSOUNDS);
     return(-1);
   }
+  sound->active = 1;
+  sound->speed = speed;
+  sound->pan = pan;
+  sound->start = start;
+  sound->end = end;
+  sound->velocity = velocity;
+  sound->formant_vowelnum = vowelnum;
+  sound->cutoff = cutoff;
+  sound->resonance = resonance;
+  sound->accelerate = accelerate;
+  sound->shape = shape;
+  sound->shape_k = (2.0f * shape) / (1.0f - shape);
+  sound->delay = delay;
+  sound->delaytime = delaytime;
+  sound->delayfeedback = delayfeedback;
+  sound->gain = powf(gain/2, 4);
+  sound->cutgroup = cutgroup;
+  sound->crush = crush;
+  sound->coarse = coarse;
+  sound->hcutoff = hcutoff;
+  sound->hresonance = hresonance;
+  sound->bandf = bandf;
+  sound->bandq = bandq;
+  sound->sample_loop = sample_loop;
+  sound->unit = unit;
+  sound->offset = offset;
+  sound->cps = cps;
+  sound->when = when;
 
-  *sound = (t_sound) {
-    .speed = speed,
-    .pan = pan,
-    .start = start,
-    .end = end,
-    .velocity = velocity,
-    .formant_vowelnum = vowelnum,
-    .cutoff = cutoff,
-    .resonance = resonance,
-    .accelerate = accelerate,
-    .shape = shape,
-    .shape_k = (2.0f * shape) / (1.0f - shape),
-    .delay = delay,
-    .delaytime = delaytime,
-    .delayfeedback = delayfeedback,
-    .gain = powf(gain/2, 4),
-    .cutgroup = cutgroup,
-    .crush = crush,
-    .coarse = coarse,
-    .hcutoff = hcutoff,
-    .hresonance = hresonance,
-    .bandf = bandf,
-    .bandq = bandq,
-    .sample_loop = sample_loop,
-    .unit = unit,
-    .offset = offset,
-    .cps = cps,
-    .when = when
-  };
   if (sample_n) {
     snprintf(sound->samplename, MAXPATHSIZE, "%s:%d", 
 	     sample_name, 
