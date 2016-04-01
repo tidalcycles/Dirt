@@ -5,7 +5,6 @@
 #define MAXLINE  44100
 #define MAXSOUNDS 512
 #define ROUNDOFF 16
-
 #define MAX_DB 12
 
 #ifdef JACK
@@ -52,7 +51,6 @@ float line_feedback_delay;
 
 typedef struct t_node {
   int    active;
-  int    loading;
   sampletime_t startT;
   char samplename[MAXPATHSIZE+1];
   int is_loop;
@@ -85,6 +83,8 @@ typedef struct t_node {
   int    started;
   int    checks;
   float  delay;
+  float delaytime;
+  float delayfeedback;
   float  gain;
   int    cutgroup;
   int    mono;
@@ -100,13 +100,16 @@ typedef struct t_node {
   t_vcf  *bpf;
   int    sample_loop;
   int    cut_continue;
+  char   unit;
+  float  cps;
+  double when;
 } t_sound;
 
 typedef struct {
   double when;
   float cps;
   char *samplename;
-  float offset;
+
   float start;
   float end;
   float speed;
@@ -139,15 +142,6 @@ typedef struct {
 extern int audio_callback(int frames, float *input, float **outputs);
 extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, char *sampleroot, bool shape_gain_comp);
 extern void audio_close(void);
-extern int audio_play(t_play_args*);
+extern int audio_play(t_sound*);
+t_sound *new_sound();
 
-extern void audio_kriole(double when, 
-                         float duration, 
-                         float pitch_start, 
-                         float pitch_stop
-                         );
-
-#ifdef FEEDBACK
-void preload_kriol(char *dir);
-void audio_pause_input(int paused);
-#endif

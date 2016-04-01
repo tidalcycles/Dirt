@@ -50,38 +50,6 @@ int generic_handler(const char *path, const char *types, lo_arg **argv,
 
 /**/
 
-int kriole_handler(const char *path, const char *types, lo_arg **argv,
-                   int argc, void *data, void *user_data) {
-
-  double when = (double) argv[0]->i + ((double) argv[1]->i / 1000000.0);
-  float duration = argv[2]->f;
-  float pitch_start = argv[3]->f;
-  float pitch_stop = argv[4]->f;
-  
-  audio_kriole(when, duration, pitch_start, pitch_stop);
-
-  return(0);
-}
-
-/**/
-
-#ifdef FEEDBACK
-int preload_handler(const char *path, const char *types, lo_arg **argv,
-                   int argc, void *data, void *user_data) {
-
-  preload_kriol((char *) argv[0]);
-  return(0);
-}
-
-int pause_input_handler(const char *path, const char *types, lo_arg **argv,
-			int argc, void *data, void *user_data) {
-  audio_pause_input(argv[0]->i);
-  return(0);
-}
-#endif
-
-/**/
-
 int play_handler(const char *path, const char *types, lo_arg **argv,
                  int argc, void *data, void *user_data) {
 
@@ -113,7 +81,6 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   float resonance = argv[9+poffset]->f;
   float accelerate = argv[10+poffset]->f;
   float shape = argv[11+poffset]->f;
-  int kriole_chunk = argv[12+poffset]->i;
   
   float gain = argc > (13+poffset) ? argv[13+poffset]->f : 0;
   int cutgroup = argc > (14+poffset) ? argv[14+poffset]->i : 0;
@@ -164,38 +131,51 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   case 'c': case 'C': unit = 'c'; break;
   }
 
-  t_play_args args = {
-    when,
-    cps,
-    sample_name,
-    offset,
-    start,
-    end,
-    speed,
-    pan,
-    velocity,
-    vowelnum,
-    cutoff,
-    resonance,
-    accelerate,
-    shape,
-    kriole_chunk,
-    gain,
-    cutgroup,
-    delay,
-    delaytime,
-    delayfeedback,
-    crush,
-    coarse,
-    hcutoff,
-    hresonance,
-    bandf,
-    bandq,
-    unit,
-    sample_loop,
-    sample_n
+  t_sound *sound = new_sound();
+  if (sound == NULL) {
+    printf("hit max sounds (%d)\n", MAXSOUNDS);
+    return(-1);
+  }
+
+  *sound = (t_sound) {
+    .speed = speed,
+    .pan = pan,
+    .start = start,
+    .end = end,
+    .velocity = velocity,
+    .formant_vowelnum = vowelnum,
+    .cutoff = cutoff,
+    .resonance = resonance,
+    .accelerate = accelerate,
+    .shape = shape,
+    .shape_k = (2.0f * shape) / (1.0f - shape),
+    .delay = delay,
+    .delaytime = delaytime,
+    .delayfeedback = delayfeedback,
+    .gain = powf(gain/2, 4),
+    .cutgroup = cutgroup,
+    .crush = crush,
+    .coarse = coarse,
+    .hcutoff = hcutoff,
+    .hresonance = hresonance,
+    .bandf = bandf,
+    .bandq = bandq,
+    .sample_loop = sample_loop,
+    .unit = unit,
+    .offset = offset,
+    .cps = cps,
+    .when = when
   };
-  audio_play(&args);
+  if (sample_n) {
+    snprintf(sound->samplename, MAXPATHSIZE, "%s:%d", 
+	     sample_name, 
+	     sample_n);
+  }
+  else {
+    strncpy(sound->samplename, sample_name, MAXPATHSIZE);
+  }
+
+  audio_play(sound);
 
   return(0);
 }
@@ -226,11 +206,6 @@ void *zmqthread(void *data){
 		       NULL
 		       );
 
-  lo_server_add_method(s, "/kriole", "iifff",
-		       kriole_handler, 
-		       NULL
-		       );
-
   lo_server_add_method(s, NULL, NULL, generic_handler, NULL);
 
   assert(rc == 0);
@@ -258,22 +233,6 @@ extern int server_init(char *osc_port) {
   lo_server_thread st = lo_server_thread_new(osc_port, error);
 
   lo_server_thread_add_method(st, "/play", NULL, play_handler, NULL);
-
-  lo_server_thread_add_method(st, "/kriole", "iifff",
-                              kriole_handler, 
-                              NULL
-                             );
-
-#ifdef FEEDBACK
-  lo_server_thread_add_method(st, "/preload", "s",
-                              preload_handler, 
-                              NULL
-                             );
-  lo_server_thread_add_method(st, "/pause_input", "i",
-                              pause_input_handler, 
-                              NULL
-                             );
-#endif
 
   lo_server_thread_add_method(st, NULL, NULL, generic_handler, NULL);
   lo_server_thread_start(st);
