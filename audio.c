@@ -89,7 +89,7 @@ static void mark_as_loading(t_sound* sound) {
   loading = sound;
 }
 
-static void unmark_as_loading(const char* samplename) {
+static void unmark_as_loading(const char* samplename, int success) {
   pthread_mutex_lock(&queue_loading_lock);
   t_sound *p = loading;
   while (p != NULL) {
@@ -111,9 +111,14 @@ static void unmark_as_loading(const char* samplename) {
     
       p->prev = NULL;
       p->next = NULL;
-      pthread_mutex_lock(&queue_waiting_lock);
-      queue_add(&waiting, p);
-      pthread_mutex_unlock(&queue_waiting_lock);
+      if (success) {
+	pthread_mutex_lock(&queue_waiting_lock);
+	queue_add(&waiting, p);
+	pthread_mutex_unlock(&queue_waiting_lock);
+      }
+      else {
+	p->active = 0;
+      }
     }
     p = next;
   }
@@ -125,9 +130,11 @@ static void reset_sound(t_sound* s);
 void read_file_func(void* new) {
   t_sound* sound = new;
   t_sample *sample = file_get(sound->samplename, sampleroot);
-  sound->sample = sample;
-  init_sound(sound);
-  unmark_as_loading(sound->samplename);
+  if (sample != NULL) {
+    sound->sample = sample;
+    init_sound(sound);
+  }
+  unmark_as_loading(sound->samplename, sample != NULL);
 }
 
 int queue_size(t_sound *queue) {
@@ -1230,10 +1237,12 @@ t_sound *new_sound() {
   for (int i = 0; i < MAXSOUNDS; ++i) {
     if (sounds[i].active == 0) {
       result = &sounds[i];
-      reset_sound(&sounds[i]);
+      reset_sound(result);
+      result->active = 1;
       break;
     }
   }
   pthread_mutex_unlock(&mutex_sounds);
+  // printf("qs: playing %d waiting %d loading %d\n", queue_size(playing), queue_size(waiting), queue_size(loading));
   return(result);
 }
