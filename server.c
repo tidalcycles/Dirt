@@ -166,6 +166,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   sound->when = when;
 
   if (sample_n) {
+    sample_n = abs(sample_n);
     snprintf(sound->samplename, MAXPATHSIZE, "%s:%d", 
 	     sample_name, 
 	     sample_n);
