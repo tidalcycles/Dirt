@@ -17,10 +17,17 @@
 #include <pulse/error.h>
 #include <pulse/gccmacro.h>
 #else
+
 #include "portaudio.h"
 
+#ifdef __linux
+#include <pa_linux_alsa.h>
+#endif
+
 PaStream *stream;
+
 #define PA_FRAMES_PER_BUFFER 1024
+
 #endif
 
 #include "audio.h"
@@ -45,7 +52,6 @@ float starttime = 0;
 #ifdef JACK
 jack_client_t *jack_client = NULL;
 #endif
-static int samplerate = 0;
 float compression_speed = -1;
 
 float delay_time = 0.1;
@@ -570,11 +576,11 @@ void init_sound(t_sound *sound) {
 
   if (sound->unit == 's') { // unit = "sec"
     sound->accelerate = sound->accelerate / sound->speed; // change rate by 1 per specified duration
-    sound->speed = sound->sample->info->frames / sound->speed / samplerate;
+    sound->speed = sound->sample->info->frames / sound->speed / g_samplerate;
   }
   else if (sound->unit == 'c') { // unit = "cps"
     sound->accelerate = sound->accelerate * sound->speed * sound->cps; // change rate by 1 per cycle
-    sound->speed = sound->sample->info->frames * sound->speed * sound->cps / samplerate;
+    sound->speed = sound->sample->info->frames * sound->speed * sound->cps / g_samplerate;
   }
   // otherwise, unit is rate/ratio,
   // i.e. 2 = twice as fast, -1 = normal but backwards
@@ -723,7 +729,7 @@ void dequeue(sampletime_t now) {
 
 float compress(float in) {
   static float env = 0;
-  env += (float) 50 / samplerate;
+  env += (float) 50 / g_samplerate;
   if (fabs(in * env) > 1) {
     env = env / fabs(in * env);
   }
@@ -884,7 +890,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
 
     if (p->accelerate != 0) {
       // ->startFrame ->end ->position
-      p->speed += p->accelerate/samplerate;
+      p->speed += p->accelerate/g_samplerate;
     }
     p->position += p->speed;
 
@@ -954,7 +960,7 @@ extern int jack_callback(int frames, float *input, float **outputs) {
 void run_pulse() {
   #define FRAMES 64
   struct timeval tv;
-  double samplelength = (((double) 1)/((double) samplerate));
+  double samplelength = (((double) 1)/((double) g_samplerate));
 
   float *buf[g_num_channels];
   for (int i = 0 ; i < g_num_channels; ++i) {
@@ -964,7 +970,7 @@ void run_pulse() {
 
   pa_sample_spec ss;
   ss.format = PA_SAMPLE_FLOAT32LE;
-  ss.rate = samplerate;
+  ss.rate = g_samplerate;
   ss.channels = g_num_channels;
 
   pa_simple *s = NULL;
@@ -1043,10 +1049,10 @@ static int pa_callback(const void *inputBuffer, void *outputBuffer,
   #else
   double now = timeInfo->outputBufferDacTime;
   #endif
-  printf("%f %f %f\n", timeInfo->outputBufferDacTime, timeInfo->currentTime,   Pa_GetStreamTime(stream));
+  // printf("%f %f %f\n", timeInfo->outputBufferDacTime, timeInfo->currentTime,   Pa_GetStreamTime(stream));
   float **buffers = (float **) outputBuffer;
   for (int i=0; i < framesPerBuffer; ++i) {
-    double framenow = now + (((double) i)/((double) samplerate));
+    double framenow = now + (((double) i)/((double) g_samplerate));
     playback(buffers, i, framenow);
     dequeue(framenow);
   }
@@ -1059,7 +1065,7 @@ static int pa_callback(const void *inputBuffer, void *outputBuffer,
 #ifdef JACK
 void jack_init(bool autoconnect) {
   jack_client = jack_start(jack_callback, autoconnect);
-  samplerate = jack_get_sample_rate(jack_client);
+  g_samplerate = jack_get_sample_rate(jack_client);
 }
 #elif PULSE
 void pulse_init() {
@@ -1078,7 +1084,6 @@ void pa_init(void) {
   PaError err;
 
   printf("init pa\n");
-  samplerate = 44100;
 
   err = Pa_Initialize();
   if( err != paNoError ) {
@@ -1115,7 +1120,7 @@ void pa_init(void) {
             &stream,
             NULL, /* no input */
             &outputParameters,
-            samplerate,
+            g_samplerate,
             PA_FRAMES_PER_BUFFER,
             paNoFlag,
             pa_callback,
@@ -1130,6 +1135,11 @@ void pa_init(void) {
       goto error;
     }
 
+#ifdef __linux__
+    printf("setting realtime priority\n");
+    PaAlsa_EnableRealtimeScheduling(stream, 1);
+#endif
+    
     err = Pa_StartStream(stream);
     if( err != paNoError ) {
       goto error;
@@ -1178,17 +1188,13 @@ error:
 #ifdef JACK
   jack_init(autoconnect);
 #elif PULSE
-  samplerate = 44100;
   pthread_t t;
   pthread_create(&t, NULL, (void *(*)(void *)) run_pulse, NULL);
   //sleep(1);
 #else
   pa_init();
 #endif
-  printf("hm. %d\n", samplerate);
-  compression_speed = 1000 / samplerate;
-  file_set_samplerate(samplerate);
-
+  compression_speed = 1000 / g_samplerate;
   use_dirty_compressor = dirty_compressor;
   use_late_trigger = late_trigger;
   use_shape_gain_comp = shape_gain_comp;
