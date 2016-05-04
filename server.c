@@ -146,7 +146,9 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   sound->cutoff = cutoff;
   sound->resonance = resonance;
   sound->accelerate = accelerate;
-  sound->shape = shape;
+  sound->shape = (shape != 0);
+  shape = fabs(shape);
+  shape = (shape > 0.99)?0.99:shape;
   sound->shape_k = (2.0f * shape) / (1.0f - shape);
   sound->delay = delay;
   sound->delaytime = delaytime;

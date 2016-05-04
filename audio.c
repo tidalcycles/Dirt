@@ -593,15 +593,15 @@ void init_sound(t_sound *sound) {
 #endif
   init_formant_history(sound);
 
-  if (sound->shape != 0) {
-    float tmp = sound->shape;
-    tmp = fabs(tmp);
-    if (tmp > 0.99) {
-      tmp = 0.99;
-    }
-    sound->shape = 1;
-    sound->shape_k = (2.0f * tmp) / (1.0f - tmp);
-  }
+//  if (sound->shape != 0) {
+//    float tmp = sound->shape;
+//    tmp = fabs(tmp);
+//    if (tmp > 0.99) {
+//      tmp = 0.99;
+//    }
+//    sound->shape = 1;
+//    sound->shape_k = (2.0f * tmp) / (1.0f - tmp);
+//  }
   
   if (sound->crush != 0) {
     float tmp = sound->crush;
