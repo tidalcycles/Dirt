@@ -642,7 +642,7 @@ void init_sound(t_sound *sound) {
     sound->end *= end_pc;
   }
   sound->position = sound->start;
-
+  sound->playtime = 0.0;
 }
 
 
@@ -846,6 +846,21 @@ void playback(float **buffers, int frame, sampletime_t now) {
 
 
       value *= p->gain;
+      // envelope
+      float env = 1.0;
+      if (p->attack >= 0 && p->release >= 0) {
+        if (p->playtime < p->attack) {
+          env = 1.0523957 - 1.0523958*exp(-3.0 * p->playtime/p->attack);
+        } else if (p->playtime > (p->attack + p->hold + p->release)) {
+          env = 0.0;
+        } else if (p->playtime > (p->attack + p->hold)) {
+          env = 1.0523957 *
+            exp(-3.0 * (p->playtime - p->attack - p->hold) / p->release) 
+            - 0.0523957;
+        }
+      }
+      value *= env;
+
       value *= roundoff;
 
       float c = (float) channel + p->pan;
@@ -880,6 +895,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
       p->speed += p->accelerate/samplerate;
     }
     p->position += p->speed;
+    p->playtime += 1.0 / samplerate;
 
     //printf("position: %d of %d\n", p->position, playing->end);
 
