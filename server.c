@@ -100,8 +100,12 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   int sample_loop = argc > (25+poffset) ? argv[25+poffset]->i : 0;
   int sample_n = argc > (26+poffset) ? argv[26+poffset]->i : 0;
 
+  float attack = argc > (27+poffset) ? argv[27+poffset]->f : 0;
+  float hold = argc > (28+poffset) ? argv[28+poffset]->f : 0;
+  float release = argc > (29+poffset) ? argv[29+poffset]->f : 0;
+
   static bool extraWarned = false;
-  if (argc > 27+poffset && !extraWarned) {
+  if (argc > 30+poffset && !extraWarned) {
     printf("play server unexpectedly received extra parameters, maybe update Dirt?\n");
     extraWarned = true;
   }
@@ -175,6 +179,9 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   else {
     strncpy(sound->samplename, sample_name, MAXPATHSIZE);
   }
+  sound->attack = attack;
+  sound->hold = hold;
+  sound->release = release;
 
   audio_play(sound);
 
