@@ -21,6 +21,7 @@ int main (int argc, char **argv) {
   /* see http://www.gnu.org/savannah-checkouts/gnu/libc/manual/html_node/Getopt.html */
   int c;
   int num_channels;
+  int samplerate;
   float gain = 20.0 * log10(g_gain/16.0);
   char *osc_port = DEFAULT_OSC_PORT;
   char *sampleroot = "./samples";
@@ -37,6 +38,7 @@ int main (int argc, char **argv) {
       /* Argument styles: no_argument, required_argument, optional_argument */
       {"port",                  required_argument, 0, 'p'},
       {"channels",              required_argument, 0, 'c'},
+      {"samplerate",            required_argument, 0, 'r'},
       {"dirty-compressor",      no_argument, &dirty_compressor_flag, 1},
       {"no-dirty-compressor",   no_argument, &dirty_compressor_flag, 0},
       {"shape-gain-compensation",      no_argument, &shape_gain_comp_flag, 1},
@@ -89,6 +91,9 @@ int main (int argc, char **argv) {
                "Arguments:\n"
 	             "  -p, --port                       OSC port to listen to (default: %s)\n"
                "  -c, --channels                   number of output channels (default: %u)\n"
+#ifndef JACK
+               "  -r, --samplerate                 samplerate (default: %u)\n"
+#endif
                "      --dirty-compressor           enable dirty compressor on audio output (default)\n"
                "      --no-dirty-compressor        disable dirty compressor on audio output\n"
                "      --shape-gain-compensation    enable distortion gain compensation\n"
@@ -105,6 +110,9 @@ int main (int argc, char **argv) {
                "  -h, --help                       display this help and exit\n"
                "  -v, --version                    output version information and exit\n",
                DEFAULT_OSC_PORT, DEFAULT_CHANNELS,
+#ifndef JACK
+	       DEFAULT_SAMPLERATE,
+#endif
                20.0*log10(DEFAULT_GAIN/16.0),
                DEFAULT_WORKERS);
         return 1;
@@ -120,7 +128,14 @@ int main (int argc, char **argv) {
         }
         g_num_channels = num_channels;
         break;
-
+      case 'r':
+        samplerate = atoi(optarg);
+        if (samplerate < MIN_SAMPLERATE || samplerate > MAX_SAMPLERATE) {
+          fprintf(stderr, "invalid number of channels: %u (min: %u, max: %u). resetting to default\n", samplerate, MIN_SAMPLERATE, MAX_SAMPLERATE);
+	  samplerate = DEFAULT_SAMPLERATE;
+        }
+	g_samplerate = samplerate;
+        break;
       case 's':
 	sampleroot = optarg;
 	break;
@@ -150,6 +165,7 @@ int main (int argc, char **argv) {
 
   fprintf(stderr, "port: %s\n", osc_port);
   fprintf(stderr, "channels: %u\n", g_num_channels);
+  fprintf(stderr, "samplerate: %u\n", g_samplerate);
   fprintf(stderr, "gain (dB): %f\n", gain);
   fprintf(stderr, "gain factor: %f\n", g_gain);
 
