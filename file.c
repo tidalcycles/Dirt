@@ -7,26 +7,20 @@
 #include <pthread.h>
 
 #include "file.h"
+#include "common.h"
 #include "segment.h"
 
 t_sample *samples[MAXSAMPLES];
 int sample_count = 0;
 
-int samplerate = 44100;
-
 pthread_mutex_t mutex_samples;
 bool mutex_samples_init = false;
-
-
-extern void file_set_samplerate(int s) {
-  samplerate = s;
-}
 
 t_loop *new_loop(float seconds) {
   t_loop *result = (t_loop *) calloc(1, sizeof(t_loop));
   //result->chunksz = 2048 * 2;
   result->chunksz = 2048;
-  result->max_frames = result->frames = seconds * (float) samplerate;
+  result->max_frames = result->frames = seconds * (float) g_samplerate;
   result->items = (float *) calloc(result->frames, sizeof(double));
   result->in = (double *) calloc(result->chunksz, sizeof(double));
   result->now = 0;
@@ -70,10 +64,10 @@ void fix_samplerate (t_sample *sample) {
   int channels = sample->info->channels;
 
   //printf("start frames: %d\n", sample->info->frames);
-  if (sample->info->samplerate == samplerate) {
+  if (sample->info->samplerate == g_samplerate) {
     return;
   }
-  data.src_ratio = (float) samplerate / (float) sample->info->samplerate;
+  data.src_ratio = (float) g_samplerate / (float) sample->info->samplerate;
   //printf("ratio: %d / %d = %f\n", sample->info->samplerate, samplerate, data.src_ratio);
   max_output_frames = sample->info->frames * data.src_ratio + 32;
 
@@ -90,7 +84,7 @@ void fix_samplerate (t_sample *sample) {
 
   if (sample->items) free(sample->items);
   sample->items = data.data_out;
-  sample->info->samplerate = samplerate;
+  sample->info->samplerate = g_samplerate;
   sample->info->frames = data.output_frames_gen;
   //printf("end samplerate: %d frames: %d\n", (int) sample->info->samplerate, sample->info->frames);
 }
