@@ -103,6 +103,10 @@ typedef struct t_node {
   char   unit;
   float  cps;
   double when;
+  float  attack;
+  float  hold;
+  float  release;
+  float  playtime;
 } t_sound;
 
 typedef struct {
@@ -135,6 +139,9 @@ typedef struct {
   char unit;
   int sample_loop;
   int sample_n;
+  float attack;
+  float hold;
+  float release;
 } t_play_args;
 
 

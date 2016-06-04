@@ -51,9 +51,7 @@ t_sample *find_sample (char *samplename) {
 
 int wav_filter (const struct dirent *d) {
   if (strlen(d->d_name) > 4) {
-    return(strcmp(d->d_name + strlen(d->d_name) - 4, ".wav") == 0
-           || strcmp(d->d_name + strlen(d->d_name) - 4, ".WAV") == 0
-           );
+    return(strcasecmp(d->d_name + strlen(d->d_name) - 4, ".wav") == 0);
   }
   return(0);
 }
