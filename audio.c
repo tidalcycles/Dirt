@@ -908,7 +908,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
       p->speed += p->accelerate/g_samplerate;
     }
     p->position += p->speed;
-    p->playtime += 1.0 / samplerate;
+    p->playtime += 1.0 / g_samplerate;
 
     //printf("position: %d of %d\n", p->position, playing->end);
 
