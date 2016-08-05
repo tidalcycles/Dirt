@@ -98,7 +98,7 @@ typedef struct t_node {
   float  bandf;
   float  bandq;
   t_vcf  *bpf;
-  int    sample_loop;
+  float  sample_loop;
   int    cut_continue;
   char   unit;
   float  cps;
@@ -137,7 +137,7 @@ typedef struct {
   float bandf;
   float bandq;
   char unit;
-  int sample_loop;
+  float sample_loop;
   int sample_n;
   float attack;
   float hold;
