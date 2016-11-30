@@ -137,8 +137,8 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 
   t_sound *sound = new_sound();
   if (sound == NULL) {
-    printf("hit max sounds (%d)\n", MAXSOUNDS);
-    return(-1);
+    //printf("hit max sounds (%d)\n", MAXSOUNDS);
+    return(0);
   }
   sound->active = 1;
   sound->speed = speed;
@@ -147,7 +147,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   sound->end = end;
   sound->velocity = velocity;
   sound->formant_vowelnum = vowelnum;
-  sound->cutoff = cutoff;
+  sound->cutoff = cutoff / CUTOFFRATIO;
   sound->resonance = resonance;
   sound->accelerate = accelerate;
   sound->shape = (shape != 0);
