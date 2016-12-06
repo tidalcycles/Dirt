@@ -895,8 +895,11 @@ void playback(float **buffers, int frame, sampletime_t now) {
       buffers[channel_a][frame] += tmpa;
       buffers[channel_b][frame] += tmpb;
 
-      add_delay(&delays[channel_a], tmpa, delay_time, p->delay);
-      add_delay(&delays[channel_b], tmpb, delay_time, p->delay);
+      if (p->delay > 0) {
+	printf("p->delay: %f\n", p->delay);
+	add_delay(&delays[channel_a], tmpa, delay_time, p->delay);
+	add_delay(&delays[channel_b], tmpb, delay_time, p->delay);
+      }
 
       if (p->mono) {
         break;
@@ -926,7 +929,8 @@ void playback(float **buffers, int frame, sampletime_t now) {
 
   for (channel = 0; channel < g_num_channels; ++channel) {
     float tmp = shift_delay(&delays[channel]);
-    if (delay_feedback != 0) {
+    if (delay_feedback > 0 && tmp != 0) {
+      printf("feedback: %f\n", delay_feedback);
       add_delay(&delays[channel], tmp, delay_time, delay_feedback);
     }
     buffers[channel][frame] += tmp;
