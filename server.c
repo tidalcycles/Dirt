@@ -97,7 +97,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   float bandq = argc > (23+poffset) ? argv[23+poffset]->f : 0;
 
   char *unit_name = argc > (24+poffset) ? (char *) argv[24+poffset] : "r";
-  int sample_loop = argc > (25+poffset) ? argv[25+poffset]->i : 0;
+  int sample_loop = argc > (25+poffset) ? floor(argv[25+poffset]->f) : 0;
   int sample_n = argc > (26+poffset) ? argv[26+poffset]->i : 0;
 
   float attack = argc > (27+poffset) ? argv[27+poffset]->f : 0;
@@ -137,8 +137,8 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 
   t_sound *sound = new_sound();
   if (sound == NULL) {
-    printf("hit max sounds (%d)\n", MAXSOUNDS);
-    return(-1);
+    //printf("hit max sounds (%d)\n", MAXSOUNDS);
+    return(0);
   }
   sound->active = 1;
   sound->speed = speed;
@@ -147,7 +147,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   sound->end = end;
   sound->velocity = velocity;
   sound->formant_vowelnum = vowelnum;
-  sound->cutoff = cutoff;
+  sound->cutoff = cutoff / CUTOFFRATIO;
   sound->resonance = resonance;
   sound->accelerate = accelerate;
   sound->shape = (shape != 0);
