@@ -5,6 +5,8 @@
 #include <math.h>
 #include <assert.h>
 #include <dirent.h>
+#include <lo/lo.h>
+#include <unistd.h>
 
 #include "common.h"
 #include "config.h"
@@ -68,6 +70,10 @@ const char* sampleroot;
 void queue_add(t_sound **queue, t_sound *new);
 void init_sound(t_sound *sound);
 int queue_size(t_sound *queue);
+
+#ifdef SEND_RMS
+static t_rms rms[MAX_ORBIT];
+#endif
 
 static int is_sample_loading(const char* samplename) {
   int result = 0;
@@ -760,6 +766,13 @@ void playback(float **buffers, int frame, sampletime_t now) {
   int channel, isgn;
   t_sound *p = playing;
 
+#ifdef SEND_RMS
+  for (int i = 0; i < MAX_ORBIT; ++i) {
+    rms[i].sum = 0;
+    rms[i].n = (rms[i].n + 1) % RMS_SZ;
+  }
+#endif
+  
   for (channel = 0; channel < g_num_channels; ++channel) {
     buffers[channel][frame] = 0;
   }
@@ -895,8 +908,11 @@ void playback(float **buffers, int frame, sampletime_t now) {
       buffers[channel_a][frame] += tmpa;
       buffers[channel_b][frame] += tmpb;
 
+#ifdef SEND_RMS
+      rms[p->orbit].sum += value;
+#endif
+      
       if (p->delay > 0) {
-	printf("p->delay: %f\n", p->delay);
 	add_delay(&delays[channel_a], tmpa, delay_time, p->delay);
 	add_delay(&delays[channel_b], tmpb, delay_time, p->delay);
       }
@@ -930,7 +946,6 @@ void playback(float **buffers, int frame, sampletime_t now) {
   for (channel = 0; channel < g_num_channels; ++channel) {
     float tmp = shift_delay(&delays[channel]);
     if (delay_feedback > 0 && tmp != 0) {
-      printf("feedback: %f\n", delay_feedback);
       add_delay(&delays[channel], tmp, delay_time, delay_feedback);
     }
     buffers[channel][frame] += tmp;
@@ -953,6 +968,19 @@ void playback(float **buffers, int frame, sampletime_t now) {
       buffers[channel][frame] *= g_gain;
     }
   }
+  #ifdef SEND_RMS
+  for (int i = 0; i < MAX_ORBIT; ++i) {
+    rms[i].sum_of_squares -= rms[i].squares[rms[i].n];
+    if (rms[i].sum == 0) {
+      rms[i].squares[rms[i].n] = 0;
+    }
+    else {
+      float sqrd = rms[i].sum * rms[i].sum;
+      rms[i].squares[rms[i].n] = sqrd;
+      rms[i].sum_of_squares += sqrd;
+    }
+  }
+  #endif
 }
 
 
@@ -1180,7 +1208,24 @@ error:
 }
 #endif
 
- extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, char *sroot, bool shape_gain_comp) {
+#ifdef SEND_RMS
+void thread_send_rms() {
+  lo_address a = lo_address_new(NULL, "6010");
+  lo_message m;
+  
+  while(1) {
+    m = lo_message_new();
+    for (int i = 0; i < MAX_ORBIT; ++i) {
+      lo_message_add_float(m, sqrt(rms[i].sum_of_squares));
+    }
+    lo_send_message(a, "/rms", m);
+    lo_message_free(m);
+    usleep(50000);
+  }
+}
+#endif
+
+extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, char *sroot, bool shape_gain_comp) {
   struct timeval tv;
 
   atexit(audio_close);
@@ -1204,6 +1249,12 @@ error:
     fprintf(stderr, "could not initialize `read_file_pool'\n");
     exit(1);
   }
+
+#ifdef SEND_RMS
+  memset(rms, 0, sizeof(t_rms) * MAX_ORBIT);
+  pthread_t rms_t;
+  pthread_create(&rms_t, NULL, (void*) thread_send_rms, NULL);
+#endif
 
 #ifdef JACK
   jack_init(autoconnect);

@@ -19,4 +19,13 @@
 // Brings it into being roughly equivalent to superdirt
 #define CUTOFFRATIO 30000.0f
 
+//#define SEND_RMS
+
+#define MAX_ORBIT 15
+
+#ifdef SEND_RMS
+// 300ms assuming 44100
+#define RMS_SZ 13230
+#endif
+
 #endif

@@ -107,6 +107,7 @@ typedef struct t_node {
   float  hold;
   float  release;
   float  playtime;
+  int    orbit;
 } t_sound;
 
 typedef struct {
@@ -144,7 +145,14 @@ typedef struct {
   float release;
 } t_play_args;
 
-
+#ifdef SEND_RMS
+typedef struct {
+  int n;
+  float sum;
+  float squares[RMS_SZ];
+  float sum_of_squares;
+} t_rms;
+#endif
 
 extern int audio_callback(int frames, float *input, float **outputs);
 extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, char *sampleroot, bool shape_gain_comp);
