@@ -72,7 +72,7 @@ void init_sound(t_sound *sound);
 int queue_size(t_sound *queue);
 
 #ifdef SEND_RMS
-static t_rms rms[MAX_ORBIT];
+static t_rms rms[MAX_ORBIT*2];
 #endif
 
 static int is_sample_loading(const char* samplename) {
@@ -767,7 +767,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
   t_sound *p = playing;
 
 #ifdef SEND_RMS
-  for (int i = 0; i < MAX_ORBIT; ++i) {
+  for (int i = 0; i < (MAX_ORBIT*2); ++i) {
     rms[i].sum = 0;
     rms[i].n = (rms[i].n + 1) % RMS_SZ;
   }
@@ -904,12 +904,12 @@ void playback(float **buffers, int frame, sampletime_t now) {
       // equal power panning
       float tmpa = value * cos(HALF_PI * d);
       float tmpb = value * sin(HALF_PI * d);
-
       buffers[channel_a][frame] += tmpa;
       buffers[channel_b][frame] += tmpb;
 
 #ifdef SEND_RMS
-      rms[p->orbit].sum += value;
+      rms[p->orbit*2 + channel_a].sum += tmpa;
+      rms[p->orbit*2 + channel_b].sum += tmpb;
 #endif
       
       if (p->delay > 0) {
@@ -969,8 +969,14 @@ void playback(float **buffers, int frame, sampletime_t now) {
     }
   }
   #ifdef SEND_RMS
-  for (int i = 0; i < MAX_ORBIT; ++i) {
+  for (int i = 0; i < MAX_ORBIT*2; ++i) {
     rms[i].sum_of_squares -= rms[i].squares[rms[i].n];
+
+    // this happens sometimes. could be a floating point error?
+    if (rms[i].sum_of_squares < 0) {
+      rms[i].sum_of_squares = 0;
+    }
+    
     if (rms[i].sum == 0) {
       rms[i].squares[rms[i].n] = 0;
     }
@@ -1215,9 +1221,18 @@ void thread_send_rms() {
   
   while(1) {
     m = lo_message_new();
-    for (int i = 0; i < MAX_ORBIT; ++i) {
-      lo_message_add_float(m, sqrt(rms[i].sum_of_squares));
+    for (int i = 0; i < (MAX_ORBIT*2); ++i) {
+      if (rms[i].sum_of_squares == 0) {
+	lo_message_add_float(m, 0);
+	// fprintf(stderr, "rms %d: %f\n", i, 0.0f);
+      }
+      else {
+	float result = sqrt(rms[i].sum_of_squares / RMS_SZ);
+	lo_message_add_float(m, result);
+	// fprintf(stderr, "rms %d: %f\n", i, sqrt(rms[i].sum_of_squares / RMS_SZ));
+      }
     }
+    //fprintf(stderr, "SoS: %f\n", rms[0].sum_of_squares / RMS_SZ));
     lo_send_message(a, "/rms", m);
     lo_message_free(m);
     usleep(50000);
@@ -1251,7 +1266,7 @@ extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigge
   }
 
 #ifdef SEND_RMS
-  memset(rms, 0, sizeof(t_rms) * MAX_ORBIT);
+  memset(rms, 0, sizeof(t_rms) * MAX_ORBIT * 2);
   pthread_t rms_t;
   pthread_create(&rms_t, NULL, (void*) thread_send_rms, NULL);
 #endif
