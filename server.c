@@ -104,8 +104,8 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   float hold = argc > (28+poffset) ? argv[28+poffset]->f : 0;
   float release = argc > (29+poffset) ? argv[29+poffset]->f : 0;
 
-  int orbit = argc > (30+poffset) ? argv[30+poffset]->f : 0;
-
+  int orbit = argc > (30+poffset) ? argv[30+poffset]->i : 0;
+  //printf("orb: %d\n", orbit);
   static bool extraWarned = false;
   if (argc > 30+poffset && !extraWarned) {
     printf("play server unexpectedly received extra parameters, maybe update Dirt?\n");
@@ -172,8 +172,8 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   sound->offset = offset;
   sound->cps = cps;
   sound->when = when;
-  sound->orbit = orbit <= MAX_ORBIT ? orbit : MAX_ORBIT;
-
+  sound->orbit = (orbit <= MAX_ORBIT) ? orbit : MAX_ORBIT;
+  //printf("orbit: %d\n", sound->orbit);
   if (sample_n) {
     sample_n = abs(sample_n);
     snprintf(sound->samplename, MAXPATHSIZE, "%s:%d", 
