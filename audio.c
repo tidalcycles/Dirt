@@ -1224,16 +1224,13 @@ void thread_send_rms() {
     for (int i = 0; i < (MAX_ORBIT*2); ++i) {
       if (rms[i].sum_of_squares == 0) {
 	lo_message_add_float(m, 0);
-	// fprintf(stderr, "rms %d: %f\n", i, 0.0f);
       }
       else {
 	float result = sqrt(rms[i].sum_of_squares / RMS_SZ);
 	lo_message_add_float(m, result);
-	// fprintf(stderr, "rms %d: %f\n", i, sqrt(rms[i].sum_of_squares / RMS_SZ));
       }
     }
-    //fprintf(stderr, "SoS: %f\n", rms[0].sum_of_squares / RMS_SZ));
-    lo_send_message(a, "/rms", m);
+    lo_send_message(a, "/rmsall", m);
     lo_message_free(m);
     usleep(50000);
   }
