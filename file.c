@@ -63,6 +63,7 @@ void fix_samplerate (t_sample *sample) {
   int channels = sample->info->channels;
 
   //printf("start frames: %d\n", sample->info->frames);
+  //printf("compare %d and %d\n", sample->info->samplerate, g_samplerate);
   if (sample->info->samplerate == g_samplerate) {
     return;
   }
@@ -153,7 +154,7 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
 
     info = (SF_INFO *) calloc(1, sizeof(SF_INFO));
 
-    printf("opening %s.\n", path);
+    //printf("opening %s.\n", path);
 
     if ((sndfile = (SNDFILE *) sf_open(path, SFM_READ, info)) == NULL) {
       printf("nope.\n");
@@ -163,8 +164,8 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
       //snprintf(error, (size_t) 61, "hm: %d\n", sf_error(sndfile));
       //perror(error);
       count  = sf_read_float(sndfile, items, info->frames * info->channels);
-      snprintf(error, (size_t) 61, "count: %d frames: %d channels: %d\n", (int) count, (int) info->frames, info->channels);
-      perror(error);
+      //snprintf(error, (size_t) 61, "count: %d frames: %d channels: %d\n", (int) count, (int) info->frames, info->channels);
+      //perror(error);
 
       if (count == info->frames * info->channels) {
         sample = (t_sample *) calloc(1, sizeof(t_sample));
