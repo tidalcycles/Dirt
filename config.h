@@ -14,7 +14,7 @@
 #define MIN_SAMPLERATE 1024
 #define MAX_SAMPLERATE 128000
 
-#define DEFAULT_WORKERS 4
+#define DEFAULT_WORKERS 2
 
 // Brings it into being roughly equivalent to superdirt
 #define CUTOFFRATIO 30000.0f

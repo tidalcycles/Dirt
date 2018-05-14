@@ -1237,7 +1237,7 @@ void thread_send_rms() {
 }
 #endif
 
-extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, char *sroot, bool shape_gain_comp) {
+extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, char *sroot, bool shape_gain_comp, bool preload_flag) {
   struct timeval tv;
 
   atexit(audio_close);
@@ -1256,6 +1256,10 @@ extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigge
   pthread_mutex_init(&queue_loading_lock, NULL);
   pthread_mutex_init(&mutex_sounds, NULL);
 
+  if (preload_flag) {
+    file_preload_samples(sampleroot);
+  }
+  
   read_file_pool = thpool_init(num_workers);
   if (!read_file_pool) {
     fprintf(stderr, "could not initialize `read_file_pool'\n");

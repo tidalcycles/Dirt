@@ -3,7 +3,7 @@
 #include "common.h"
 
 #define MAXLINE  44100
-#define MAXSOUNDS 512
+#define MAXSOUNDS 64
 #define ROUNDOFF 16
 #define MAX_DB 12
 
@@ -155,7 +155,7 @@ typedef struct {
 #endif
 
 extern int audio_callback(int frames, float *input, float **outputs);
-extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, char *sampleroot, bool shape_gain_comp);
+extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, char *sampleroot, bool shape_gain_comp, bool preload_flag);
 extern void audio_close(void);
 extern int audio_play(t_sound*);
 t_sound *new_sound();
