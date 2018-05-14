@@ -1,6 +1,6 @@
 CC=gcc
 
-CFLAGS += -O3 -g -I/usr/local/include -I/opt/local/include -Wall -std=gnu99 -DDEBUG -DHACK
+CFLAGS += -O3 -march=armv6zk -mcpu=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp -g -I/usr/local/include -I/opt/local/include -Wall -std=gnu99 -DDEBUG -DHACK
 LDFLAGS += -O3 -lm -L/usr/local/lib -L/opt/local/lib -llo -lsndfile -lsamplerate -lpthread 
 
 SOURCES=dirt.c common.c audio.c file.c server.c jobqueue.c thpool.c
