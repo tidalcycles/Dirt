@@ -19,7 +19,7 @@
 // Brings it into being roughly equivalent to superdirt
 #define CUTOFFRATIO 30000.0f
 
-//#define SEND_RMS
+#define SEND_RMS
 
 #define MAX_ORBIT 15
 
