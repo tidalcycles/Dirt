@@ -3,7 +3,7 @@
 #include "common.h"
 
 #define MAXLINE  44100
-#define MAXSOUNDS 512
+#define MAXSOUNDS 64
 #define ROUNDOFF 16
 #define MAX_DB 12
 
