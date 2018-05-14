@@ -5,6 +5,10 @@
 #include <getopt.h>
 #include <math.h>
 
+#ifdef linux
+#include <signal.h>
+#endif
+
 #include "common.h"
 #include "audio.h"
 #include "server.h"
@@ -15,6 +19,15 @@ static int jack_auto_connect_flag = 1;
 #endif
 static int late_trigger_flag = 1;
 static int shape_gain_comp_flag = 0;
+static int preload_flag = 0;
+
+#ifdef linux
+void sigint_handler(int sig) {
+  printf("\nCTRL-C detected\n");
+  // explicitly call exit on signit so things registered via atexit() fire
+  exit(-1);
+}
+#endif
 
 int main (int argc, char **argv) {
   /* Use getopt to parse command-line arguments */
@@ -29,6 +42,10 @@ int main (int argc, char **argv) {
 
   unsigned int num_workers = DEFAULT_WORKERS;
 
+#ifdef linux
+  signal(SIGINT, sigint_handler);
+#endif
+  
   while (1)
   {
     static struct option long_options[] =
@@ -53,6 +70,9 @@ int main (int argc, char **argv) {
       {"workers",               required_argument, 0, 'w'},
 
       {"gain",                  required_argument, 0, 'g'},
+
+      {"preload",               no_argument, &preload_flag, 1},
+      {"no-preload",            no_argument, &preload_flag, 0},
 
       {"version", no_argument, 0, 'v'},
       {"help",    no_argument, 0, 'h'},
@@ -105,6 +125,8 @@ int main (int argc, char **argv) {
 #endif
                "      --late-trigger               enable sample retrigger after loading (default)\n"
                "      --no-late-trigger            disable sample retrigger after loading\n"
+               "      --preload                    enable sample retrigger after loading (default)\n"
+               "      --no-preload                 disable sample retrigger after loading\n"
 	             "  -s  --samples-root-path          set a samples root directory path\n"
                "  -w, --workers                    number of sample-reading workers (default: %u)\n"
                "  -h, --help                       display this help and exit\n"
@@ -186,13 +208,17 @@ int main (int argc, char **argv) {
     fprintf(stderr, "late trigger disabled\n");
   }
 
+    if (preload_flag) {
+    fprintf(stderr, "sample preloading enabled\n");
+  }
+
   fprintf(stderr, "workers: %u\n", num_workers);
 
   fprintf(stderr, "init audio\n");
 #ifdef JACK
-  audio_init(dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag, num_workers, sampleroot, shape_gain_comp_flag);
+  audio_init(dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag, num_workers, sampleroot, shape_gain_comp_flag, preload_flag);
 #else
-  audio_init(dirty_compressor_flag, true, late_trigger_flag, num_workers, sampleroot, shape_gain_comp_flag);
+  audio_init(dirty_compressor_flag, true, late_trigger_flag, num_workers, sampleroot, shape_gain_comp_flag, preload_flag);
 #endif
 
   fprintf(stderr, "init open sound control\n");

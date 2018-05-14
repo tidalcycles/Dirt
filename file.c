@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <pthread.h>
+#include <sys/stat.h>
 
 #include "file.h"
 #include "common.h"
@@ -62,6 +63,7 @@ void fix_samplerate (t_sample *sample) {
   int channels = sample->info->channels;
 
   //printf("start frames: %d\n", sample->info->frames);
+  //printf("compare %d and %d\n", sample->info->samplerate, g_samplerate);
   if (sample->info->samplerate == g_samplerate) {
     return;
   }
@@ -85,6 +87,25 @@ void fix_samplerate (t_sample *sample) {
   sample->info->samplerate = g_samplerate;
   sample->info->frames = data.output_frames_gen;
   //printf("end samplerate: %d frames: %d\n", (int) sample->info->samplerate, sample->info->frames);
+}
+
+extern int file_count_samples(char *set, const char *sampleroot) {
+  int result = 0;
+  struct dirent **namelist;
+  char path[MAXPATHSIZE];
+
+  snprintf(path, MAXPATHSIZE -1, "%s/%s", sampleroot, set);
+  result = scandir(path, &namelist, wav_filter, alphasort);
+  
+  if (result >= 0) {
+    free(namelist);
+  }
+  else {
+    // Some error reading the folder
+    result = 0;
+  }
+  
+  return(result);
 }
 
 extern t_sample *file_get(char *samplename, const char *sampleroot) {
@@ -133,7 +154,7 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
 
     info = (SF_INFO *) calloc(1, sizeof(SF_INFO));
 
-    printf("opening %s.\n", path);
+    //printf("opening %s.\n", path);
 
     if ((sndfile = (SNDFILE *) sf_open(path, SFM_READ, info)) == NULL) {
       printf("nope.\n");
@@ -143,8 +164,8 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
       //snprintf(error, (size_t) 61, "hm: %d\n", sf_error(sndfile));
       //perror(error);
       count  = sf_read_float(sndfile, items, info->frames * info->channels);
-      snprintf(error, (size_t) 61, "count: %d frames: %d channels: %d\n", (int) count, (int) info->frames, info->channels);
-      perror(error);
+      //snprintf(error, (size_t) 61, "count: %d frames: %d channels: %d\n", (int) count, (int) info->frames, info->channels);
+      //perror(error);
 
       if (count == info->frames * info->channels) {
         sample = (t_sample *) calloc(1, sizeof(t_sample));
@@ -182,4 +203,38 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
 
 extern t_sample *file_get_from_cache(char *samplename) {
   return find_sample(samplename);
+}
+
+
+extern void file_preload_samples(const char *sampleroot) {
+  struct dirent* dent;
+  DIR* srcdir = opendir(sampleroot);
+
+  // sample set name
+  char samplename[MAXPATHSIZE];
+  
+  if (srcdir == NULL) {
+    return;
+  }
+  fprintf(stderr, "preloading ..\n");
+  while((dent = readdir(srcdir)) != NULL) {
+    struct stat st;
+    if(strcmp(dent->d_name, ".") == 0 || strcmp(dent->d_name, "..") == 0)
+      continue;
+
+    if (fstatat(dirfd(srcdir), dent->d_name, &st, 0) < 0) {
+      continue;
+    }
+
+    if (S_ISDIR(st.st_mode)) {
+      int n = file_count_samples(dent->d_name, sampleroot);
+      for (int i = 0; i < n; ++i) {
+	snprintf(samplename, MAXPATHSIZE -1, "%s:%d", dent->d_name, i);
+	fprintf(stderr, "> %s\n", samplename);
+	file_get(samplename, sampleroot);
+      }
+    }
+  }
+  fprintf(stderr, "preload done.\n");
+  closedir(srcdir);
 }
