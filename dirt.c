@@ -5,6 +5,10 @@
 #include <getopt.h>
 #include <math.h>
 
+#ifdef linux
+#include <signal.h>
+#endif
+
 #include "common.h"
 #include "audio.h"
 #include "server.h"
@@ -16,6 +20,14 @@ static int jack_auto_connect_flag = 1;
 static int late_trigger_flag = 1;
 static int shape_gain_comp_flag = 0;
 static int preload_flag = 0;
+
+#ifdef linux
+void sigint_handler(int sig) {
+  printf("\nCTRL-C detected\n");
+  // explicitly call exit on signit so things registered via atexit() fire
+  exit(-1);
+}
+#endif
 
 int main (int argc, char **argv) {
   /* Use getopt to parse command-line arguments */
@@ -30,6 +42,10 @@ int main (int argc, char **argv) {
 
   unsigned int num_workers = DEFAULT_WORKERS;
 
+#ifdef linux
+  signal(SIGINT, sigint_handler);
+#endif
+  
   while (1)
   {
     static struct option long_options[] =
