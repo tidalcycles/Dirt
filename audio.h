@@ -3,7 +3,9 @@
 #include "common.h"
 
 #define MAXLINE  44100
-#define MAXSOUNDS 64
+#define MAX_SOUNDS 512 // includes queued
+#define MAX_PLAYING 32
+#define MAX_PLAYING_SOFT_BUFFER 16
 #define ROUNDOFF 16
 #define MAX_DB 12
 
@@ -51,6 +53,7 @@ float line_feedback_delay;
 
 typedef struct t_node {
   int    active;
+  int    is_playing;
   sampletime_t startT;
   char samplename[MAXPATHSIZE+1];
   int is_loop;
@@ -108,6 +111,7 @@ typedef struct t_node {
   float  release;
   float  playtime;
   int    orbit;
+  int    played;
 } t_sound;
 
 typedef struct {
