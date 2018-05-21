@@ -3,9 +3,13 @@
 #include "common.h"
 
 #define MAXLINE  44100
-#define MAX_SOUNDS 512 // includes queued
+#define MAX_SOUNDS 512 // includes queue!
+
+// not a hard limit, after this number sounds will start being
+// culled (given ROUNDOFF samples to live to avoid
+// discontinuities).
 #define MAX_PLAYING 32
-#define MAX_PLAYING_SOFT_BUFFER 16
+
 #define ROUNDOFF 16
 #define MAX_DB 12
 

@@ -1376,7 +1376,7 @@ t_sound *new_sound() {
   t_sound *result = NULL;
   t_sound *oldest = NULL;
   int dying = 0;
-  int cull = playing_n >= (MAX_PLAYING - MAX_PLAYING_SOFT_BUFFER);
+  int cull = playing_n >= MAX_PLAYING;
 
   pthread_mutex_lock(&mutex_sounds);
   
@@ -1396,15 +1396,19 @@ t_sound *new_sound() {
       }
     }
   }
-  
+
   // printf("playing: %d dying: %d \n", playing_n, dying);
-  if (cull && (MAX_PLAYING - (playing_n - dying)) < MAX_PLAYING_SOFT_BUFFER) {
-    printf("hit soft buffer, playing_n %d, dying %d, MAX_PLAYING %d(-%d)\n", playing_n, dying, MAX_PLAYING, MAX_PLAYING_SOFT_BUFFER);
-    if (oldest == NULL) {
-      printf("all dying anyway?\n");
-    }
-    else {
-      printf("culling sound with end %f, position %f, ROUNDOFF %d\n", oldest->end, oldest->position, ROUNDOFF);
+  
+  // Treat MAX_PLAYING as a soft limit - those about to finish
+  // aren't counted.
+  if ((playing_n - dying) >= MAX_PLAYING) {
+    // printf("hit soft buffer, playing_n %d, dying %d, MAX_PLAYING %d(-%d)\n", playing_n, dying, MAX_PLAYING, MAX_PLAYING_SOFT_BUFFER);
+    if (oldest != NULL) {
+      // printf("culling sound with end %f, position %f, ROUNDOFF %d\n", oldest->end, oldest->position, ROUNDOFF);
+
+      // Rather than stop immediately, set it to finish in ROUNDOFF
+      // samples, so the envelope is applied thereby
+      // avoiding audio clicks.
       oldest->end = oldest->position + ROUNDOFF;
     }
   }
