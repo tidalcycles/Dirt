@@ -1398,9 +1398,15 @@ t_sound *new_sound() {
   }
   
   // printf("playing: %d dying: %d \n", playing_n, dying);
-  if ((MAX_PLAYING - (playing_n - dying)) < MAX_PLAYING_SOFT_BUFFER) {
-    // printf("hit soft buffer\n");
-    oldest->end = oldest->position + ROUNDOFF;
+  if (cull && (MAX_PLAYING - (playing_n - dying)) < MAX_PLAYING_SOFT_BUFFER) {
+    printf("hit soft buffer, playing_n %d, dying %d, MAX_PLAYING %d(-%d)\n", playing_n, dying, MAX_PLAYING, MAX_PLAYING_SOFT_BUFFER);
+    if (oldest == NULL) {
+      printf("all dying anyway?\n");
+    }
+    else {
+      printf("culling sound with end %f, position %f, ROUNDOFF %d\n", oldest->end, oldest->position, ROUNDOFF);
+      oldest->end = oldest->position + ROUNDOFF;
+    }
   }
 
   if (result != NULL) {
