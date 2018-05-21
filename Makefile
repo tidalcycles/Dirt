@@ -1,8 +1,8 @@
 CC=gcc
 
 #CFLAGS += -O3 -march=armv6zk -mcpu=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp -g -I/usr/local/include -I/opt/local/include -Wall -std=gnu99 -DDEBUG -DHACK
-CFLAGS += -O2 -I/usr/local/include -I/opt/local/include -Wall -std=gnu99 -DDEBUG -DHACK -DFASTPOW -DFASTSIN
-LDFLAGS += -O2 -lm -L/usr/local/lib -L/opt/local/lib -llo -lsndfile -lsamplerate -lpthread 
+CFLAGS += -g -I/usr/local/include -I/opt/local/include -Wall -std=gnu99 -DDEBUG -DHACK -DFASTPOW -DFASTSIN
+LDFLAGS += -g -lm -L/usr/local/lib -L/opt/local/lib -llo -lsndfile -lsamplerate -lpthread 
 
 SOURCES=dirt.c common.c audio.c file.c server.c jobqueue.c thpool.c 
 OBJECTS=$(SOURCES:.c=.o)
@@ -14,10 +14,10 @@ dirt-pulse: CFLAGS += -DPULSE `pkg-config --cflags libpulse-simple`
 dirt-pulse: LDFLAGS += `pkg-config --libs libpulse-simple` -lpthread
 dirt-feedback: CFLAGS += -DFEEDBACK -DINPUT
 dirt-feedback: dirt
-all: dirt
 
 clean:
-	rm -f *.o *~ dirt dirt-analyse
+	rm -f *.o *~ dirt dirt-analyse dirt-pa
+
 all: dirt
 
 dirt: $(OBJECTS) jack.o Makefile
