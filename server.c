@@ -98,7 +98,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 
   char *unit_name = argc > (24+poffset) ? (char *) argv[24+poffset] : "r";
   int sample_loop = argc > (25+poffset) ? floor(argv[25+poffset]->f) : 0;
-  int sample_n = argc > (26+poffset) ? argv[26+poffset]->i : 0;
+  int sample_n = argc > (26+poffset) ? floor(argv[26+poffset]->f) : 0;
 
   float attack = argc > (27+poffset) ? argv[27+poffset]->f : 0;
   float hold = argc > (28+poffset) ? argv[28+poffset]->f : 0;
