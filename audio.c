@@ -1402,7 +1402,7 @@ t_sound *new_sound() {
   // Treat MAX_PLAYING as a soft limit - those about to finish
   // aren't counted.
   if ((playing_n - dying) >= MAX_PLAYING) {
-    // printf("hit soft buffer, playing_n %d, dying %d, MAX_PLAYING %d(-%d)\n", playing_n, dying, MAX_PLAYING, MAX_PLAYING_SOFT_BUFFER);
+    // printf("hit soft buffer, playing_n %d, dying %d, MAX_PLAYING %d\n", playing_n, dying, MAX_PLAYING);
     if (oldest != NULL) {
       // printf("culling sound with end %f, position %f, ROUNDOFF %d\n", oldest->end, oldest->position, ROUNDOFF);
 
