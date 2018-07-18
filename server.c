@@ -55,7 +55,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 
   /* lo_timetag ts = lo_message_get_timestamp(data); */
 
-  double when = (double) argv[0]->i + ((double) argv[1]->i / 1000000.0);
+  double when = (double) argv[0]->i + (((double) argv[1]->i) / 1000000.0);
 #ifdef SUBLATENCY
   when -= SUBLATENCY;
 #endif
@@ -63,7 +63,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 
   float cps = argv[2]->f;
   poffset = 3;
-  //printf("timing info: when, cps = %f\t%f\n", when, cps);
+  printf("timing info: when, cps = %f\t%f a %i b %i\n", when, cps, argv[0]->i, argv[1]->i);
 
   char *sample_name = (char *) argv[0+poffset];
 
@@ -154,7 +154,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   sound->accelerate = accelerate;
   sound->shape = (shape != 0);
   shape = fabs(shape);
-  shape = (shape > 0.99)?0.99:shape;
+  shape = (shape > 0.99f)?0.99f:shape;
   sound->shape_k = (2.0f * shape) / (1.0f - shape);
   sound->delay = delay;
   sound->delaytime = delaytime;
@@ -263,7 +263,7 @@ extern int server_init(char *osc_port) {
   return(1);
 }
 
-extern void osc_send_pitch(float starttime, unsigned int chunk, 
+extern void osc_send_pitch(double starttime, unsigned int chunk, 
 			   float pitch, float flux, float centroid) {
   static lo_address t = NULL;
   static int pid = 0;
@@ -300,7 +300,7 @@ extern void osc_send_play(double when, int lowchunk, float pitch, float flux, fl
   lo_send(t, "/play", "iiiifff", 
           pid,
           (int) when,
-          (int) ((when - floor(when)) * 1000000.0),
+          (int) ((when - floor(when)) * 1000000.0f),
           lowchunk,
           pitch,
           flux,

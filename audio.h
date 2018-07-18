@@ -8,7 +8,7 @@
 // not a hard limit, after this number sounds will start being
 // culled (given ROUNDOFF samples to live to avoid
 // discontinuities).
-#define MAX_PLAYING 32
+#define MAX_PLAYING 8
 
 #define ROUNDOFF 16
 #define MAX_DB 12
@@ -18,7 +18,7 @@
 #include "jack.h"
 #define sampletime_t jack_nframes_t
 #else
-#define sampletime_t double
+#define sampletime_t float
 #endif
 
 
@@ -69,7 +69,7 @@ typedef struct t_node {
   int    channels;
   float  *items;
   struct t_node *next, *prev;
-  double position;
+  float  position;
   float  speed;
   int    reverse;
   float  pan;
@@ -77,7 +77,7 @@ typedef struct t_node {
   float  start;
   float  end;
   float  velocity;
-  double **formant_history;
+  float  **formant_history;
   int    formant_vowelnum;
   float  cutoff;
   float  resonance;

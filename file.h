@@ -21,7 +21,7 @@ typedef struct {
   unsigned int since_chunk;
   unsigned int chunk_n;
   float *items;
-  double *in;
+  float *in;
   //fvec_t *in;
   //fvec_t *ibuf;
 

@@ -36,7 +36,7 @@ PaStream *stream;
 #include "server.h"
 #include "pitch.h"
 
-#define HALF_PI 1.5707963267948966
+#define HALF_PI 1.5707963267948966f
 
 pthread_mutex_t queue_loading_lock;
 pthread_mutex_t queue_waiting_lock;
@@ -49,7 +49,7 @@ t_sound *playing = NULL;
 t_sound sounds[MAX_SOUNDS];
 int playing_n = 0;
 
-double epochOffset = 0;
+float epochOffset = 0;
 float starttime = 0;
 
 #ifdef JACK
@@ -229,7 +229,7 @@ void queue_remove(t_sound **queue, t_sound *old) {
   playing_n--;
 }
 
-const double coeff[5][11]= {
+const float coeff[5][11]= {
   { 3.11044e-06,
     8.943665402,    -36.83889529,    92.01697887,    -154.337906,    181.6233289,
     -151.8651235,   89.09614114,    -35.10298511,    8.388101016,    -0.923313471
@@ -276,7 +276,7 @@ float formant_filter(float in, t_sound *sound, int channel) {
   sound->formant_history[channel][3] = sound->formant_history[channel][2];
   sound->formant_history[channel][2] = sound->formant_history[channel][1];
   sound->formant_history[channel][1] = sound->formant_history[channel][0];
-  sound->formant_history[channel][0] = (double) res;
+  sound->formant_history[channel][0] = (float) res;
   return res;
 }
 
@@ -286,11 +286,11 @@ void init_formant_history (t_sound *sound) {
   if (!sound->formant_history) {
     bool failed = false;
 
-    sound->formant_history = malloc(g_num_channels * sizeof(double*));
+    sound->formant_history = malloc(g_num_channels * sizeof(float*));
     if (!sound->formant_history) failed = true;
 
     for (int c = 0; c < g_num_channels; c++) {
-      sound->formant_history[c] = malloc(10 * sizeof(double));
+      sound->formant_history[c] = malloc(10 * sizeof(float));
       if (!sound->formant_history[c]) failed = true;
     }
 
@@ -302,14 +302,14 @@ void init_formant_history (t_sound *sound) {
 
   // Clean history for each channel
   for (int c = 0; c < g_num_channels; c++) {
-    memset(sound->formant_history[c], 0, 10 * sizeof(double));
+    memset(sound->formant_history[c], 0, 10 * sizeof(float));
   }
 }
 
 void free_formant_history (t_sound *sound) {
   if (sound->formant_history) {
     for (int c = 0; c < g_num_channels; c++) {
-      double* fh = sound->formant_history[c];
+      float* fh = sound->formant_history[c];
       if (fh) free(fh);
     }
     free(sound->formant_history);
@@ -343,9 +343,9 @@ void init_vcf (t_sound *sound) {
   for (int channel = 0; channel < g_num_channels; ++channel) {
     t_vcf *vcf = &(sound->vcf[channel]);
     vcf->f     = 2 * sound->cutoff;
-    vcf->k     = 3.6 * vcf->f - 1.6 * vcf->f * vcf->f -1;
-    vcf->p     = (vcf->k+1) * 0.5;
-    vcf->scale = exp((1-vcf->p)*1.386249);
+    vcf->k     = 3.6f * vcf->f - 1.6f * vcf->f * vcf->f -1;
+    vcf->p     = (vcf->k+1) * 0.5f;
+    vcf->scale = exp((1-vcf->p)*1.386249f);
     vcf->r     = sound->resonance * vcf->scale;
     vcf->y1    = 0;
     vcf->y2    = 0;
@@ -370,9 +370,9 @@ void init_hpf (t_sound *sound) {
   for (int channel = 0; channel < g_num_channels; ++channel) {
     t_vcf *vcf = &(sound->hpf[channel]);
     vcf->f     = 2 * sound->hcutoff;
-    vcf->k     = 3.6 * vcf->f - 1.6 * vcf->f * vcf->f -1;
-    vcf->p     = (vcf->k+1) * 0.5;
-    vcf->scale = exp((1-vcf->p)*1.386249);
+    vcf->k     = 3.6f * vcf->f - 1.6f * vcf->f * vcf->f -1;
+    vcf->p     = (vcf->k+1) * 0.5f;
+    vcf->scale = exp((1-vcf->p)*1.386249f);
     vcf->r     = sound->hresonance * vcf->scale;
     vcf->y1    = 0;
     vcf->y2    = 0;
@@ -400,8 +400,8 @@ void init_bpf (t_sound *sound) {
     vcf->f     = fabsf(sound->bandf);
     vcf->r     = sound->bandq;
     vcf->k     = vcf->f / vcf->r;
-    vcf->p     = 2.0 - vcf->f * vcf->f;
-    vcf->scale = 1.0 / (1.0 + vcf->k);
+    vcf->p     = 2.0f - vcf->f * vcf->f;
+    vcf->scale = 1.0f / (1.0f + vcf->k);
     vcf->y1    = 0;
     vcf->y2    = 0;
     vcf->y3    = 0;
@@ -459,9 +459,9 @@ float fastPow(float a, float b) {
 #endif
 
 #ifdef FASTPOW
-#define myPow fastPow
+#define myPow (float) fastPow
 #else
-#define myPow pow
+#define myPow (float) pow
 #endif
 
 float effect_vcf(float in, t_sound *sound, int channel) {
@@ -623,7 +623,7 @@ void init_sound(t_sound *sound) {
   sound->reverse  = sound->speed < 0;
   sound->speed    = fabsf(sound->speed);
 
-  if (sound->channels == 2 && g_num_channels == 2 && sound->pan == 0.5) {
+  if (sound->channels == 2 && g_num_channels == 2 && sound->pan == 0.5f) {
     sound->pan = 0;
   }
   else {
@@ -768,7 +768,7 @@ float compress(float in) {
   static float env = 0;
   env += (float) 50 / g_samplerate;
   if (fabs(in * env) > 1) {
-    env = env / fabs(in * env);
+    env = env / (float) fabs(in * env);
   }
   return(env);
 }
@@ -882,22 +882,22 @@ void playback(float **buffers, int frame, sampletime_t now) {
       }
 
       if (p->shape) {
-        value = (1+p->shape_k)*value/(1+p->shape_k*fabs(value));
+        value = (1+p->shape_k)*value/(1+p->shape_k*(float) fabs(value));
         // gain compensation, fine-tuned by ear
         if (use_shape_gain_comp) {
-          float gcomp = 1.0 - (0.15 * p->shape_k / (p->shape_k + 2.0));
+          float gcomp = 1.0f - (0.15f * p->shape_k / (p->shape_k + 2.0f));
           value *= gcomp * gcomp;
         }
       }
       if (p->crush > 0) {
         //value = (1.0 + log(fabs(value)) / 16.63553) * (value / fabs(value));
 	float tmp = myPow(2,p->crush_bits-1);
-        value = trunc(tmp * value) / tmp;
+        value = (float) trunc(tmp * value) / tmp;
         //value = exp( (fabs(value) - 1.0) * 16.63553 ) * (value / fabs(value));
       } else if (p->crush < 0) {
         isgn = (value >= 0) ? 1 : -1;
         value = isgn * myPow(fabsf(value), 0.125);
-        value = trunc(myPow(2,p->crush_bits-1) * value) / myPow(2,p->crush_bits-1);
+        value = (float) trunc(((float) myPow(2,p->crush_bits-1) * value)) / ((float) myPow(2,p->crush_bits-1));
         value = isgn * myPow(value, 8.0);
       }
 
@@ -907,13 +907,13 @@ void playback(float **buffers, int frame, sampletime_t now) {
       float env = 1.0;
       if (p->attack >= 0 && p->release >= 0) {
         if (p->playtime < p->attack) {
-          env = 1.0523957 - 1.0523958*exp(-3.0 * p->playtime/p->attack);
+          env = 1.0523957 - 1.0523958*exp(-3.0f * p->playtime/p->attack);
         } else if (p->playtime > (p->attack + p->hold + p->release)) {
           env = 0.0;
         } else if (p->playtime > (p->attack + p->hold)) {
-          env = 1.0523957 *
-            exp(-3.0 * (p->playtime - p->attack - p->hold) / p->release) 
-            - 0.0523957;
+          env = 1.0523957f *
+            (float) exp(-3.0f * (p->playtime - p->attack - p->hold) / p->release) 
+            - 0.0523957f;
         }
       }
       value *= env;
@@ -921,7 +921,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
       value *= roundoff;
 
       float c = (float) channel + p->pan;
-      float d = c - floor(c);
+      float d = c - (float) floor(c);
       int channel_a =  ((int) c) % g_num_channels;
       int channel_b =  ((int) c + 1) % g_num_channels;
 
@@ -936,8 +936,8 @@ void playback(float **buffers, int frame, sampletime_t now) {
       // PERF - 8.4% of time?
       float tmpa, tmpb;
       // optimisations for middle, hard left + hard right
-      if (d == 0.5) {
-	tmpa = tmpb = value * 0.7071067811;
+      if (d == 0.5f) {
+	tmpa = tmpb = value * 0.7071067811f;
       }
       else if (d == 0) {
 	tmpa = value;
@@ -948,8 +948,8 @@ void playback(float **buffers, int frame, sampletime_t now) {
 	tmpb = value;
       }
       else {
-	tmpa = value * cos(HALF_PI * d);
-	tmpb = value * sin(HALF_PI * d);
+	tmpa = value * (float) cos(HALF_PI * d);
+	tmpb = value * (float) sin(HALF_PI * d);
       }
 
       buffers[channel_a][frame] += tmpa;
@@ -975,7 +975,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
       p->speed += p->accelerate/g_samplerate;
     }
     p->position += p->speed;
-    p->playtime += 1.0 / g_samplerate;
+    p->playtime += 1.0f / g_samplerate;
 
     p->played++;
     //printf("position: %d of %d\n", p->position, playing->end);
@@ -1009,7 +1009,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
     }
     float factor = compress(max);
     for (channel = 0; channel < g_num_channels; ++channel) {
-      buffers[channel][frame] *= factor * g_gain/5.0;
+      buffers[channel][frame] *= factor * g_gain/5.0f;
     }
   } else {
     for (channel = 0; channel < g_num_channels; ++channel) {
@@ -1044,8 +1044,8 @@ extern int jack_callback(int frames, float *input, float **outputs) {
 
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    epochOffset = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0))
-      - ((double) jack_get_time() / 1000000.0);
+    epochOffset = ((float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f))
+      - ((float) jack_get_time() / 1000000.0f);
     //printf("jack time: %d tv_sec %d epochOffset: %f\n", jack_get_time(), tv.tv_sec, epochOffset);
 
   now = jack_last_frame_time(jack_client);
@@ -1062,7 +1062,7 @@ extern int jack_callback(int frames, float *input, float **outputs) {
 void run_pulse() {
   #define FRAMES 64
   struct timeval tv;
-  double samplelength = (((double) 1)/((double) g_samplerate));
+  float samplelength = (((float) 1)/((float) g_samplerate));
 
   float *buf[g_num_channels];
   for (int i = 0 ; i < g_num_channels; ++i) {
@@ -1093,13 +1093,13 @@ void run_pulse() {
 	      pa_strerror(error));
       goto finish;
     }
-    //fprintf(stderr, "%f sec    \n", ((float)latency)/1000000.0);
+    //fprintf(stderr, "%f sec    \n", ((float)latency)/1000000.0f);
 
     gettimeofday(&tv, NULL);
-    double now = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0));
+    float now = ((float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f));
 
     for (int i=0; i < FRAMES; ++i) {
-      double framenow = now + (samplelength * (double) i);
+      float framenow = now + (samplelength * (float) i);
       playback(buf, i, framenow);
       for (int j=0; j < g_num_channels; ++j) {
 	interlaced[g_num_channels*i+j] = buf[j][i];
@@ -1140,21 +1140,21 @@ static int pa_callback(const void *inputBuffer, void *outputBuffer,
     #ifdef HACK
     epochOffset = 0;
     #else
-    epochOffset = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0))
+    epochOffset = ((float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f))
       - timeInfo->outputBufferDacTime;
     #endif
-    /* printf("set offset (%f - %f) to %f\n", ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0))
+    /* printf("set offset (%f - %f) to %f\n", ((float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f))
        , timeInfo->outputBufferDacTime, epochOffset); */
   }
   #ifdef HACK
-  double now = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0));
+  float now = ((float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f));
   #else
-  double now = timeInfo->outputBufferDacTime;
+  float now = timeInfo->outputBufferDacTime;
   #endif
   // printf("%f %f %f\n", timeInfo->outputBufferDacTime, timeInfo->currentTime,   Pa_GetStreamTime(stream));
   float **buffers = (float **) outputBuffer;
   for (int i=0; i < framesPerBuffer; ++i) {
-    double framenow = now + (((double) i)/((double) g_samplerate));
+    float framenow = now + (((float) i)/((float) g_samplerate));
     playback(buffers, i, framenow);
     dequeue(framenow);
   }
@@ -1292,7 +1292,7 @@ extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigge
 
   gettimeofday(&tv, NULL);
   sampleroot = sroot;
-  starttime = (float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0);
+  starttime = (float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f);
 
   delays = calloc(g_num_channels, sizeof(t_line));
   if (!delays) {
@@ -1360,7 +1360,7 @@ static void reset_sound(t_sound* s) {
   t_vcf *old_vcf = s->vcf;
   t_vcf *old_hpf = s->hpf;
   t_vcf *old_bpf = s->bpf;
-  double **old_formant_history = s->formant_history;
+  float **old_formant_history = s->formant_history;
 
   memset(s, 0, sizeof(t_sound));
 
