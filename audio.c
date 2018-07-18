@@ -49,8 +49,8 @@ t_sound *playing = NULL;
 t_sound sounds[MAX_SOUNDS];
 int playing_n = 0;
 
-float epochOffset = 0;
-float starttime = 0;
+double epochOffset = 0;
+double starttime = 0;
 
 #ifdef JACK
 jack_client_t *jack_client = NULL;
@@ -1044,8 +1044,8 @@ extern int jack_callback(int frames, float *input, float **outputs) {
 
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    epochOffset = ((float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f))
-      - ((float) jack_get_time() / 1000000.0f);
+    epochOffset = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0))
+      - ((double) jack_get_time() / 1000000.0);
     //printf("jack time: %d tv_sec %d epochOffset: %f\n", jack_get_time(), tv.tv_sec, epochOffset);
 
   now = jack_last_frame_time(jack_client);
@@ -1096,10 +1096,10 @@ void run_pulse() {
     //fprintf(stderr, "%f sec    \n", ((float)latency)/1000000.0f);
 
     gettimeofday(&tv, NULL);
-    float now = ((float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f));
+    double now = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0));
 
     for (int i=0; i < FRAMES; ++i) {
-      float framenow = now + (samplelength * (float) i);
+      double framenow = now + (samplelength * (double) i);
       playback(buf, i, framenow);
       for (int j=0; j < g_num_channels; ++j) {
 	interlaced[g_num_channels*i+j] = buf[j][i];
@@ -1140,21 +1140,21 @@ static int pa_callback(const void *inputBuffer, void *outputBuffer,
     #ifdef HACK
     epochOffset = 0;
     #else
-    epochOffset = ((float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f))
+    epochOffset = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0))
       - timeInfo->outputBufferDacTime;
     #endif
     /* printf("set offset (%f - %f) to %f\n", ((float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f))
        , timeInfo->outputBufferDacTime, epochOffset); */
   }
   #ifdef HACK
-  float now = ((float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f));
+  double now = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0));
   #else
-  float now = timeInfo->outputBufferDacTime;
+  double now = timeInfo->outputBufferDacTime;
   #endif
   // printf("%f %f %f\n", timeInfo->outputBufferDacTime, timeInfo->currentTime,   Pa_GetStreamTime(stream));
   float **buffers = (float **) outputBuffer;
   for (int i=0; i < framesPerBuffer; ++i) {
-    float framenow = now + (((float) i)/((float) g_samplerate));
+    double framenow = now + (((double) i)/((double) g_samplerate));
     playback(buffers, i, framenow);
     dequeue(framenow);
   }
@@ -1292,7 +1292,7 @@ extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigge
 
   gettimeofday(&tv, NULL);
   sampleroot = sroot;
-  starttime = (float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f);
+  starttime = (double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0);
 
   delays = calloc(g_num_channels, sizeof(t_line));
   if (!delays) {

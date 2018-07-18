@@ -63,7 +63,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 
   float cps = argv[2]->f;
   poffset = 3;
-  printf("timing info: when, cps = %f\t%f a %i b %i\n", when, cps, argv[0]->i, argv[1]->i);
+  // printf("timing info: when, cps = %f\t%f a %i b %i\n", when, cps, argv[0]->i, argv[1]->i);
 
   char *sample_name = (char *) argv[0+poffset];
 
