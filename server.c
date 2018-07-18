@@ -98,12 +98,14 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 
   char *unit_name = argc > (24+poffset) ? (char *) argv[24+poffset] : "r";
   int sample_loop = argc > (25+poffset) ? floor(argv[25+poffset]->f) : 0;
-  int sample_n = argc > (26+poffset) ? argv[26+poffset]->i : 0;
+  int sample_n = argc > (26+poffset) ? floor(argv[26+poffset]->f) : 0;
 
   float attack = argc > (27+poffset) ? argv[27+poffset]->f : 0;
   float hold = argc > (28+poffset) ? argv[28+poffset]->f : 0;
   float release = argc > (29+poffset) ? argv[29+poffset]->f : 0;
 
+  int orbit = argc > (30+poffset) ? argv[30+poffset]->i : 0;
+  //printf("orb: %d\n", orbit);
   static bool extraWarned = false;
   if (argc > 30+poffset && !extraWarned) {
     printf("play server unexpectedly received extra parameters, maybe update Dirt?\n");
@@ -170,7 +172,8 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   sound->offset = offset;
   sound->cps = cps;
   sound->when = when;
-
+  sound->orbit = (orbit <= MAX_ORBIT) ? orbit : MAX_ORBIT;
+  //printf("orbit: %d\n", sound->orbit);
   if (sample_n) {
     sample_n = abs(sample_n);
     snprintf(sound->samplename, MAXPATHSIZE, "%s:%d", 
@@ -199,6 +202,11 @@ void *zmqthread(void *data){
 
   int rc = zmq_connect (subscriber, ZEROMQ);
   lo_server s = lo_server_new("7772", error);
+
+  lo_server_add_method(s, "/play", "iisffffffsffffififfffiffffi",
+		       play_handler, 
+		       NULL
+		       );
 
   lo_server_add_method(s, "/play", "iisffffffsffffififfffiffff",
 		       play_handler, 
