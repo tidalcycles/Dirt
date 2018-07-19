@@ -461,7 +461,7 @@ float fastPow(float a, float b) {
 #ifdef FASTPOW
 #define myPow (float) fastPow
 #else
-#define myPow (float) pow
+#define myPow (float) powf
 #endif
 
 float effect_vcf(float in, t_sound *sound, int channel) {
@@ -478,7 +478,7 @@ float effect_vcf(float in, t_sound *sound, int channel) {
   vcf->y3 = y2p + vcf->oldy2 - vcf->k * vcf->y3;
   vcf->y4 = y3p + vcf->oldy3 - vcf->k * vcf->y4;
 
-  vcf->y4 = vcf->y4 - myPow(vcf->y4,3) / 6;
+  vcf->y4 = vcf->y4 - (vcf->y4 * vcf->y4 * vcf->y4) / 6;
 
   vcf->oldx  = xp;
   vcf->oldy1 = y1p;
@@ -497,7 +497,7 @@ float effect_hpf(float in, t_sound *sound, int channel) {
   vcf->y3 = vcf->y2 * vcf->p + vcf->oldy2 * vcf->p - vcf->k * vcf->y3;
   vcf->y4 = vcf->y3 * vcf->p + vcf->oldy3 * vcf->p - vcf->k * vcf->y4;
 
-  vcf->y4 = vcf->y4 - myPow(vcf->y4,3) / 6;
+  vcf->y4 = vcf->y4 - (vcf->y4 * vcf->y4 * vcf->y4) / 6;
 
   vcf->oldx  = vcf->x;
   vcf->oldy1 = vcf->y1;
