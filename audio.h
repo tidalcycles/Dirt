@@ -77,7 +77,7 @@ typedef struct t_node {
   float  start;
   float  end;
   float  velocity;
-  float  **formant_history;
+  double  **formant_history;
   int    formant_vowelnum;
   float  cutoff;
   float  resonance;
