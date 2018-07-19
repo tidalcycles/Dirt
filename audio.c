@@ -229,7 +229,7 @@ void queue_remove(t_sound **queue, t_sound *old) {
   playing_n--;
 }
 
-const float coeff[5][11]= {
+const double coeff[5][11]= {
   { 3.11044e-06,
     8.943665402,    -36.83889529,    92.01697887,    -154.337906,    181.6233289,
     -151.8651235,   89.09614114,    -35.10298511,    8.388101016,    -0.923313471
@@ -286,11 +286,11 @@ void init_formant_history (t_sound *sound) {
   if (!sound->formant_history) {
     bool failed = false;
 
-    sound->formant_history = malloc(g_num_channels * sizeof(float*));
+    sound->formant_history = malloc(g_num_channels * sizeof(double*));
     if (!sound->formant_history) failed = true;
 
     for (int c = 0; c < g_num_channels; c++) {
-      sound->formant_history[c] = malloc(10 * sizeof(float));
+      sound->formant_history[c] = malloc(10 * sizeof(double));
       if (!sound->formant_history[c]) failed = true;
     }
 
@@ -302,14 +302,14 @@ void init_formant_history (t_sound *sound) {
 
   // Clean history for each channel
   for (int c = 0; c < g_num_channels; c++) {
-    memset(sound->formant_history[c], 0, 10 * sizeof(float));
+    memset(sound->formant_history[c], 0, 10 * sizeof(double));
   }
 }
 
 void free_formant_history (t_sound *sound) {
   if (sound->formant_history) {
     for (int c = 0; c < g_num_channels; c++) {
-      float* fh = sound->formant_history[c];
+      double* fh = sound->formant_history[c];
       if (fh) free(fh);
     }
     free(sound->formant_history);
@@ -1360,7 +1360,7 @@ static void reset_sound(t_sound* s) {
   t_vcf *old_vcf = s->vcf;
   t_vcf *old_hpf = s->hpf;
   t_vcf *old_bpf = s->bpf;
-  float **old_formant_history = s->formant_history;
+  double **old_formant_history = s->formant_history;
 
   memset(s, 0, sizeof(t_sound));
 
