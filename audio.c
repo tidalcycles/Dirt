@@ -50,7 +50,7 @@ t_sound sounds[MAX_SOUNDS];
 int playing_n = 0;
 
 double epochOffset = 0;
-double starttime = 0;
+float starttime = 0;
 
 #ifdef JACK
 jack_client_t *jack_client = NULL;
@@ -907,13 +907,13 @@ void playback(float **buffers, int frame, sampletime_t now) {
       float env = 1.0;
       if (p->attack >= 0 && p->release >= 0) {
         if (p->playtime < p->attack) {
-          env = 1.0523957 - 1.0523958*exp(-3.0f * p->playtime/p->attack);
+          env = 1.0523957 - 1.0523958*exp(-3.0 * p->playtime/p->attack);
         } else if (p->playtime > (p->attack + p->hold + p->release)) {
           env = 0.0;
         } else if (p->playtime > (p->attack + p->hold)) {
-          env = 1.0523957f *
-            (float) exp(-3.0f * (p->playtime - p->attack - p->hold) / p->release) 
-            - 0.0523957f;
+          env = 1.0523957 *
+            exp(-3.0 * (p->playtime - p->attack - p->hold) / p->release) 
+            - 0.0523957;
         }
       }
       value *= env;
@@ -975,7 +975,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
       p->speed += p->accelerate/g_samplerate;
     }
     p->position += p->speed;
-    p->playtime += 1.0f / g_samplerate;
+    p->playtime += 1.0 / g_samplerate;
 
     p->played++;
     //printf("position: %d of %d\n", p->position, playing->end);
@@ -1062,7 +1062,7 @@ extern int jack_callback(int frames, float *input, float **outputs) {
 void run_pulse() {
   #define FRAMES 64
   struct timeval tv;
-  float samplelength = (((float) 1)/((float) g_samplerate));
+  double samplelength = (((double) 1)/((double) g_samplerate));
 
   float *buf[g_num_channels];
   for (int i = 0 ; i < g_num_channels; ++i) {
@@ -1292,7 +1292,7 @@ extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigge
 
   gettimeofday(&tv, NULL);
   sampleroot = sroot;
-  starttime = (double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0);
+  starttime = (float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0);
 
   delays = calloc(g_num_channels, sizeof(t_line));
   if (!delays) {
