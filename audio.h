@@ -18,7 +18,7 @@
 #include "jack.h"
 #define sampletime_t jack_nframes_t
 #else
-#define sampletime_t float
+#define sampletime_t double
 #endif
 
 
