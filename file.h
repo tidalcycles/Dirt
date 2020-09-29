@@ -21,7 +21,7 @@ typedef struct {
   unsigned int since_chunk;
   unsigned int chunk_n;
   float *items;
-  double *in;
+  float *in;
   //fvec_t *in;
   //fvec_t *ibuf;
 
@@ -39,3 +39,5 @@ extern t_sample *file_get(char *samplename, const char *sampleroot);
 extern t_sample *file_get_from_cache(char *samplename);
 t_loop *new_loop(float seconds);
 void free_loop(t_loop*);
+extern int file_count_samples(char *set, const char *sampleroot);
+extern void file_preload_samples(const char *sampleroot);

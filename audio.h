@@ -3,7 +3,13 @@
 #include "common.h"
 
 #define MAXLINE  44100
-#define MAXSOUNDS 512
+#define MAX_SOUNDS 512 // includes queue!
+
+// not a hard limit, after this number sounds will start being
+// culled (given ROUNDOFF samples to live to avoid
+// discontinuities).
+#define MAX_PLAYING 8
+
 #define ROUNDOFF 16
 #define MAX_DB 12
 
@@ -51,6 +57,7 @@ float line_feedback_delay;
 
 typedef struct t_node {
   int    active;
+  int    is_playing;
   sampletime_t startT;
   char samplename[MAXPATHSIZE+1];
   int is_loop;
@@ -62,7 +69,7 @@ typedef struct t_node {
   int    channels;
   float  *items;
   struct t_node *next, *prev;
-  double position;
+  float  position;
   float  speed;
   int    reverse;
   float  pan;
@@ -70,7 +77,7 @@ typedef struct t_node {
   float  start;
   float  end;
   float  velocity;
-  double **formant_history;
+  double  **formant_history;
   int    formant_vowelnum;
   float  cutoff;
   float  resonance;
@@ -107,6 +114,8 @@ typedef struct t_node {
   float  hold;
   float  release;
   float  playtime;
+  int    orbit;
+  int    played;
 } t_sound;
 
 typedef struct {
@@ -144,10 +153,17 @@ typedef struct {
   float release;
 } t_play_args;
 
-
+#ifdef SEND_RMS
+typedef struct {
+  int n;
+  float sum;
+  float squares[RMS_SZ];
+  float sum_of_squares;
+} t_rms;
+#endif
 
 extern int audio_callback(int frames, float *input, float **outputs);
-extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, char *sampleroot, bool shape_gain_comp);
+extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, char *sampleroot, bool shape_gain_comp, bool preload_flag);
 extern void audio_close(void);
 extern int audio_play(t_sound*);
 t_sound *new_sound();

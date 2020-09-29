@@ -55,7 +55,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 
   /* lo_timetag ts = lo_message_get_timestamp(data); */
 
-  double when = (double) argv[0]->i + ((double) argv[1]->i / 1000000.0);
+  double when = (double) argv[0]->i + (((double) argv[1]->i) / 1000000.0);
 #ifdef SUBLATENCY
   when -= SUBLATENCY;
 #endif
@@ -63,7 +63,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 
   float cps = argv[2]->f;
   poffset = 3;
-  //printf("timing info: when, cps = %f\t%f\n", when, cps);
+  // printf("timing info: when, cps = %f\t%f a %i b %i\n", when, cps, argv[0]->i, argv[1]->i);
 
   char *sample_name = (char *) argv[0+poffset];
 
@@ -98,12 +98,14 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 
   char *unit_name = argc > (24+poffset) ? (char *) argv[24+poffset] : "r";
   int sample_loop = argc > (25+poffset) ? floor(argv[25+poffset]->f) : 0;
-  int sample_n = argc > (26+poffset) ? argv[26+poffset]->i : 0;
+  int sample_n = argc > (26+poffset) ? floor(argv[26+poffset]->f) : 0;
 
   float attack = argc > (27+poffset) ? argv[27+poffset]->f : 0;
   float hold = argc > (28+poffset) ? argv[28+poffset]->f : 0;
   float release = argc > (29+poffset) ? argv[29+poffset]->f : 0;
 
+  int orbit = argc > (30+poffset) ? argv[30+poffset]->i : 0;
+  //printf("orb: %d\n", orbit);
   static bool extraWarned = false;
   if (argc > 30+poffset && !extraWarned) {
     printf("play server unexpectedly received extra parameters, maybe update Dirt?\n");
@@ -152,7 +154,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   sound->accelerate = accelerate;
   sound->shape = (shape != 0);
   shape = fabs(shape);
-  shape = (shape > 0.99)?0.99:shape;
+  shape = (shape > 0.99f)?0.99f:shape;
   sound->shape_k = (2.0f * shape) / (1.0f - shape);
   sound->delay = delay;
   sound->delaytime = delaytime;
@@ -170,7 +172,8 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   sound->offset = offset;
   sound->cps = cps;
   sound->when = when;
-
+  sound->orbit = (orbit <= MAX_ORBIT) ? orbit : MAX_ORBIT;
+  //printf("orbit: %d\n", sound->orbit);
   if (sample_n) {
     sample_n = abs(sample_n);
     snprintf(sound->samplename, MAXPATHSIZE, "%s:%d", 
@@ -199,6 +202,11 @@ void *zmqthread(void *data){
 
   int rc = zmq_connect (subscriber, ZEROMQ);
   lo_server s = lo_server_new("7772", error);
+
+  lo_server_add_method(s, "/play", "iisffffffsffffififfffiffffi",
+		       play_handler, 
+		       NULL
+		       );
 
   lo_server_add_method(s, "/play", "iisffffffsffffififfffiffff",
 		       play_handler, 
@@ -255,7 +263,7 @@ extern int server_init(char *osc_port) {
   return(1);
 }
 
-extern void osc_send_pitch(float starttime, unsigned int chunk, 
+extern void osc_send_pitch(double starttime, unsigned int chunk, 
 			   float pitch, float flux, float centroid) {
   static lo_address t = NULL;
   static int pid = 0;
@@ -292,7 +300,7 @@ extern void osc_send_play(double when, int lowchunk, float pitch, float flux, fl
   lo_send(t, "/play", "iiiifff", 
           pid,
           (int) when,
-          (int) ((when - floor(when)) * 1000000.0),
+          (int) ((when - floor(when)) * 1000000.0f),
           lowchunk,
           pitch,
           flux,
