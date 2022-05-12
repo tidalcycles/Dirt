@@ -52,8 +52,8 @@ typedef struct {
   int   point;
 } t_line;
 
-t_line* delays;
-float line_feedback_delay;
+extern t_line* delays;
+extern float line_feedback_delay;
 
 typedef struct t_node {
   int    active;

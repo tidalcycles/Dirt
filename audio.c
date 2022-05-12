@@ -38,6 +38,9 @@ PaStream *stream;
 
 #define HALF_PI 1.5707963267948966f
 
+t_line* delays;
+float line_feedback_delay;
+
 pthread_mutex_t queue_loading_lock;
 pthread_mutex_t queue_waiting_lock;
 pthread_mutex_t mutex_sounds;
