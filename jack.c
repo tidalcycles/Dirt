@@ -51,7 +51,7 @@ extern jack_client_t *jack_start(t_callback callback, bool autoconnect) {
   jack_options_t options = JackNullOption;
   jack_status_t status;
   int i;
-  char portname[16];
+  char portname[24];
 
   /* open a client connection to the JACK server */
   
@@ -98,7 +98,7 @@ extern jack_client_t *jack_start(t_callback callback, bool autoconnect) {
   }
 
   for (i = 0; i < g_num_channels; ++i) {
-    sprintf(portname, "output_%d", i);
+    snprintf(portname, sizeof(portname), "output_%d", i);
     output_ports[i] = jack_port_register(client, portname,
                                          JACK_DEFAULT_AUDIO_TYPE,
                                          JackPortIsOutput, 0);
