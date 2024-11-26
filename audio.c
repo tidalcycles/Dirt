@@ -538,6 +538,11 @@ float effect_crush_neg(float value, t_sound *p, int channel) {
   return (value);
 }
 
+float effect_gain(float value, t_sound *p, int channel) {
+  value *= p->gain;
+  return (value);
+}
+
 /**/
 
 /**/
@@ -902,8 +907,9 @@ void playback(float **buffers, int frame, sampletime_t now) {
         value = effect_crush_neg(value, p, channel);
       }
 
-
-      value *= p->gain;
+      if (p->gain != 1) {
+        value = effect_gain(value, p, channel);
+      }
 
       // envelope
       float env = 1.0;
