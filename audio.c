@@ -512,6 +512,16 @@ float effect_bpf(float in, t_sound *sound, int channel) {
   return (vcf->y3);
 }
 
+float effect_shape(float value, t_sound *p, int channel) {
+  value = (1+p->shape_k)*value/(1+p->shape_k*(float) fabs(value));
+  // gain compensation, fine-tuned by ear
+  if (use_shape_gain_comp) {
+    float gcomp = 1.0f - (0.15f * p->shape_k / (p->shape_k + 2.0f));
+    value *= gcomp * gcomp;
+  }
+  return (value);
+}
+
 /**/
 
 /**/
@@ -867,13 +877,9 @@ void playback(float **buffers, int frame, sampletime_t now) {
       }
 
       if (p->shape) {
-        value = (1+p->shape_k)*value/(1+p->shape_k*(float) fabs(value));
-        // gain compensation, fine-tuned by ear
-        if (use_shape_gain_comp) {
-          float gcomp = 1.0f - (0.15f * p->shape_k / (p->shape_k + 2.0f));
-          value *= gcomp * gcomp;
-        }
+        value = effect_shape(value, p, channel);
       }
+
       if (p->crush > 0) {
         //value = (1.0 + log(fabs(value)) / 16.63553) * (value / fabs(value));
 	float tmp = myPow(2,p->crush_bits-1);
