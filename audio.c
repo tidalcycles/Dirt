@@ -522,6 +522,22 @@ float effect_shape(float value, t_sound *p, int channel) {
   return (value);
 }
 
+float effect_crush_pos(float value, t_sound *p, int channel) {
+  //value = (1.0 + log(fabs(value)) / 16.63553) * (value / fabs(value));
+  float tmp = myPow(2,p->crush_bits-1);
+  value = (float) trunc(tmp * value) / tmp;
+  //value = exp( (fabs(value) - 1.0) * 16.63553 ) * (value / fabs(value));
+  return (value);
+}
+
+float effect_crush_neg(float value, t_sound *p, int channel) {
+  float isgn = (value >= 0) ? 1 : -1;
+  value = isgn * myPow(fabsf(value), 0.125);
+  value = (float) trunc(((float) myPow(2,p->crush_bits-1) * value)) / ((float) myPow(2,p->crush_bits-1));
+  value = isgn * myPow(value, 8.0);
+  return (value);
+}
+
 /**/
 
 /**/
@@ -789,7 +805,7 @@ float compressdave(float in) {
 /**/
 
 void playback(float **buffers, int frame, sampletime_t now) {
-  int channel, isgn;
+  int channel;
   t_sound *p = playing;
 
 #ifdef SEND_RMS
@@ -881,19 +897,14 @@ void playback(float **buffers, int frame, sampletime_t now) {
       }
 
       if (p->crush > 0) {
-        //value = (1.0 + log(fabs(value)) / 16.63553) * (value / fabs(value));
-	float tmp = myPow(2,p->crush_bits-1);
-        value = (float) trunc(tmp * value) / tmp;
-        //value = exp( (fabs(value) - 1.0) * 16.63553 ) * (value / fabs(value));
+        value = effect_crush_pos(value, p, channel);
       } else if (p->crush < 0) {
-        isgn = (value >= 0) ? 1 : -1;
-        value = isgn * myPow(fabsf(value), 0.125);
-        value = (float) trunc(((float) myPow(2,p->crush_bits-1) * value)) / ((float) myPow(2,p->crush_bits-1));
-        value = isgn * myPow(value, 8.0);
+        value = effect_crush_neg(value, p, channel);
       }
 
 
       value *= p->gain;
+
       // envelope
       float env = 1.0;
       if (p->attack >= 0 && p->release >= 0) {
