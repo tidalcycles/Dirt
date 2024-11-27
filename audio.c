@@ -411,6 +411,11 @@ float effect_bpf(float in, t_sound *sound, int channel) {
   return (vcf->y3);
 }
 
+float effect_bpf2(float in, t_sound *sound, int channel) {
+  value = value - effect_bpf(value, p, channel);
+  return (value);
+}
+
 float effect_shape(float value, t_sound *p, int channel) {
   value = (1+p->shape_k)*value/(1+p->shape_k*(float) fabs(value));
   // gain compensation, fine-tuned by ear
@@ -837,7 +842,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
       if (p->bandf > 0 && p->bandf < 1 && p->bandq > 0) {
          value = effect_bpf(value, p, channel);
       } else if (p->bandf < 0 && p->bandf > -1 && p->bandq > 0) {
-         value = value - effect_bpf(value, p, channel);
+         value = effect_bpf2(value, p, channel);
       }
 
       if (p->coarse > 0) {
