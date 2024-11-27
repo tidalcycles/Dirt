@@ -467,12 +467,12 @@ float effect_roundoff(float value, t_sound *p, int channel) {
   if ((p->end - p->position) < ROUNDOFF) {
     // TODO what if end < ROUNDOFF?)
     //printf("roundoff: %f\n", (p->end - pos) / (float) ROUNDOFF);
-    roundoff = (p->end - p->position) / (float) ROUNDOFF;
+    roundoff = (p->end - p->position) * (1.0f / (float) ROUNDOFF);
     //printf("end roundoff: %f (%f)\n", roundoff, p->end - p->position);
   }
   else {
     if ((p->position - p->start) < ROUNDOFF) {
-      roundoff = (p->position - p->start) / (float) ROUNDOFF;
+      roundoff = (p->position - p->start) * (1.0f / (float) ROUNDOFF);
       //printf("start roundoff: %f (%f / %d)\n", roundoff, p->position - p->start, ROUNDOFF);
     }
   }
