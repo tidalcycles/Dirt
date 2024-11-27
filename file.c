@@ -23,7 +23,7 @@ t_loop *new_loop(float seconds) {
   result->chunksz = 2048;
   result->max_frames = result->frames = seconds * (float) g_samplerate;
   result->items = (float *) calloc(result->frames, sizeof(double));
-  result->in = (double *) calloc(result->chunksz, sizeof(double));
+  result->in = (float *) calloc(result->chunksz, sizeof(double));
   result->now = 0;
   result->loops = 0;
   return(result);
