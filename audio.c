@@ -887,66 +887,31 @@ void playback_out(float **buffers, int frame, t_pan out, t_sound *p)
   }
 }
 
-void playback(float **buffers, int frame, sampletime_t now) {
+t_sound *playback_advance(t_sound *p) {
+  if (p->accelerate != 0) {
+    // ->startFrame ->end ->position
+    p->speed += p->accelerate/g_samplerate;
+  }
+  p->position += p->speed;
+  p->playtime += 1.0 / g_samplerate;
+
+  p->played++;
+  //printf("position: %d of %d\n", p->position, playing->end);
+  /* remove dead sounds */
+  t_sound *tmp = p;
+  p = p->next;
+  if (tmp->position >= tmp->end || tmp->position < tmp->start) {
+    if (--(tmp->sample_loop) > 0) {
+      tmp->position = tmp->start;
+    } else {
+      queue_remove(&playing, tmp);
+    }
+  }
+  return p;
+}
+
+void playback_finalize(float **buffers, int frame) {
   int channel;
-  t_sound *p = playing;
-
-#ifdef SEND_RMS
-  for (int i = 0; i < (MAX_ORBIT*2); ++i) {
-    rms[i].sum = 0;
-    rms[i].n = (rms[i].n + 1) % RMS_SZ;
-  }
-#endif
-  
-  for (channel = 0; channel < g_num_channels; ++channel) {
-    buffers[channel][frame] = 0;
-  }
-
-  while (p != NULL) {
-    t_sound *tmp;
-
-    if (p->startT > now) {
-      p->checks++;
-      p = p->next;
-      continue;
-    }
-    if ((!p->started) && p->checks == 0 && p->startT < now) {
-      /*      log_printf(LOG_OUT, "started late by %f frames (%d checks)\n",
-	     now - p->startT, p->checks
-	     );*/
-      p->started = 1;
-    }
-
-    for (channel = 0; channel < p->channels; ++channel) {
-      float value = playback_source(p, channel);
-      t_pan out = playback_effects(value, p, channel);
-      playback_out(buffers, frame, out, p);
-      if (p->mono) {
-        break;
-      }
-    }
-
-    if (p->accelerate != 0) {
-      // ->startFrame ->end ->position
-      p->speed += p->accelerate/g_samplerate;
-    }
-    p->position += p->speed;
-    p->playtime += 1.0 / g_samplerate;
-
-    p->played++;
-    //log_printf(LOG_OUT, "position: %d of %d\n", p->position, playing->end);
-    /* remove dead sounds */
-    tmp = p;
-    p = p->next;
-    if (tmp->position >= tmp->end || tmp->position < tmp->start) {
-      if (--(tmp->sample_loop) > 0) {
-        tmp->position = tmp->start;
-      } else {
-        queue_remove(&playing, tmp);
-      }
-    }
-  }
-
   for (channel = 0; channel < g_num_channels; ++channel) {
     float tmp = shift_delay(&delays[channel]);
     if (delay_feedback > 0 && tmp != 0) {
@@ -972,7 +937,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
       buffers[channel][frame] *= g_gain;
     }
   }
-  #ifdef SEND_RMS
+#ifdef SEND_RMS
   for (int i = 0; i < MAX_ORBIT*2; ++i) {
     rms[i].sum_of_squares -= rms[i].squares[rms[i].n];
 
@@ -990,7 +955,52 @@ void playback(float **buffers, int frame, sampletime_t now) {
       rms[i].sum_of_squares += sqrd;
     }
   }
-  #endif
+#endif
+}
+
+void playback(float **buffers, int frame, sampletime_t now) {
+  int channel;
+  t_sound *p = playing;
+
+#ifdef SEND_RMS
+  for (int i = 0; i < (MAX_ORBIT*2); ++i) {
+    rms[i].sum = 0;
+    rms[i].n = (rms[i].n + 1) % RMS_SZ;
+  }
+#endif
+  
+  for (channel = 0; channel < g_num_channels; ++channel) {
+    buffers[channel][frame] = 0;
+  }
+
+  while (p != NULL) {
+
+    if (p->startT > now) {
+      p->checks++;
+      p = p->next;
+      continue;
+    }
+    // p->startT <= now by check above
+    if ((!p->started) && p->checks == 0) {
+      /*      printf("started late by %f frames (%d checks)\n",
+	     now - p->startT, p->checks
+	     );*/
+      p->started = 1;
+    }
+    //printf("playing %s\n", p->samplename);
+    //printf("channels: %d\n", p->channels);
+
+    for (channel = 0; channel < p->channels; ++channel) {
+      float value = playback_source(p, channel);
+      t_pan out = playback_effects(value, p, channel);
+      playback_out(buffers, frame, out, p);
+      if (p->mono) {
+        break;
+      }
+    }
+    p = playback_advance(p);
+  }
+  playback_finalize(buffers, frame);
 }
 
 #ifdef SEND_RMS
