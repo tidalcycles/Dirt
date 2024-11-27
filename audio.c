@@ -829,6 +829,46 @@ float compressdave(float in) {
 
 /**/
 
+float playback_source(t_sound *p, int channel)
+{
+  float value = p->items[(p->channels * (p->reverse ? (p->sample->info->frames - (int) p->position) : (int) p->position)) + channel];
+  int pos = ((int) p->position) + 1;
+  if (pos < p->end) {
+    float next =
+      p->items[(p->channels * (p->reverse ? p->sample->info->frames - pos : pos))
+                + channel
+                ];
+    float tween_amount = (p->position - (int) p->position);
+
+    /* linear interpolation */
+    value += (next - value) * tween_amount;
+  }
+  return value;
+}
+
+t_pan playback_effects(float value, t_sound *p, int channel) {
+  for (int e = 0; e < p->num_effects; ++e) {
+    value = p->effects[e](value, p, channel);
+  }
+  return effect_pan(value, p, channel);
+}
+
+void playback_out(float **buffers, int frame, t_pan out, t_sound *p)
+{
+  buffers[out.out[0].channel][frame] += out.out[0].value;
+  buffers[out.out[1].channel][frame] += out.out[1].value;
+
+#ifdef SEND_RMS
+  rms[p->orbit*2 + out.out[0].channel].sum += out.out[0].value;
+  rms[p->orbit*2 + out.out[1].channel].sum += out.out[1].value;
+#endif
+
+  if (p->delay > 0) {
+    add_delay(&delays[out.out[0].channel], out.out[0].value, delay_time, p->delay);
+    add_delay(&delays[out.out[1].channel], out.out[1].value, delay_time, p->delay);
+  }
+}
+
 void playback(float **buffers, int frame, sampletime_t now) {
   int channel;
   t_sound *p = playing;
@@ -845,7 +885,6 @@ void playback(float **buffers, int frame, sampletime_t now) {
   }
 
   while (p != NULL) {
-    int channels;
     t_sound *tmp;
 
     if (p->startT > now) {
@@ -859,46 +898,11 @@ void playback(float **buffers, int frame, sampletime_t now) {
 	     );*/
       p->started = 1;
     }
-    //log_printf(LOG_OUT, "playing %s\n", p->samplename);
-    channels = p->channels;
 
-    //log_printf(LOG_OUT, "channels: %d\n", channels);
-    for (channel = 0; channel < channels; ++channel) {
-      float value;
-
-      value = p->items[(channels * (p->reverse ? (p->sample->info->frames - (int) p->position) : (int) p->position)) + channel];
-
-      int pos = ((int) p->position) + 1;
-      if (pos < p->end) {
-        float next =
-          p->items[(channels * (p->reverse ? p->sample->info->frames - pos : pos))
-                    + channel
-                    ];
-        float tween_amount = (p->position - (int) p->position);
-
-        /* linear interpolation */
-        value += (next - value) * tween_amount;
-      }
-
-      for (int e = 0; e < p->num_effects; ++e) {
-        value = p->effects[e](value, p, channel);
-      }
-
-      t_pan out = effect_pan(value, p, channel);
-
-      buffers[out.out[0].channel][frame] += out.out[0].value;
-      buffers[out.out[1].channel][frame] += out.out[1].value;
-
-#ifdef SEND_RMS
-      rms[p->orbit*2 + out.out[0].channel].sum += out.out[0].value;
-      rms[p->orbit*2 + out.out[1].channel].sum += out.out[1].value;
-#endif
-
-      if (p->delay > 0) {
-	add_delay(&delays[out.out[0].channel], out.out[0].value, delay_time, p->delay);
-	add_delay(&delays[out.out[1].channel], out.out[1].value, delay_time, p->delay);
-      }
-
+    for (channel = 0; channel < p->channels; ++channel) {
+      float value = playback_source(p, channel);
+      t_pan out = playback_effects(value, p, channel);
+      playback_out(buffers, frame, out, p);
       if (p->mono) {
         break;
       }
