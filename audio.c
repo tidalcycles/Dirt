@@ -331,10 +331,10 @@ float effect_coarse_pos(float in, t_sound *sound, int channel) {
 
 float effect_coarse_neg(float in, t_sound *sound, int channel) {
   t_crs *crs = &(sound->per_channel[channel].coarsef);
-  (crs->index)++;
-  crs->sum += in / (float) -(sound->coarse);
-  if (crs->index == -(sound->coarse)) {
-    crs->last = crs->sum;
+  (crs->index)--;
+  crs->sum -= in;
+  if (crs->index == sound->coarse) {
+    crs->last = crs->sum / (float) sound->coarse;
     crs->index = 0;
     crs->sum = 0;
   }
