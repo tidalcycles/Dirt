@@ -38,7 +38,7 @@ int main (int argc, char **argv) {
   int c;
   int num_channels;
   int samplerate;
-  float gain = 20.0 * log10(g_gain/16.0);
+  float gain = 20.0f * log10f(g_gain/16.0f);
   char *osc_port = DEFAULT_OSC_PORT;
   char *sampleroot = "./samples";
   char *version = "1.1.0~prerelease";
@@ -207,7 +207,7 @@ int main (int argc, char **argv) {
         gain = atof(optarg);
         gain = (gain > MAX_GAIN_DB) ? MAX_GAIN_DB : gain;
         gain = (gain < MIN_GAIN_DB) ? MIN_GAIN_DB : gain;
-        g_gain = 16.0 * pow(10.0, gain/20.0);
+        g_gain = 16.0f * powf(10.0f, gain/20.0f);
         break;
 
       case '?':

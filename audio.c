@@ -467,13 +467,13 @@ float effect_crush_neg(float value, t_sound *p, int channel) {
 float effect_env(float value, t_sound *p, int channel) {
   float env = 1.0;
   if (p->playtime < p->attack) {
-    env = 1.0523957 - 1.0523958*exp(-3.0 * p->playtime/p->attack);
+    env = 1.0523957f - 1.0523958f*expf(-3.0f * p->playtime/p->attack);
   } else if (p->playtime > (p->attack + p->hold + p->release)) {
-    env = 0.0;
+    env = 0.0f;
   } else if (p->playtime > (p->attack + p->hold)) {
-    env = 1.0523957 *
-      exp(-3.0 * (p->playtime - p->attack - p->hold) / p->release) 
-      - 0.0523957;
+    env = 1.0523957f *
+      expf(-3.0f * (p->playtime - p->attack - p->hold) / p->release)
+      - 0.0523957f;
   }
   value *= env;
   return (value);
@@ -527,8 +527,8 @@ void init_pan(t_sound *p)
       tmpb = p->gain;
     }
     else {
-      tmpa = (float) p->gain * cos(HALF_PI * d);
-      tmpb = (float) p->gain * sin(HALF_PI * d);
+      tmpa = (float) p->gain * cosf(HALF_PI * d);
+      tmpb = (float) p->gain * sinf(HALF_PI * d);
     }
     t_pan out = {{{channel_a, tmpa}, {channel_b, tmpb}}};
     p->per_channel[channel].pan = out;
@@ -1033,7 +1033,7 @@ extern int audio_init(const char *output, bool dirty_compressor, bool autoconnec
 
   gettimeofday(&tv, NULL);
   sampleroot = sroot;
-  starttime = (float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0);
+  starttime = (float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f);
 
   delays = calloc(g_num_channels, sizeof(t_line));
   if (!delays) {
