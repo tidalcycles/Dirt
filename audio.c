@@ -314,23 +314,24 @@ void init_per_channel(t_sound *sound) {
   init_bpf(sound);
 }
 
-float effect_coarse(float in, t_sound *sound, int channel) {
+float effect_coarse_pos(float in, t_sound *sound, int channel) {
   t_crs *crs = &(sound->per_channel[channel].coarsef);
-
   (crs->index)++;
-  if (sound->coarse > 0) {
-    if (crs->index == sound->coarse) {
-      crs->index = 0;
-      crs->last = in;
-    }
+  if (crs->index == sound->coarse) {
+    crs->index = 0;
+    crs->last = in;
   }
-  if (sound->coarse < 0) {
-    crs->sum += in / (float) -(sound->coarse);
-    if (crs->index == -(sound->coarse)) {
-      crs->last = crs->sum;
-      crs->index = 0;
-      crs->sum = 0;
-    }
+  return crs->last;
+}
+
+float effect_coarse_neg(float in, t_sound *sound, int channel) {
+  t_crs *crs = &(sound->per_channel[channel].coarsef);
+  (crs->index)++;
+  crs->sum += in / (float) -(sound->coarse);
+  if (crs->index == -(sound->coarse)) {
+    crs->last = crs->sum;
+    crs->index = 0;
+    crs->sum = 0;
   }
   return crs->last;
 }
@@ -839,8 +840,11 @@ void playback(float **buffers, int frame, sampletime_t now) {
          value = value - effect_bpf(value, p, channel);
       }
 
-      if (p->coarse != 0) {
-        value = effect_coarse(value, p, channel);
+      if (p->coarse > 0) {
+        value = effect_coarse_pos(value, p, channel);
+      }
+      else if (p->coarse < 0) {
+        value = effect_coarse_neg(value, p, channel);
       }
 
       if (p->shape) {
