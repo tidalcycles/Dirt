@@ -107,7 +107,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   int orbit = argc > (30+poffset) ? argv[30+poffset]->i : 0;
   //printf("orb: %d\n", orbit);
   static bool extraWarned = false;
-  if (argc > 30+poffset && !extraWarned) {
+  if (argc > 31+poffset && !extraWarned) {
     printf("play server unexpectedly received extra parameters, maybe update Dirt?\n");
     extraWarned = true;
   }
