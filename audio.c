@@ -855,17 +855,19 @@ float compressdave(float in) {
 
 float playback_source(t_sound *p, int channel)
 {
-  float value = p->items[(p->channels * (p->reverse ? (p->sample->info->frames - (int) p->position) : (int) p->position)) + channel];
-  int pos = ((int) p->position) + 1;
-  if (pos < p->end) {
-    float next =
-      p->items[(p->channels * (p->reverse ? p->sample->info->frames - pos : pos))
-                + channel
-                ];
-    float tween_amount = (p->position - (int) p->position);
-
-    /* linear interpolation */
-    value += (next - value) * tween_amount;
+  float value = 0;
+  int ix = (p->channels * (p->reverse ? (p->sample->info->frames - (int) p->position) : (int) p->position)) + channel;
+  if (0 <= ix && ix < p->end)
+  {
+    value = p->items[ix];
+    int next_ix = p->reverse ? ix - p->channels : ix + p->channels;
+    if (0 <= next_ix && next_ix < p->end)
+    {
+      float next_value = p->items[next_ix];
+      float tween_amount = (p->position - (int) p->position);
+      /* linear interpolation */
+      value += (next_value - value) * tween_amount;
+    }
   }
   return value;
 }
