@@ -431,19 +431,36 @@ float effect_shape(float value, t_sound *p, int channel) {
   return (value);
 }
 
+void init_crush(t_sound *p)
+{
+  p->crush_range = (float) myPow(2,p->crush_bits-1);
+}
+
 float effect_crush_pos(float value, t_sound *p, int channel) {
   //value = (1.0 + log(fabs(value)) / 16.63553) * (value / fabs(value));
-  float tmp = myPow(2,p->crush_bits-1);
-  value = (float) trunc(tmp * value) / tmp;
+  float tmp = p->crush_range;
+  value = (float) truncf(tmp * value) / tmp;
   //value = exp( (fabs(value) - 1.0) * 16.63553 ) * (value / fabs(value));
   return (value);
 }
 
 float effect_crush_neg(float value, t_sound *p, int channel) {
   float isgn = (value >= 0) ? 1 : -1;
-  value = isgn * myPow(fabsf(value), 0.125);
-  value = (float) trunc(((float) myPow(2,p->crush_bits-1) * value)) / ((float) myPow(2,p->crush_bits-1));
-  value = isgn * myPow(value, 8.0);
+  value = isgn * value;
+  value = myPow(value, 0.125);
+/*
+  value = sqrtf(value);
+  value = sqrtf(value);
+  value = sqrtf(value);
+*/
+  value = effect_crush_pos(value, p, channel);
+  value *= value;
+  value *= value;
+  value *= value;
+/*
+  value = myPow(value, 8.0);
+*/
+  value = isgn * value;
   return (value);
 }
 
@@ -610,8 +627,10 @@ void init_effects(t_sound *p) {
     p->effects[p->num_effects++] = effect_shape;
   }
   if (p->crush > 0) {
+    init_crush(p);
     p->effects[p->num_effects++] = effect_crush_pos;
   } else if (p->crush < 0) {
+    init_crush(p);
     p->effects[p->num_effects++] = effect_crush_neg;
   }
   if (p->gain != 1) {

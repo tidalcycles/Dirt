@@ -109,6 +109,7 @@ struct t_node {
   int    mono;
   int    crush;
   float  crush_bits;
+  float  crush_range;
   int    coarse;
   float  hcutoff;
   float  hresonance;
