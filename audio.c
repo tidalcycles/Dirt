@@ -464,11 +464,6 @@ float effect_crush_neg(float value, t_sound *p, int channel) {
   return (value);
 }
 
-float effect_gain(float value, t_sound *p, int channel) {
-  value *= p->gain;
-  return (value);
-}
-
 float effect_env(float value, t_sound *p, int channel) {
   float env = 1.0;
   if (p->playtime < p->attack) {
@@ -521,19 +516,19 @@ void init_pan(t_sound *p)
     float tmpa, tmpb;
     // optimisations for middle, hard left + hard right
     if (d == 0.5f) {
-      tmpa = tmpb = 0.7071067811f;
+      tmpa = tmpb = p->gain * 0.7071067811f;
     }
     else if (d == 0) {
-      tmpa = 1;
+      tmpa = p->gain;
       tmpb = 0;
     }
     else if (d == 1) {
       tmpa = 0;
-      tmpb = 1;
+      tmpb = p->gain;
     }
     else {
-      tmpa = (float) cos(HALF_PI * d);
-      tmpb = (float) sin(HALF_PI * d);
+      tmpa = (float) p->gain * cos(HALF_PI * d);
+      tmpb = (float) p->gain * sin(HALF_PI * d);
     }
     t_pan out = {{{channel_a, tmpa}, {channel_b, tmpb}}};
     p->per_channel[channel].pan = out;
@@ -632,9 +627,6 @@ void init_effects(t_sound *p) {
   } else if (p->crush < 0) {
     init_crush(p);
     p->effects[p->num_effects++] = effect_crush_neg;
-  }
-  if (p->gain != 1) {
-    p->effects[p->num_effects++] = effect_gain;
   }
   if (p->attack >= 0 && p->release >= 0) {
     p->effects[p->num_effects++] = effect_env;
