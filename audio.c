@@ -543,6 +543,74 @@ float effect_gain(float value, t_sound *p, int channel) {
   return (value);
 }
 
+float effect_env(float value, t_sound *p, int channel) {
+  float env = 1.0;
+  if (p->playtime < p->attack) {
+    env = 1.0523957 - 1.0523958*exp(-3.0 * p->playtime/p->attack);
+  } else if (p->playtime > (p->attack + p->hold + p->release)) {
+    env = 0.0;
+  } else if (p->playtime > (p->attack + p->hold)) {
+    env = 1.0523957 *
+      exp(-3.0 * (p->playtime - p->attack - p->hold) / p->release) 
+      - 0.0523957;
+  }
+  value *= env;
+  return (value);
+}
+
+float effect_roundoff(float value, t_sound *p, int channel) {
+  float roundoff = 1;
+  if ((p->end - p->position) < ROUNDOFF) {
+    // TODO what if end < ROUNDOFF?)
+    //printf("roundoff: %f\n", (p->end - pos) / (float) ROUNDOFF);
+    roundoff = (p->end - p->position) / (float) ROUNDOFF;
+    //printf("end roundoff: %f (%f)\n", roundoff, p->end - p->position);
+  }
+  else {
+    if ((p->position - p->start) < ROUNDOFF) {
+      roundoff = (p->position - p->start) / (float) ROUNDOFF;
+      //printf("start roundoff: %f (%f / %d)\n", roundoff, p->position - p->start, ROUNDOFF);
+    }
+  }
+  value *= roundoff;
+  return (value);
+}
+
+struct panned { struct { int channel; float value; } out[2]; };
+struct panned effect_pan(float value, t_sound *p, int channel) {
+  float c = (float) channel + p->pan;
+  float d = c - (float) floor(c);
+  int channel_a =  ((int) c) % g_num_channels;
+  int channel_b =  ((int) c + 1) % g_num_channels;
+  if (channel_a < 0) {
+    channel_a += g_num_channels;
+  }
+  if (channel_b < 0) {
+    channel_b += g_num_channels;
+  }
+  // equal power panning
+  // PERF - 8.4% of time?
+  float tmpa, tmpb;
+  // optimisations for middle, hard left + hard right
+  if (d == 0.5f) {
+    tmpa = tmpb = value * 0.7071067811f;
+  }
+  else if (d == 0) {
+    tmpa = value;
+    tmpb = 0;
+  }
+  else if (d == 1) {
+    tmpa = 0;
+    tmpb = value;
+  }
+  else {
+    tmpa = value * (float) cos(HALF_PI * d);
+    tmpb = value * (float) sin(HALF_PI * d);
+  }
+  struct panned out = {{{channel_a, tmpa}, {channel_b, tmpb}}};
+  return out;
+}
+
 /**/
 
 /**/
@@ -844,7 +912,6 @@ void playback(float **buffers, int frame, sampletime_t now) {
 
     //log_printf(LOG_OUT, "channels: %d\n", channels);
     for (channel = 0; channel < channels; ++channel) {
-      float roundoff = 1;
       float value;
 
       value = p->items[(channels * (p->reverse ? (p->sample->info->frames - (int) p->position) : (int) p->position)) + channel];
@@ -880,19 +947,6 @@ void playback(float **buffers, int frame, sampletime_t now) {
          value = value - effect_bpf(value, p, channel);
       }
 
-      if ((p->end - p->position) < ROUNDOFF) {
-        // TODO what if end < ROUNDOFF?)
-        //log_printf(LOG_OUT, "roundoff: %f\n", (p->end - pos) / (float) ROUNDOFF);
-        roundoff = (p->end - p->position) / (float) ROUNDOFF;
-        //log_printf(LOG_OUT, "end roundoff: %f (%f)\n", roundoff, p->end - p->position);
-      }
-      else {
-        if ((p->position - p->start) < ROUNDOFF) {
-          roundoff = (p->position - p->start) / (float) ROUNDOFF;
-          //log_printf(LOG_OUT, "start roundoff: %f (%f / %d)\n", roundoff, p->position - p->start, ROUNDOFF);
-        }
-      }
-
       if (p->coarse != 0) {
         value = effect_coarse(value, p, channel);
       }
@@ -912,65 +966,25 @@ void playback(float **buffers, int frame, sampletime_t now) {
       }
 
       // envelope
-      float env = 1.0;
       if (p->attack >= 0 && p->release >= 0) {
-        if (p->playtime < p->attack) {
-          env = 1.0523957 - 1.0523958*exp(-3.0 * p->playtime/p->attack);
-        } else if (p->playtime > (p->attack + p->hold + p->release)) {
-          env = 0.0;
-        } else if (p->playtime > (p->attack + p->hold)) {
-          env = 1.0523957 *
-            exp(-3.0 * (p->playtime - p->attack - p->hold) / p->release) 
-            - 0.0523957;
-        }
-      }
-      value *= env;
-
-      value *= roundoff;
-
-      float c = (float) channel + p->pan;
-      float d = c - (float) floor(c);
-      int channel_a =  ((int) c) % g_num_channels;
-      int channel_b =  ((int) c + 1) % g_num_channels;
-
-      if (channel_a < 0) {
-        channel_a += g_num_channels;
-      }
-      if (channel_b < 0) {
-        channel_b += g_num_channels;
+        value = effect_env(value, p, channel);
       }
 
-      // equal power panning
-      // PERF - 8.4% of time?
-      float tmpa, tmpb;
-      // optimisations for middle, hard left + hard right
-      if (d == 0.5f) {
-	tmpa = tmpb = value * 0.7071067811f;
-      }
-      else if (d == 0) {
-	tmpa = value;
-	tmpb = 0;
-      }
-      else if (d == 1) {
-	tmpa = 0;
-	tmpb = value;
-      }
-      else {
-	tmpa = value * (float) cos(HALF_PI * d);
-	tmpb = value * (float) sin(HALF_PI * d);
-      }
+      value = effect_roundoff(value, p, channel);
 
-      buffers[channel_a][frame] += tmpa;
-      buffers[channel_b][frame] += tmpb;
+      struct panned out = effect_pan(value, p, channel);
+
+      buffers[out.out[0].channel][frame] += out.out[0].value;
+      buffers[out.out[1].channel][frame] += out.out[1].value;
 
 #ifdef SEND_RMS
-      rms[p->orbit*2 + channel_a].sum += tmpa;
-      rms[p->orbit*2 + channel_b].sum += tmpb;
+      rms[p->orbit*2 + out.out[0].channel].sum += out.out[0].value;
+      rms[p->orbit*2 + out.out[1].channel].sum += out.out[1].value;
 #endif
-      
+
       if (p->delay > 0) {
-	add_delay(&delays[channel_a], tmpa, delay_time, p->delay);
-	add_delay(&delays[channel_b], tmpb, delay_time, p->delay);
+	add_delay(&delays[out.out[0].channel], out.out[0].value, delay_time, p->delay);
+	add_delay(&delays[out.out[1].channel], out.out[1].value, delay_time, p->delay);
       }
 
       if (p->mono) {
