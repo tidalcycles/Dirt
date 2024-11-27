@@ -126,8 +126,17 @@ struct t_node {
   float  playtime;
   int    orbit;
   int    played;
-  int num_effects;
-  t_effect effects[MAX_EFFECTS];
+  char   do_formant_filter;
+  char   do_effect_vcf;
+  char   do_effect_hpf;
+  char   do_effect_bpf;
+  char   do_effect_bpf2;
+  char   do_effect_coarse_pos;
+  char   do_effect_coarse_neg;
+  char   do_effect_shape;
+  char   do_effect_crush_pos;
+  char   do_effect_crush_neg;
+  char   do_effect_env;
   t_sound_per_channel per_channel[MAX_CHANNELS];
 };
 

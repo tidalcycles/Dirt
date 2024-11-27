@@ -243,6 +243,7 @@ const double coeff[5][11]= {
   }
 };
 
+static inline
 float formant_filter(float in, t_sound *sound, int channel) {
 #if 1
   // this looks like a bug, but it was how it was before..
@@ -319,6 +320,7 @@ void init_per_channel(t_sound *sound) {
   init_bpf(sound);
 }
 
+static inline
 float effect_coarse_pos(float in, t_sound *sound, int channel) {
   t_crs *crs = &(sound->per_channel[channel].coarsef);
   (crs->index)++;
@@ -329,6 +331,7 @@ float effect_coarse_pos(float in, t_sound *sound, int channel) {
   return crs->last;
 }
 
+static inline
 float effect_coarse_neg(float in, t_sound *sound, int channel) {
   t_crs *crs = &(sound->per_channel[channel].coarsef);
   (crs->index)--;
@@ -359,6 +362,7 @@ float fastPow(float a, float b) {
 #define myPow (float) powf
 #endif
 
+static inline
 float effect_vcf(float in, t_sound *sound, int channel) {
   t_vcf *vcf = &(sound->per_channel[channel].vcf);
   vcf->x  = in - vcf->r * vcf->y4;
@@ -383,6 +387,7 @@ float effect_vcf(float in, t_sound *sound, int channel) {
   return vcf->y4;
 }
 
+static inline
 float effect_hpf(float in, t_sound *sound, int channel) {
   t_vcf *vcf = &(sound->per_channel[channel].hpf);
   vcf->x  = in - vcf->r * vcf->y4;
@@ -402,6 +407,7 @@ float effect_hpf(float in, t_sound *sound, int channel) {
   return (in - vcf->y4);
 }
 
+static inline
 float effect_bpf(float in, t_sound *sound, int channel) {
   t_vcf *vcf = &(sound->per_channel[channel].bpf);
   vcf->x  = in;
@@ -416,11 +422,13 @@ float effect_bpf(float in, t_sound *sound, int channel) {
   return (vcf->y3);
 }
 
+static inline
 float effect_bpf2(float value, t_sound *p, int channel) {
   value = value - effect_bpf(value, p, channel);
   return (value);
 }
 
+static inline
 float effect_shape(float value, t_sound *p, int channel) {
   value = (1+p->shape_k)*value/(1+p->shape_k*(float) fabs(value));
   // gain compensation, fine-tuned by ear
@@ -436,6 +444,7 @@ void init_crush(t_sound *p)
   p->crush_range = (float) myPow(2,p->crush_bits-1);
 }
 
+static inline
 float effect_crush_pos(float value, t_sound *p, int channel) {
   //value = (1.0 + log(fabs(value)) / 16.63553) * (value / fabs(value));
   float tmp = p->crush_range;
@@ -444,6 +453,7 @@ float effect_crush_pos(float value, t_sound *p, int channel) {
   return (value);
 }
 
+static inline
 float effect_crush_neg(float value, t_sound *p, int channel) {
   float isgn = (value >= 0) ? 1 : -1;
   value = isgn * value;
@@ -464,6 +474,7 @@ float effect_crush_neg(float value, t_sound *p, int channel) {
   return (value);
 }
 
+static inline
 float effect_env(float value, t_sound *p, int channel) {
   float env = 1.0;
   if (p->playtime < p->attack) {
@@ -479,6 +490,7 @@ float effect_env(float value, t_sound *p, int channel) {
   return (value);
 }
 
+static inline
 float effect_roundoff(float value, t_sound *p, int channel) {
   float roundoff = 1;
   if ((p->end - p->position) < ROUNDOFF) {
@@ -535,6 +547,7 @@ void init_pan(t_sound *p)
   }
 }
 
+static inline
 t_pan effect_pan(float value, t_sound *p, int channel) {
   t_pan out = p->per_channel[channel].pan;
   out.out[0].value *= value;
@@ -596,40 +609,40 @@ extern int audio_play(t_sound* sound) {
 
 void init_effects(t_sound *p) {
   if (p->formant_vowelnum >= 0) {
-    p->effects[p->num_effects++] = formant_filter;
+    p->do_formant_filter = 1;
   }
   // why 44000 (or 44100)? init_vcf divides by samplerate..
   if (p->resonance > 0 && p->resonance < 1
       && p->cutoff > 0 && p->cutoff < 1) {
-    p->effects[p->num_effects++] = effect_vcf;
+    p->do_effect_vcf = 1;
   }
   if (p->hresonance > 0 && p->hresonance < 1
       && p->hcutoff > 0 && p->hcutoff < 1) {
-    p->effects[p->num_effects++] = effect_hpf;
+    p->do_effect_hpf = 1;
   }
   if (p->bandf > 0 && p->bandf < 1 && p->bandq > 0) {
-    p->effects[p->num_effects++] = effect_bpf;
+    p->do_effect_bpf = 1;
   } else if (p->bandf < 0 && p->bandf > -1 && p->bandq > 0) {
-    p->effects[p->num_effects++] = effect_bpf2;
+    p->do_effect_bpf2 = 1;
   }
   if (p->coarse > 0) {
-    p->effects[p->num_effects++] = effect_coarse_pos;
+    p->do_effect_coarse_pos = 1;
   }
   else if (p->coarse < 0) {
-    p->effects[p->num_effects++] = effect_coarse_neg;
+    p->do_effect_coarse_neg = 1;
   }
   if (p->shape) {
-    p->effects[p->num_effects++] = effect_shape;
+    p->do_effect_shape = 1;
   }
   if (p->crush > 0) {
     init_crush(p);
-    p->effects[p->num_effects++] = effect_crush_pos;
+    p->do_effect_crush_pos = 1;
   } else if (p->crush < 0) {
     init_crush(p);
-    p->effects[p->num_effects++] = effect_crush_neg;
+    p->do_effect_crush_neg = 1;
   }
   if (p->attack >= 0 && p->release >= 0) {
-    p->effects[p->num_effects++] = effect_env;
+    p->do_effect_env = 1;
   }
 }
 
@@ -844,6 +857,7 @@ float compressdave(float in) {
 
 /**/
 
+static inline
 float playback_source(t_sound *p, int channel)
 {
   float value = 0;
@@ -863,14 +877,24 @@ float playback_source(t_sound *p, int channel)
   return value;
 }
 
+static inline
 t_pan playback_effects(float value, t_sound *p, int channel) {
-  for (int e = 0; e < p->num_effects; ++e) {
-    value = p->effects[e](value, p, channel);
-  }
+  if (p->do_formant_filter   ) value = formant_filter   (value, p, channel);
+  if (p->do_effect_vcf       ) value = effect_vcf       (value, p, channel);
+  if (p->do_effect_hpf       ) value = effect_hpf       (value, p, channel);
+  if (p->do_effect_bpf       ) value = effect_bpf       (value, p, channel); else
+  if (p->do_effect_bpf2      ) value = effect_bpf2      (value, p, channel);
+  if (p->do_effect_coarse_pos) value = effect_coarse_pos(value, p, channel); else
+  if (p->do_effect_coarse_neg) value = effect_coarse_neg(value, p, channel);
+  if (p->do_effect_shape     ) value = effect_shape     (value, p, channel);
+  if (p->do_effect_crush_pos ) value = effect_crush_pos (value, p, channel); else
+  if (p->do_effect_crush_neg ) value = effect_crush_neg (value, p, channel);
+  if (p->do_effect_env       ) value = effect_env       (value, p, channel);
   value = effect_roundoff(value, p, channel);
   return effect_pan(value, p, channel);
 }
 
+static inline
 void playback_out(float **buffers, int frame, t_pan out, t_sound *p)
 {
   buffers[out.out[0].channel][frame] += out.out[0].value;
@@ -887,6 +911,7 @@ void playback_out(float **buffers, int frame, t_pan out, t_sound *p)
   }
 }
 
+static inline
 t_sound *playback_advance(t_sound *p) {
   if (p->accelerate != 0) {
     // ->startFrame ->end ->position
@@ -910,6 +935,7 @@ t_sound *playback_advance(t_sound *p) {
   return p;
 }
 
+static inline
 void playback_finalize(float **buffers, int frame) {
   int channel;
   for (channel = 0; channel < g_num_channels; ++channel) {
