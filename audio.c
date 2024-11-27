@@ -244,180 +244,78 @@ const double coeff[5][11]= {
 };
 
 float formant_filter(float in, t_sound *sound, int channel) {
+  const double *c = coeff[sound->formant_vowelnum];
+  double *h = sound->per_channel[channel].formant_history;
   float res =
-    (float) ( coeff[sound->formant_vowelnum][0] * in +
-              coeff[sound->formant_vowelnum][1] * sound->formant_history[channel][0] +
-              coeff[sound->formant_vowelnum][2] * sound->formant_history[channel][1] +
-              coeff[sound->formant_vowelnum][3] * sound->formant_history[channel][2] +
-              coeff[sound->formant_vowelnum][4] * sound->formant_history[channel][3] +
-              coeff[sound->formant_vowelnum][5] * sound->formant_history[channel][4] +
-              coeff[sound->formant_vowelnum][6] * sound->formant_history[channel][5] +
-              coeff[sound->formant_vowelnum][7] * sound->formant_history[channel][6] +
-              coeff[sound->formant_vowelnum][8] * sound->formant_history[channel][7] +
-              coeff[sound->formant_vowelnum][9] * sound->formant_history[channel][8] +
-              coeff[sound->formant_vowelnum][10] * sound->formant_history[channel][9]
+    (float) ( c[0] * in +
+              c[1] * h[0] +
+              c[2] * h[1] +
+              c[3] * h[2] +
+              c[4] * h[3] +
+              c[5] * h[4] +
+              c[6] * h[5] +
+              c[7] * h[6] +
+              c[8] * h[7] +
+              c[9] * h[8] +
+              c[10] * h[9]
              );
 
-  sound->formant_history[channel][9] = sound->formant_history[channel][8];
-  sound->formant_history[channel][8] = sound->formant_history[channel][7];
-  sound->formant_history[channel][7] = sound->formant_history[channel][6];
-  sound->formant_history[channel][6] = sound->formant_history[channel][5];
-  sound->formant_history[channel][5] = sound->formant_history[channel][4];
-  sound->formant_history[channel][4] = sound->formant_history[channel][3];
-  sound->formant_history[channel][3] = sound->formant_history[channel][2];
-  sound->formant_history[channel][2] = sound->formant_history[channel][1];
-  sound->formant_history[channel][1] = sound->formant_history[channel][0];
-  sound->formant_history[channel][0] = (float) res;
+  h[9] = h[8];
+  h[8] = h[7];
+  h[7] = h[6];
+  h[6] = h[5];
+  h[5] = h[4];
+  h[4] = h[3];
+  h[3] = h[2];
+  h[2] = h[1];
+  h[1] = h[0];
+  h[0] = (float) res;
   return res;
 }
 
-void init_formant_history (t_sound *sound) {
-  // If uninitialized, create arrays
-  // TODO alloc - initialise at startup ?
-  if (!sound->formant_history) {
-    bool failed = false;
-
-    sound->formant_history = malloc(g_num_channels * sizeof(double*));
-    if (!sound->formant_history) failed = true;
-
-    for (int c = 0; c < g_num_channels; c++) {
-      sound->formant_history[c] = malloc(10 * sizeof(double));
-      if (!sound->formant_history[c]) failed = true;
-    }
-
-    if (failed) {
-      log_printf(LOG_ERR, "no memory to allocate `formant_history' array\n");
-      exit(1);
-    }
-  }
-
-  // Clean history for each channel
-  for (int c = 0; c < g_num_channels; c++) {
-    memset(sound->formant_history[c], 0, 10 * sizeof(double));
-  }
-}
-
-void free_formant_history (t_sound *sound) {
-  if (sound->formant_history) {
-    for (int c = 0; c < g_num_channels; c++) {
-      double* fh = sound->formant_history[c];
-      if (fh) free(fh);
-    }
-    free(sound->formant_history);
-  }
-  sound->formant_history = NULL;
-}
-
-void init_crs(t_sound *sound) {
-  // TODO alloc - init at startup ?
-  if (!sound->coarsef) {
-    sound->coarsef = malloc(g_num_channels * sizeof(t_crs));
-    if (!sound->coarsef) {
-      log_printf(LOG_ERR, "no memory to allocate crs struct\n");
-      exit(1);
-    }
-  }
-  memset(sound->coarsef, 0, g_num_channels * sizeof(t_crs));
-}
-
 void init_vcf (t_sound *sound) {
-  if (!sound->vcf) {
-    sound->vcf = malloc(g_num_channels * sizeof(t_vcf));
-    if (!sound->vcf) {
-      log_printf(LOG_ERR, "no memory to allocate vcf struct\n");
-      exit(1);
-    }
-  }
-
-  memset(sound->vcf, 0, g_num_channels * sizeof(t_vcf));
-
   for (int channel = 0; channel < g_num_channels; ++channel) {
-    t_vcf *vcf = &(sound->vcf[channel]);
+    t_vcf *vcf = &(sound->per_channel[channel].vcf);
     vcf->f     = 2 * sound->cutoff;
     vcf->k     = 3.6f * vcf->f - 1.6f * vcf->f * vcf->f -1;
     vcf->p     = (vcf->k+1) * 0.5f;
     vcf->scale = exp((1-vcf->p)*1.386249f);
     vcf->r     = sound->resonance * vcf->scale;
-    vcf->y1    = 0;
-    vcf->y2    = 0;
-    vcf->y3    = 0;
-    vcf->y4    = 0;
-    vcf->oldx  = 0;
-    vcf->oldy1 = 0;
-    vcf->oldy2 = 0;
-    vcf->oldy3 = 0;
   }
 }
 
 void init_hpf (t_sound *sound) {
-  if (!sound->hpf) {
-    sound->hpf = malloc(g_num_channels * sizeof(t_vcf));
-    if (!sound->hpf) {
-      log_printf(LOG_ERR, "no memory to allocate hpf struct\n");
-      exit(1);
-    }
-  }
-
   for (int channel = 0; channel < g_num_channels; ++channel) {
-    t_vcf *vcf = &(sound->hpf[channel]);
+    t_vcf *vcf = &(sound->per_channel[channel].hpf);
     vcf->f     = 2 * sound->hcutoff;
     vcf->k     = 3.6f * vcf->f - 1.6f * vcf->f * vcf->f -1;
     vcf->p     = (vcf->k+1) * 0.5f;
     vcf->scale = exp((1-vcf->p)*1.386249f);
     vcf->r     = sound->hresonance * vcf->scale;
-    vcf->y1    = 0;
-    vcf->y2    = 0;
-    vcf->y3    = 0;
-    vcf->y4    = 0;
-    vcf->oldx  = 0;
-    vcf->oldy1 = 0;
-    vcf->oldy2 = 0;
-    vcf->oldy3 = 0;
   }
 }
 
 void init_bpf (t_sound *sound) {
-  if (!sound->bpf) {
-    sound->bpf = malloc(g_num_channels * sizeof(t_vcf));
-    if (!sound->bpf) {
-      log_printf(LOG_ERR, "no memory to allocate bpf struct\n");
-      exit(1);
-    }
-  }
-
   // I've changed the meaning of some of these a bit
   for (int channel = 0; channel < g_num_channels; ++channel) {
-    t_vcf *vcf = &(sound->bpf[channel]);
+    t_vcf *vcf = &(sound->per_channel[channel].bpf);
     vcf->f     = fabsf(sound->bandf);
     vcf->r     = sound->bandq;
     vcf->k     = vcf->f / vcf->r;
     vcf->p     = 2.0f - vcf->f * vcf->f;
     vcf->scale = 1.0f / (1.0f + vcf->k);
-    vcf->y1    = 0;
-    vcf->y2    = 0;
-    vcf->y3    = 0;
-    vcf->y4    = 0;
-    vcf->oldx  = 0;
-    vcf->oldy1 = 0;
-    vcf->oldy2 = 0;
-    vcf->oldy3 = 0;
   }
 }
 
-void free_vcf (t_sound *sound) {
-  if (sound->vcf) free(sound->vcf);
-}
-
-void free_hpf (t_sound *sound) {
-  if (sound->hpf) free(sound->hpf);
-}
-
-void free_bpf (t_sound *sound) {
-  if (sound->bpf) free(sound->bpf);
+void init_per_channel(t_sound *sound) {
+  memset(sound->per_channel, 0, g_num_channels * sizeof(t_sound_per_channel));
+  init_vcf(sound);
+  init_hpf(sound);
+  init_bpf(sound);
 }
 
 float effect_coarse(float in, t_sound *sound, int channel) {
-  t_crs *crs = &(sound->coarsef[channel]);
+  t_crs *crs = &(sound->per_channel[channel].coarsef);
 
   (crs->index)++;
   if (sound->coarse > 0) {
@@ -456,7 +354,7 @@ float fastPow(float a, float b) {
 #endif
 
 float effect_vcf(float in, t_sound *sound, int channel) {
-  t_vcf *vcf = &(sound->vcf[channel]);
+  t_vcf *vcf = &(sound->per_channel[channel].vcf);
   vcf->x  = in - vcf->r * vcf->y4;
 
   float xp = vcf->x * vcf->p;
@@ -480,7 +378,7 @@ float effect_vcf(float in, t_sound *sound, int channel) {
 }
 
 float effect_hpf(float in, t_sound *sound, int channel) {
-  t_vcf *vcf = &(sound->hpf[channel]);
+  t_vcf *vcf = &(sound->per_channel[channel].hpf);
   vcf->x  = in - vcf->r * vcf->y4;
 
   vcf->y1 = vcf->x  * vcf->p + vcf->oldx  * vcf->p - vcf->k * vcf->y1;
@@ -499,7 +397,7 @@ float effect_hpf(float in, t_sound *sound, int channel) {
 }
 
 float effect_bpf(float in, t_sound *sound, int channel) {
-  t_vcf *vcf = &(sound->bpf[channel]);
+  t_vcf *vcf = &(sound->per_channel[channel].bpf);
   vcf->x  = in;
 
   vcf->y3 = vcf->p * vcf->y2 - vcf->y1 + vcf->k * (vcf->x - vcf->oldx +
@@ -721,7 +619,7 @@ void init_sound(t_sound *sound) {
     sound->pan *= (float) g_num_channels;
   }
 #endif
-  init_formant_history(sound);
+  init_per_channel(sound);
 
 //  if (sound->shape != 0) {
 //    float tmp = sound->shape;
@@ -739,16 +637,10 @@ void init_sound(t_sound *sound) {
     sound->crush_bits = fabsf(tmp);
   }
   
-  init_crs(sound);
-
   if (start_pc < 0) {
     start_pc = 0;
     sound->cut_continue = 1;
   }
-
-  init_vcf(sound);
-  init_hpf(sound);
-  init_bpf(sound);
 
   if (sound->delaytime >= 0) {
     delay_time = sound->delaytime;
@@ -1161,36 +1053,11 @@ extern int audio_init(const char *output, bool dirty_compressor, bool autoconnec
 extern void audio_close(void) {
   if (delays) free(delays);
   if (read_file_pool) thpool_destroy(read_file_pool);
-
-  // free all active sounds, if any
-  pthread_mutex_lock(&mutex_sounds);
-  for (int i = 0; i < MAX_SOUNDS; ++i) {
-    if (sounds[i].active) {
-      free_vcf(&sounds[i]);
-      free_hpf(&sounds[i]);
-      free_bpf(&sounds[i]);
-      free_formant_history(&sounds[i]);
-    }
-  }
-  pthread_mutex_unlock(&mutex_sounds);
 }
 
 // Reset sound structure for reutilization
-//
-// This clears structure except for pointer to arrays, to avoid the need of
-// reallocating them.
 static void reset_sound(t_sound* s) {
-  t_vcf *old_vcf = s->vcf;
-  t_vcf *old_hpf = s->hpf;
-  t_vcf *old_bpf = s->bpf;
-  double **old_formant_history = s->formant_history;
-
   memset(s, 0, sizeof(t_sound));
-
-  s->vcf = old_vcf;
-  s->hpf = old_hpf;
-  s->bpf = old_bpf;
-  s->formant_history = old_formant_history;
 }
 
 /**/

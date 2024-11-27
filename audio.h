@@ -50,6 +50,15 @@ typedef struct {
 extern t_line* delays;
 extern float line_feedback_delay;
 
+typedef struct {
+  double formant_history[10];
+  t_vcf  vcf;
+  t_crs  coarsef;
+  t_vcf  hpf;
+  t_vcf  bpf;
+
+} t_sound_per_channel;
+
 typedef struct t_node {
   int    active;
   int    is_playing;
@@ -72,11 +81,9 @@ typedef struct t_node {
   float  start;
   float  end;
   float  velocity;
-  double  **formant_history;
   int    formant_vowelnum;
   float  cutoff;
   float  resonance;
-  t_vcf  *vcf;
   float  accelerate;
   int    shape;
   float  shape_k;
@@ -93,13 +100,10 @@ typedef struct t_node {
   int    crush;
   float  crush_bits;
   int    coarse;
-  t_crs  *coarsef;
   float  hcutoff;
   float  hresonance;
-  t_vcf  *hpf;
   float  bandf;
   float  bandq;
-  t_vcf  *bpf;
   int    sample_loop;
   int    cut_continue;
   char   unit;
@@ -111,6 +115,7 @@ typedef struct t_node {
   float  playtime;
   int    orbit;
   int    played;
+  t_sound_per_channel per_channel[MAX_CHANNELS];
 } t_sound;
 
 typedef struct {
