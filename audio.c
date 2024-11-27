@@ -244,6 +244,11 @@ const double coeff[5][11]= {
 };
 
 float formant_filter(float in, t_sound *sound, int channel) {
+#if 1
+  // this looks like a bug, but it was how it was before..
+  // doing independent channels changes the sound
+  channel = 0;
+#endif
   const double *c = coeff[sound->formant_vowelnum];
   double *h = sound->per_channel[channel].formant_history;
   float res =
