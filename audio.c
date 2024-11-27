@@ -480,38 +480,48 @@ float effect_roundoff(float value, t_sound *p, int channel) {
   return (value);
 }
 
-struct panned { struct { int channel; float value; } out[2]; };
-struct panned effect_pan(float value, t_sound *p, int channel) {
-  float c = (float) channel + p->pan;
-  float d = c - (float) floor(c);
-  int channel_a =  ((int) c) % g_num_channels;
-  int channel_b =  ((int) c + 1) % g_num_channels;
-  if (channel_a < 0) {
-    channel_a += g_num_channels;
+void init_pan(t_sound *p)
+{
+  for (int channel = 0; channel < p->channels; ++channel)
+  {
+    float c = (float) channel + p->pan;
+    float d = c - (float) floor(c);
+    int channel_a =  ((int) c) % g_num_channels;
+    int channel_b =  ((int) c + 1) % g_num_channels;
+    if (channel_a < 0) {
+      channel_a += g_num_channels;
+    }
+    if (channel_b < 0) {
+      channel_b += g_num_channels;
+    }
+    // equal power panning
+    // PERF - 8.4% of time?
+    float tmpa, tmpb;
+    // optimisations for middle, hard left + hard right
+    if (d == 0.5f) {
+      tmpa = tmpb = 0.7071067811f;
+    }
+    else if (d == 0) {
+      tmpa = 1;
+      tmpb = 0;
+    }
+    else if (d == 1) {
+      tmpa = 0;
+      tmpb = 1;
+    }
+    else {
+      tmpa = (float) cos(HALF_PI * d);
+      tmpb = (float) sin(HALF_PI * d);
+    }
+    t_pan out = {{{channel_a, tmpa}, {channel_b, tmpb}}};
+    p->per_channel[channel].pan = out;
   }
-  if (channel_b < 0) {
-    channel_b += g_num_channels;
-  }
-  // equal power panning
-  // PERF - 8.4% of time?
-  float tmpa, tmpb;
-  // optimisations for middle, hard left + hard right
-  if (d == 0.5f) {
-    tmpa = tmpb = value * 0.7071067811f;
-  }
-  else if (d == 0) {
-    tmpa = value;
-    tmpb = 0;
-  }
-  else if (d == 1) {
-    tmpa = 0;
-    tmpb = value;
-  }
-  else {
-    tmpa = value * (float) cos(HALF_PI * d);
-    tmpb = value * (float) sin(HALF_PI * d);
-  }
-  struct panned out = {{{channel_a, tmpa}, {channel_b, tmpb}}};
+}
+
+t_pan effect_pan(float value, t_sound *p, int channel) {
+  t_pan out = p->per_channel[channel].pan;
+  out.out[0].value *= value;
+  out.out[1].value *= value;
   return out;
 }
 
@@ -713,6 +723,7 @@ void init_sound(t_sound *sound) {
   sound->position = sound->start;
   sound->playtime = 0.0;
 
+  init_pan(sound);
   init_effects(sound);
 }
 
@@ -873,7 +884,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
         value = p->effects[e](value, p, channel);
       }
 
-      struct panned out = effect_pan(value, p, channel);
+      t_pan out = effect_pan(value, p, channel);
 
       buffers[out.out[0].channel][frame] += out.out[0].value;
       buffers[out.out[1].channel][frame] += out.out[1].value;

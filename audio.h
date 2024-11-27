@@ -51,12 +51,16 @@ extern t_line* delays;
 extern float line_feedback_delay;
 
 typedef struct {
+  struct { int channel; float value; } out[2];
+} t_pan;
+
+typedef struct {
   double formant_history[10];
   t_vcf  vcf;
   t_crs  coarsef;
   t_vcf  hpf;
   t_vcf  bpf;
-
+  t_pan  pan;
 } t_sound_per_channel;
 
 struct t_node;
