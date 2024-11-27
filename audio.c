@@ -411,7 +411,7 @@ float effect_bpf(float in, t_sound *sound, int channel) {
   return (vcf->y3);
 }
 
-float effect_bpf2(float in, t_sound *sound, int channel) {
+float effect_bpf2(float value, t_sound *p, int channel) {
   value = value - effect_bpf(value, p, channel);
   return (value);
 }
@@ -567,6 +567,47 @@ extern int audio_play(t_sound* sound) {
 
 }
 
+void init_effects(t_sound *p) {
+  if (p->formant_vowelnum >= 0) {
+    p->effects[p->num_effects++] = formant_filter;
+  }
+  // why 44000 (or 44100)? init_vcf divides by samplerate..
+  if (p->resonance > 0 && p->resonance < 1
+      && p->cutoff > 0 && p->cutoff < 1) {
+    p->effects[p->num_effects++] = effect_vcf;
+  }
+  if (p->hresonance > 0 && p->hresonance < 1
+      && p->hcutoff > 0 && p->hcutoff < 1) {
+    p->effects[p->num_effects++] = effect_hpf;
+  }
+  if (p->bandf > 0 && p->bandf < 1 && p->bandq > 0) {
+    p->effects[p->num_effects++] = effect_bpf;
+  } else if (p->bandf < 0 && p->bandf > -1 && p->bandq > 0) {
+    p->effects[p->num_effects++] = effect_bpf2;
+  }
+  if (p->coarse > 0) {
+    p->effects[p->num_effects++] = effect_coarse_pos;
+  }
+  else if (p->coarse < 0) {
+    p->effects[p->num_effects++] = effect_coarse_neg;
+  }
+  if (p->shape) {
+    p->effects[p->num_effects++] = effect_shape;
+  }
+  if (p->crush > 0) {
+    p->effects[p->num_effects++] = effect_crush_pos;
+  } else if (p->crush < 0) {
+    p->effects[p->num_effects++] = effect_crush_neg;
+  }
+  if (p->gain != 1) {
+    p->effects[p->num_effects++] = effect_gain;
+  }
+  if (p->attack >= 0 && p->release >= 0) {
+    p->effects[p->num_effects++] = effect_env;
+  }
+  p->effects[p->num_effects++] = effect_roundoff;
+}
+
 void init_sound(t_sound *sound) {
   
   float start_pc = sound->start;
@@ -671,6 +712,8 @@ void init_sound(t_sound *sound) {
   }
   sound->position = sound->start;
   sound->playtime = 0.0;
+
+  init_effects(sound);
 }
 
 
@@ -826,52 +869,9 @@ void playback(float **buffers, int frame, sampletime_t now) {
         value += (next - value) * tween_amount;
       }
 
-      if (p->formant_vowelnum >= 0) {
-        value = formant_filter(value, p, 0);
+      for (int e = 0; e < p->num_effects; ++e) {
+        value = p->effects[e](value, p, channel);
       }
-
-      // why 44000 (or 44100)? init_vcf divides by samplerate..
-      if (p->resonance > 0 && p->resonance < 1
-	  && p->cutoff > 0 && p->cutoff < 1) {
-	value = effect_vcf(value, p, channel);
-      }
-      if (p->hresonance > 0 && p->hresonance < 1
-          && p->hcutoff > 0 && p->hcutoff < 1) {
-        value = effect_hpf(value, p, channel);
-      }
-      if (p->bandf > 0 && p->bandf < 1 && p->bandq > 0) {
-         value = effect_bpf(value, p, channel);
-      } else if (p->bandf < 0 && p->bandf > -1 && p->bandq > 0) {
-         value = effect_bpf2(value, p, channel);
-      }
-
-      if (p->coarse > 0) {
-        value = effect_coarse_pos(value, p, channel);
-      }
-      else if (p->coarse < 0) {
-        value = effect_coarse_neg(value, p, channel);
-      }
-
-      if (p->shape) {
-        value = effect_shape(value, p, channel);
-      }
-
-      if (p->crush > 0) {
-        value = effect_crush_pos(value, p, channel);
-      } else if (p->crush < 0) {
-        value = effect_crush_neg(value, p, channel);
-      }
-
-      if (p->gain != 1) {
-        value = effect_gain(value, p, channel);
-      }
-
-      // envelope
-      if (p->attack >= 0 && p->release >= 0) {
-        value = effect_env(value, p, channel);
-      }
-
-      value = effect_roundoff(value, p, channel);
 
       struct panned out = effect_pan(value, p, channel);
 

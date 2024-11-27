@@ -59,7 +59,13 @@ typedef struct {
 
 } t_sound_per_channel;
 
-typedef struct t_node {
+struct t_node;
+typedef struct t_node t_sound;
+
+#define MAX_EFFECTS 10
+typedef float (*t_effect)(float, t_sound *, int);
+
+struct t_node {
   int    active;
   int    is_playing;
   sampletime_t startT;
@@ -115,8 +121,10 @@ typedef struct t_node {
   float  playtime;
   int    orbit;
   int    played;
+  int num_effects;
+  t_effect effects[MAX_EFFECTS];
   t_sound_per_channel per_channel[MAX_CHANNELS];
-} t_sound;
+};
 
 typedef struct {
   double when;
