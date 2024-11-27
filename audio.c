@@ -250,10 +250,10 @@ float formant_filter(float in, t_sound *sound, int channel) {
   // doing independent channels changes the sound
   channel = 0;
 #endif
-  const double *c = coeff[sound->formant_vowelnum];
-  double *h = sound->per_channel[channel].formant_history;
-  float res =
-    (float) ( c[0] * in +
+  const double * restrict c = coeff[sound->formant_vowelnum];
+  double * restrict h = sound->per_channel[channel].formant_history;
+  double res =
+              c[0] * in +
               c[1] * h[0] +
               c[2] * h[1] +
               c[3] * h[2] +
@@ -264,7 +264,7 @@ float formant_filter(float in, t_sound *sound, int channel) {
               c[8] * h[7] +
               c[9] * h[8] +
               c[10] * h[9]
-             );
+             ;
 
   h[9] = h[8];
   h[8] = h[7];
@@ -275,7 +275,7 @@ float formant_filter(float in, t_sound *sound, int channel) {
   h[3] = h[2];
   h[2] = h[1];
   h[1] = h[0];
-  h[0] = (float) res;
+  h[0] = res;
   return res;
 }
 
