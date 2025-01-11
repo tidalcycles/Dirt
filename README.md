@@ -9,7 +9,8 @@ Here's how to install dirt under Debian, Ubuntu or a similar distribution:
 
 ~~~~sh
 sudo apt-get install build-essential libsndfile1-dev libsamplerate0-dev \
-                     liblo-dev libjack-jackd2-dev qjackctl jackd git
+                     liblo-dev portaudio19-dev \
+		     libjack-jackd2-dev qjackctl jackd git
 git clone --recursive https://github.com/tidalcycles/Dirt.git
 cd Dirt
 make clean; make
