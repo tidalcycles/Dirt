@@ -107,7 +107,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   int orbit = argc > (30+poffset) ? argv[30+poffset]->i : 0;
   //printf("orb: %d\n", orbit);
   static bool extraWarned = false;
-  if (argc > 30+poffset && !extraWarned) {
+  if (argc > 31+poffset && !extraWarned) {
     printf("play server unexpectedly received extra parameters, maybe update Dirt?\n");
     extraWarned = true;
   }
@@ -245,7 +245,7 @@ void *zmqthread(void *data){
 
 /**/
 
-extern int server_init(char *osc_port) {
+extern int server_init(const char *osc_port) {
 
   lo_server_thread st = lo_server_thread_new(osc_port, error);
 

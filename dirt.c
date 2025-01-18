@@ -125,8 +125,8 @@ int main (int argc, char **argv) {
 #endif
                "      --late-trigger               enable sample retrigger after loading (default)\n"
                "      --no-late-trigger            disable sample retrigger after loading\n"
-               "      --preload                    enable sample retrigger after loading (default)\n"
-               "      --no-preload                 disable sample retrigger after loading\n"
+               "      --preload                    enable sample preloading at startup\n"
+               "      --no-preload                 disable sample preloading at startup (default)\n"
 	             "  -s  --samples-root-path          set a samples root directory path\n"
                "  -w, --workers                    number of sample-reading workers (default: %u)\n"
                "  -h, --help                       display this help and exit\n"

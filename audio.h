@@ -16,7 +16,7 @@
 #ifdef JACK
 #include <jack/jack.h>
 #include "jack.h"
-#define sampletime_t jack_nframes_t
+#define sampletime_t jack_time_t
 #else
 #define sampletime_t double
 #endif

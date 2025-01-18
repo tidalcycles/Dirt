@@ -63,7 +63,7 @@ job_t* jobqueue_top(jobqueue_t* q) {
     pthread_mutex_unlock(&q->lock);
 
     return top;
-};
+}
 
 bool jobqueue_pop (jobqueue_t* q, job_t* j) {
     pthread_mutex_lock(&q->lock);

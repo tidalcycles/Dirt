@@ -23,7 +23,7 @@ t_loop *new_loop(float seconds) {
   result->chunksz = 2048;
   result->max_frames = result->frames = seconds * (float) g_samplerate;
   result->items = (float *) calloc(result->frames, sizeof(double));
-  result->in = (double *) calloc(result->chunksz, sizeof(double));
+  result->in = (float *) calloc(result->chunksz, sizeof(double));
   result->now = 0;
   result->loops = 0;
   return(result);
@@ -92,9 +92,9 @@ void fix_samplerate (t_sample *sample) {
 extern int file_count_samples(char *set, const char *sampleroot) {
   int result = 0;
   struct dirent **namelist;
-  char path[MAXPATHSIZE];
+  char path[MAXPATHSIZE * 2 + 24];
 
-  snprintf(path, MAXPATHSIZE -1, "%s/%s", sampleroot, set);
+  snprintf(path, sizeof(path), "%s/%s", sampleroot, set);
   result = scandir(path, &namelist, wav_filter, alphasort);
   
   if (result >= 0) {
@@ -122,7 +122,7 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
     }
 
     SNDFILE *sndfile;
-    char path[MAXPATHSIZE];
+    char path[2 * MAXPATHSIZE + 24];
     char error[62];
     sf_count_t count;
     float *items;
@@ -135,18 +135,18 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
     // load it from disk
     if (sscanf(samplename, "%[a-z0-9A-Z]%[/:]%d", set, sep, &set_n)) {
       int n;
-      snprintf(path, MAXPATHSIZE -1, "%s/%s", sampleroot, set);
+      snprintf(path, sizeof(path), "%s/%s", sampleroot, set);
       //printf("looking in %s\n", set);
       n = scandir(path, &namelist, wav_filter, alphasort);
       if (n > 0) {
-        snprintf(path, MAXPATHSIZE -1,
+        snprintf(path, sizeof(path),
 	    "%s/%s/%s", sampleroot, set, namelist[set_n % n]->d_name);
         while (n--) {
           free(namelist[n]);
         }
         free(namelist);
       } else {
-	snprintf(path, MAXPATHSIZE -1, "%s/%s", sampleroot, samplename);
+	snprintf(path, sizeof(path), "%s/%s", sampleroot, samplename);
       }
     } else {
       snprintf(path, MAXPATHSIZE -1, "%s/%s", sampleroot, samplename);
@@ -211,7 +211,7 @@ extern void file_preload_samples(const char *sampleroot) {
   DIR* srcdir = opendir(sampleroot);
 
   // sample set name
-  char samplename[MAXPATHSIZE];
+  char samplename[MAXPATHSIZE + 24];
   
   if (srcdir == NULL) {
     return;
@@ -229,7 +229,7 @@ extern void file_preload_samples(const char *sampleroot) {
     if (S_ISDIR(st.st_mode)) {
       int n = file_count_samples(dent->d_name, sampleroot);
       for (int i = 0; i < n; ++i) {
-	snprintf(samplename, MAXPATHSIZE -1, "%s:%d", dent->d_name, i);
+	snprintf(samplename, sizeof(samplename), "%s:%d", dent->d_name, i);
 	fprintf(stderr, "> %s\n", samplename);
 	file_get(samplename, sampleroot);
       }

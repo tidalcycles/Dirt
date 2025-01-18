@@ -4,7 +4,7 @@
 
 #include "thpool.h"
 
-static void* thread_do(thpool_t* p);
+static void* thread_do(void* p);
 
 struct thpool {
     pthread_t* threads;
@@ -33,8 +33,8 @@ thpool_t* thpool_init(unsigned int num_threads) {
     p->running = true;
 
     // Initialize and detach threads
-    for (int i = 0; i < num_threads; i++) {
-        int rc = pthread_create(&p->threads[i], NULL, (void*) thread_do, p);
+    for (unsigned int i = 0; i < num_threads; i++) {
+        int rc = pthread_create(&p->threads[i], NULL, thread_do, p);
         if (rc) return NULL;
         pthread_detach(p->threads[i]);
     }
@@ -78,7 +78,8 @@ void thpool_destroy(thpool_t* p) {
 }
 
 
-static void* thread_do(thpool_t* p) {
+static void* thread_do(void *arg) {
+    thpool_t* p = arg;
     job_t j;
 
     while (true) {

@@ -143,7 +143,7 @@ static void unmark_as_loading(const char* samplename, int success) {
 
 static void reset_sound(t_sound* s);
 
-void read_file_func(void* new) {
+void *read_file_func(void* new) {
   t_sound* sound = new;
   t_sample *sample = file_get(sound->samplename, sampleroot);
   if (sample != NULL) {
@@ -151,6 +151,7 @@ void read_file_func(void* new) {
     init_sound(sound);
   }
   unmark_as_loading(sound->samplename, sample != NULL);
+  return NULL;
 }
 
 int queue_size(t_sound *queue) {
@@ -564,7 +565,7 @@ extern int audio_play(t_sound* sound) {
   else {
     pthread_mutex_lock(&queue_loading_lock);
     if (!is_sample_loading(sound->samplename)) {
-      if (!thpool_add_job(read_file_pool, (void*) read_file_func, (void*) sound)) {
+      if (!thpool_add_job(read_file_pool, read_file_func, (void*) sound)) {
 	fprintf(stderr, "audio_play: Could not add file reading job for '%s'\n", sound->samplename);
       }
     }
@@ -603,8 +604,7 @@ void init_sound(t_sound *sound) {
   }
 
 #ifdef JACK
-  sound->startT =
-    jack_time_to_frames(jack_client, ((sound->when-epochOffset) * 1000000));
+  sound->startT = (sound->when - epochOffset) * 1000000;
 # else
   sound->startT = sound->when - epochOffset;
 #endif
@@ -1054,9 +1054,10 @@ extern int jack_callback(int frames, float *input, float **outputs) {
   now = jack_last_frame_time(jack_client);
 
   for (int i=0; i < frames; ++i) {
-    playback(outputs, i, now + i);
+    jack_time_t nowt = jack_frames_to_time(jack_client, now + i);
+    playback(outputs, i, nowt);
 
-    dequeue(now + i);
+    dequeue(nowt);
   }
   return(0);
 }
