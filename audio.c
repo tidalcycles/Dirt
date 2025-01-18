@@ -604,8 +604,7 @@ void init_sound(t_sound *sound) {
   }
 
 #ifdef JACK
-  sound->startT =
-    jack_time_to_frames(jack_client, ((sound->when-epochOffset) * 1000000));
+  sound->startT = (sound->when - epochOffset) * 1000000;
 # else
   sound->startT = sound->when - epochOffset;
 #endif
@@ -1055,9 +1054,10 @@ extern int jack_callback(int frames, float *input, float **outputs) {
   now = jack_last_frame_time(jack_client);
 
   for (int i=0; i < frames; ++i) {
-    playback(outputs, i, now + i);
+    jack_time_t nowt = jack_frames_to_time(jack_client, now + i);
+    playback(outputs, i, nowt);
 
-    dequeue(now + i);
+    dequeue(nowt);
   }
   return(0);
 }
