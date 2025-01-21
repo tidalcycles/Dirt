@@ -157,7 +157,7 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
     //printf("opening %s.\n", path);
 
     if ((sndfile = (SNDFILE *) sf_open(path, SFM_READ, info)) == NULL) {
-      printf("nope.\n");
+      printf("could not open sound file %s for sample %s\n", path, samplename);
       free(info);
     } else {
       items = (float *) calloc(1, sizeof(float) * info->frames * info->channels);
@@ -182,13 +182,12 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
       sf_close(sndfile);
     }
 
-    if (sample == NULL) {
-      printf("failed.\n");
-    } else {
+    if (sample) {
       fix_samplerate(sample);
       sample->onsets = NULL;
       //sample->onsets = segment_get_onsets(sample);
     }
+    // else an error message will already have been printed
 
     // If sample was succesfully read, load it into cache
     if (sample) {
