@@ -60,7 +60,7 @@ extern int jack_callback(int frames, float *input, float **outputs) {
   now = jack_last_frame_time(jack_client);
 
   for (int i=0; i < frames; ++i) {
-    jack_time_t nowt = jack_frames_to_time(jack_client, now + i);
+    sampletime_t nowt = jack_frames_to_time(jack_client, now + i) / 1000000.0;
     playback(outputs, i, nowt);
 
     dequeue(nowt);
@@ -187,7 +187,3 @@ extern jack_client_t *jack_start(t_callback callback, bool autoconnect) {
   return(client);
 }
 
-sampletime_t jack_start_time(double when, double epochOffset)
-{
-  return (when - epochOffset) * 1000000;
-}

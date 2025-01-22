@@ -586,12 +586,7 @@ void init_sound(t_sound *sound) {
     sound->delayfeedback = 0.9999;
   }
 
-#ifdef JACK
-  sound->startT = jack_start_time(sound->when, epochOffset);
-# else
   sound->startT = sound->when - epochOffset;
-#endif
-  
 
   if (sound->unit == 's') { // unit = "sec"
     sound->accelerate = sound->accelerate / sound->speed; // change rate by 1 per specified duration

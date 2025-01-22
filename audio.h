@@ -2,13 +2,7 @@
 #include "config.h"
 #include "common.h"
 
-#ifdef JACK
-#include "jack.h"
-#endif
-
-#ifndef sampletime_t
 #define sampletime_t double
-#endif
 
 #define MAXLINE  44100
 #define MAX_SOUNDS 512 // includes queue!
