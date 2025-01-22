@@ -15,21 +15,9 @@
 #ifdef JACK
 #include "jack.h"
 #elif PULSE
-#include <pulse/simple.h>
-#include <pulse/error.h>
-#include <pulse/gccmacro.h>
-#else
-
+#include "pulse.h"
+#elif PORTAUDIO
 #include "portaudio.h"
-
-#ifdef __linux
-#include <pa_linux_alsa.h>
-#endif
-
-PaStream *stream;
-
-#define PA_FRAMES_PER_BUFFER 1024
-
 #endif
 
 #include "audio.h"
@@ -55,9 +43,6 @@ int playing_n = 0;
 double epochOffset = 0;
 float starttime = 0;
 
-#ifdef JACK
-jack_client_t *jack_client = NULL;
-#endif
 float compression_speed = -1;
 
 float delay_time = 0.1;
@@ -602,7 +587,7 @@ void init_sound(t_sound *sound) {
   }
 
 #ifdef JACK
-  sound->startT = (sound->when - epochOffset) * 1000000;
+  sound->startT = jack_start_time(sound->when, epochOffset);
 # else
   sound->startT = sound->when - epochOffset;
 #endif
@@ -1038,232 +1023,6 @@ void playback(float **buffers, int frame, sampletime_t now) {
   #endif
 }
 
-
-#ifdef JACK
-extern int jack_callback(int frames, float *input, float **outputs) {
-    sampletime_t now;
-
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    epochOffset = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0))
-      - ((double) jack_get_time() / 1000000.0);
-    //printf("jack time: %d tv_sec %d epochOffset: %f\n", jack_get_time(), tv.tv_sec, epochOffset);
-
-  now = jack_last_frame_time(jack_client);
-
-  for (int i=0; i < frames; ++i) {
-    jack_time_t nowt = jack_frames_to_time(jack_client, now + i);
-    playback(outputs, i, nowt);
-
-    dequeue(nowt);
-  }
-  return(0);
-}
-#elif PULSE
-
-void run_pulse() {
-  #define FRAMES 64
-  struct timeval tv;
-  double samplelength = (((double) 1)/((double) g_samplerate));
-
-  float *buf[g_num_channels];
-  for (int i = 0 ; i < g_num_channels; ++i) {
-    buf[i] = (float*) malloc(sizeof(float)*FRAMES);
-  }
-  float interlaced[g_num_channels*FRAMES];
-
-  pa_sample_spec ss;
-  ss.format = PA_SAMPLE_FLOAT32LE;
-  ss.rate = g_samplerate;
-  ss.channels = g_num_channels;
-
-  pa_simple *s = NULL;
-  //  int ret = 1;
-  int error;
-  if (!(s = pa_simple_new(NULL, "dirt", PA_STREAM_PLAYBACK, NULL,
-    "playback", &ss, NULL, NULL, &error))) {
-    fprintf(stderr, __FILE__": pa_simple_new() failed: %s\n",
-    pa_strerror(error));
-    goto finish;
-  }
-
-  for (;;) {
-
-    pa_usec_t latency;
-    if ((latency = pa_simple_get_latency(s, &error)) == (pa_usec_t) -1) {
-      fprintf(stderr, __FILE__": pa_simple_get_latency() failed: %s\n",
-	      pa_strerror(error));
-      goto finish;
-    }
-    //fprintf(stderr, "%f sec    \n", ((float)latency)/1000000.0f);
-
-    gettimeofday(&tv, NULL);
-    double now = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0));
-
-    for (int i=0; i < FRAMES; ++i) {
-      double framenow = now + (samplelength * (double) i);
-      playback(buf, i, framenow);
-      for (int j=0; j < g_num_channels; ++j) {
-	interlaced[g_num_channels*i+j] = buf[j][i];
-      }
-      dequeue(framenow);
-    }
-
-    if (pa_simple_write(s, interlaced, sizeof(interlaced), &error) < 0) {
-      fprintf(stderr, __FILE__": pa_simple_write() failed: %s\n", pa_strerror(error));
-      goto finish;
-    }
-  }
-  /* Make sure that every single sample was played */
-  if (pa_simple_drain(s, &error) < 0) {
-    fprintf(stderr, __FILE__": pa_simple_drain() failed: %s\n", pa_strerror(error));
-    goto finish;
-  }
-  //    ret = 0;
- finish:
-  if (s)
-    pa_simple_free(s);
-  //    return ret;
-}
-
-#else
-
-
-static int pa_callback(const void *inputBuffer, void *outputBuffer,
-		       unsigned long framesPerBuffer,
-		       const PaStreamCallbackTimeInfo* timeInfo,
-		       PaStreamCallbackFlags statusFlags,
-		       void *userData) {
-
-  struct timeval tv;
-
-  if (epochOffset == 0) {
-    gettimeofday(&tv, NULL);
-    #ifdef HACK
-    epochOffset = 0;
-    #else
-    epochOffset = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0))
-      - timeInfo->outputBufferDacTime;
-    #endif
-    /* printf("set offset (%f - %f) to %f\n", ((float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f))
-       , timeInfo->outputBufferDacTime, epochOffset); */
-  }
-  #ifdef HACK
-  double now = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0));
-  #else
-  double now = timeInfo->outputBufferDacTime;
-  #endif
-  // printf("%f %f %f\n", timeInfo->outputBufferDacTime, timeInfo->currentTime,   Pa_GetStreamTime(stream));
-  float **buffers = (float **) outputBuffer;
-  for (int i=0; i < framesPerBuffer; ++i) {
-    double framenow = now + (((double) i)/((double) g_samplerate));
-    playback(buffers, i, framenow);
-    dequeue(framenow);
-  }
-  return paContinue;
-}
-#endif
-
-
-
-#ifdef JACK
-void jack_init(bool autoconnect) {
-  jack_client = jack_start(jack_callback, autoconnect);
-  g_samplerate = jack_get_sample_rate(jack_client);
-}
-#elif PULSE
-void pulse_init() {
-  //  pulse = pa_threaded_mainloop_new();
-  //  pa_threaded_mainloop_set_name(pulse, "dirt");
-}
-#else
-
-static void StreamFinished( void* userData ) {
-  printf( "Stream Completed\n");
-}
-
-void pa_init(void) {
-  PaStreamParameters outputParameters;
-
-  PaError err;
-
-  printf("init pa\n");
-
-  err = Pa_Initialize();
-  if( err != paNoError ) {
-    goto error;
-  }
-
-  int num = Pa_GetDeviceCount();
-  const PaDeviceInfo *d;
-  if (num <0) {
-    err = num;
-    goto error;
-  }
-
-  printf("Devices = #%d\n", num);
-  for (int i =0; i < num; i++) {
-     d = Pa_GetDeviceInfo(i);
-     printf("%d = %s: %fHz\n", i, d->name, d->defaultSampleRate);
-  }
-
-  outputParameters.device = Pa_GetDefaultOutputDevice();
-  if (outputParameters.device == paNoDevice) {
-    fprintf(stderr,"Error: No default output device.\n");
-    goto error;
-  }
-  printf("default device: %s\n", Pa_GetDeviceInfo(outputParameters.device)->name);
-  outputParameters.channelCount = g_num_channels;
-  outputParameters.sampleFormat = paFloat32 | paNonInterleaved;
-  outputParameters.suggestedLatency = 0.050;
-  // Pa_GetDeviceInfo( outputParameters.device )->defaultLowOutputLatency;
-  outputParameters.hostApiSpecificStreamInfo = NULL;
-
-  char foo[] = "hello";
-  err = Pa_OpenStream(
-            &stream,
-            NULL, /* no input */
-            &outputParameters,
-            g_samplerate,
-            PA_FRAMES_PER_BUFFER,
-            paNoFlag,
-            pa_callback,
-            (void *) foo );
-    if( err != paNoError ) {
-      printf("failed to open stream.\n");
-      goto error;
-    }
-
-    err = Pa_SetStreamFinishedCallback( stream, &StreamFinished );
-    if( err != paNoError ) {
-      goto error;
-    }
-
-#ifdef __linux__
-    printf("setting realtime priority\n");
-    PaAlsa_EnableRealtimeScheduling(stream, 1);
-#endif
-    
-    err = Pa_StartStream(stream);
-    if( err != paNoError ) {
-      goto error;
-    }
-
-  return;
-error:
-    fprintf( stderr, "An error occured while using the portaudio stream\n" );
-    fprintf( stderr, "Error number: %d\n", err );
-    fprintf( stderr, "Error message: %s\n", Pa_GetErrorText( err ) );
-    if( err == paUnanticipatedHostError) {
-	const PaHostErrorInfo *hostErrorInfo = Pa_GetLastHostErrorInfo();
-	fprintf( stderr, "Host API error = #%ld, hostApiType = %d\n", hostErrorInfo->errorCode, hostErrorInfo->hostApiType );
-	fprintf( stderr, "Host API error = %s\n", hostErrorInfo->errorText );
-    }
-    Pa_Terminate();
-    exit(-1);
-}
-#endif
-
 #ifdef SEND_RMS
 void thread_send_rms() {
   lo_address a = lo_address_new(NULL, "6010");
@@ -1325,12 +1084,13 @@ extern void audio_init(bool dirty_compressor, bool autoconnect, bool late_trigge
 #ifdef JACK
   jack_init(autoconnect);
 #elif PULSE
-  pthread_t t;
-  pthread_create(&t, NULL, (void *(*)(void *)) run_pulse, NULL);
-  //sleep(1);
-#else
+  pulse_init();
+#elif PORTAUDIO
   pa_init();
+#else
+#error no audio API defined (expected one of JACK, PULSE, PORTAUDIO)
 #endif
+
   compression_speed = 1000 / g_samplerate;
   use_dirty_compressor = dirty_compressor;
   use_late_trigger = late_trigger;

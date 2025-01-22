@@ -2,6 +2,14 @@
 #include "config.h"
 #include "common.h"
 
+#ifdef JACK
+#include "jack.h"
+#endif
+
+#ifndef sampletime_t
+#define sampletime_t double
+#endif
+
 #define MAXLINE  44100
 #define MAX_SOUNDS 512 // includes queue!
 
@@ -12,15 +20,6 @@
 
 #define ROUNDOFF 16
 #define MAX_DB 12
-
-#ifdef JACK
-#include <jack/jack.h>
-#include "jack.h"
-#define sampletime_t jack_time_t
-#else
-#define sampletime_t double
-#endif
-
 
 typedef struct {
  float cutoff;
@@ -168,3 +167,6 @@ extern void audio_close(void);
 extern int audio_play(t_sound*);
 t_sound *new_sound();
 
+extern void playback(float **buffers, int frame, sampletime_t now);
+void dequeue(sampletime_t now);
+extern double epochOffset;

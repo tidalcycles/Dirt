@@ -11,6 +11,7 @@ DEPENDS=$(OBJECTS:.o=.d)
 
 dirt: CFLAGS += -DJACK -DSCALEPAN
 dirt: LDFLAGS += -ljack
+dirt-pa: CFLAGS += -DPORTAUDIO
 dirt-pa: LDFLAGS += -lportaudio
 dirt-pulse: CFLAGS += -DPULSE `pkg-config --cflags libpulse-simple`
 dirt-pulse: LDFLAGS += `pkg-config --libs libpulse-simple` -lpthread
@@ -18,18 +19,18 @@ dirt-feedback: CFLAGS += -DFEEDBACK -DINPUT
 dirt-feedback: dirt
 
 clean:
-	rm -f *.o *~ dirt dirt-analyse dirt-pa
+	rm -f *.d *.o *~ dirt dirt-analyse dirt-pa
 
 all: dirt
 
 dirt: $(OBJECTS) jack.o Makefile
 	$(CC) $(OBJECTS) jack.o $(CFLAGS) $(LDFLAGS) -o $@
 
-dirt-pa: $(OBJECTS) Makefile
-	$(CC) $(OBJECTS) $(CFLAGS) $(LDFLAGS) -o $@
+dirt-pa: $(OBJECTS) portaudio.o Makefile
+	$(CC) $(OBJECTS) portaudio.o $(CFLAGS) $(LDFLAGS) -o $@
 
-dirt-pulse: dirt.o common.o audio.o file.o server.o Makefile
-	$(CC) dirt.o common.o audio.o file.o server.o $(CFLAGS) $(LDFLAGS) -o dirt-pulse
+dirt-pulse: $(OBJECTS) pulse.o Makefile
+	$(CC) $(OBJECTS) pulse.o $(CFLAGS) $(LDFLAGS) -o $@
 
 test: test.c Makefile
 	$(CC) test.c -llo -o test

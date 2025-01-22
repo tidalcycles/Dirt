@@ -1,9 +1,11 @@
-#ifndef _DIRTJACKH_
-#define _DIRTJACKH_
+#pragma once
+
+#include <stdbool.h>
+
 #include <jack/jack.h>
-#include "common.h"
 
-typedef int (*t_callback)(int, float *, float **);
+#define sampletime_t jack_time_t
 
-extern jack_client_t *jack_start(t_callback callback, bool autoconnect);
-#endif
+sampletime_t jack_start_time(double when, double epochOffset);
+
+void jack_init(bool autoconnect);

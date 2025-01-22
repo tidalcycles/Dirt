@@ -3,12 +3,20 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include <jack/jack.h>
 
 #include "jack.h"
 #include "config.h"
+#include "audio.h"
+#include "common.h"
 
+typedef int (*t_callback)(int, float *, float **);
+
+jack_client_t *jack_start(t_callback callback, bool autoconnect);
+
+jack_client_t *jack_client = NULL;
 jack_client_t *client;
 jack_port_t **output_ports;
 
@@ -38,6 +46,31 @@ int process(jack_nframes_t nframes, void *arg) {
 
   return 0;      
 
+}
+
+extern int jack_callback(int frames, float *input, float **outputs) {
+    sampletime_t now;
+
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    epochOffset = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0))
+      - ((double) jack_get_time() / 1000000.0);
+    //printf("jack time: %d tv_sec %d epochOffset: %f\n", jack_get_time(), tv.tv_sec, epochOffset);
+
+  now = jack_last_frame_time(jack_client);
+
+  for (int i=0; i < frames; ++i) {
+    jack_time_t nowt = jack_frames_to_time(jack_client, now + i);
+    playback(outputs, i, nowt);
+
+    dequeue(nowt);
+  }
+  return(0);
+}
+
+void jack_init(bool autoconnect) {
+  jack_client = jack_start(jack_callback, autoconnect);
+  g_samplerate = jack_get_sample_rate(jack_client);
 }
 
 void jack_shutdown(void *arg) {
@@ -154,3 +187,7 @@ extern jack_client_t *jack_start(t_callback callback, bool autoconnect) {
   return(client);
 }
 
+sampletime_t jack_start_time(double when, double epochOffset)
+{
+  return (when - epochOffset) * 1000000;
+}

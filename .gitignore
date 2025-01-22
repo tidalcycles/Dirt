@@ -1,6 +1,6 @@
 *.d
 *.o
+*.wav
 dirt
 dirt-pa
-*.wav
-Makefile
+dirt-pulse
