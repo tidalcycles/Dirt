@@ -13,10 +13,13 @@
 #include "audio.h"
 #include "server.h"
 
-static int dirty_compressor_flag = 1;
-#ifdef JACK
-static int jack_auto_connect_flag = 1;
+#ifndef DEFAULT_OUTPUT
+#error DEFAULT_OUTPUT is not defined
 #endif
+
+static const char *output = DEFAULT_OUTPUT;
+static int dirty_compressor_flag = 1;
+static int jack_auto_connect_flag = 1;
 static int late_trigger_flag = 1;
 static int shape_gain_comp_flag = 0;
 static int preload_flag = 0;
@@ -54,6 +57,7 @@ int main (int argc, char **argv) {
       {"verbose",  no_argument,  &verbose_flag, 'V'}*/
       /* Argument styles: no_argument, required_argument, optional_argument */
       {"port",                  required_argument, 0, 'p'},
+      {"output",                required_argument, 0, 'o'},
       {"channels",              required_argument, 0, 'c'},
       {"samplerate",            required_argument, 0, 'r'},
       {"dirty-compressor",      no_argument, &dirty_compressor_flag, 1},
@@ -87,7 +91,7 @@ int main (int argc, char **argv) {
       required_argument: ":"
       optional_argument: "::" */
 
-    c = getopt_long(argc, argv, "c:s:w:g:vh",
+    c = getopt_long(argc, argv, "p:o:c:r:s:w:g:vh",
                     long_options, &option_index);
 
     if (c == -1)
@@ -110,9 +114,20 @@ int main (int argc, char **argv) {
                "\n"
                "Arguments:\n"
 	             "  -p, --port                       OSC port to listen to (default: %s)\n"
+               "  -o, --output                     audio output (default: %s)\n"
+#ifdef JACK
+               "                  jack             JACK Audio Connection Kit\n"
+#endif
+#ifdef PULSE
+               "                  pulse            PulseAudio\n"
+#endif
+#ifdef PORTAUDIO
+               "                  portaudio        PortAudio\n"
+#endif
                "  -c, --channels                   number of output channels (default: %u)\n"
-#ifndef JACK
                "  -r, --samplerate                 samplerate (default: %u)\n"
+#ifdef JACK
+               "                                   (-o jack uses engine rate)\n"
 #endif
                "      --dirty-compressor           enable dirty compressor on audio output (default)\n"
                "      --no-dirty-compressor        disable dirty compressor on audio output\n"
@@ -131,10 +146,8 @@ int main (int argc, char **argv) {
                "  -w, --workers                    number of sample-reading workers (default: %u)\n"
                "  -h, --help                       display this help and exit\n"
                "  -v, --version                    output version information and exit\n",
-               DEFAULT_OSC_PORT, DEFAULT_CHANNELS,
-#ifndef JACK
+               DEFAULT_OSC_PORT, DEFAULT_OUTPUT, DEFAULT_CHANNELS,
 	       DEFAULT_SAMPLERATE,
-#endif
                20.0*log10(DEFAULT_GAIN/16.0),
                DEFAULT_WORKERS);
         return 1;
@@ -142,6 +155,21 @@ int main (int argc, char **argv) {
       case 'p':
         osc_port = optarg;
 	break;
+      case 'o':
+        output = DEFAULT_OUTPUT;
+#ifdef JACK
+        if (0 == strcmp("jack", optarg)) output = optarg;
+#endif
+#ifdef PULSE
+        if (0 == strcmp("pulse", optarg)) output = optarg;
+#endif
+#ifdef PORTAUDIO
+        if (0 == strcmp("portaudio", optarg)) output = optarg;
+#endif
+        if (0 != strcmp(output, optarg)) {
+          fprintf(stderr, "invalid output: %s. resetting to default: %s\n", optarg, output);
+        }
+        break;
       case 'c':
         num_channels = atoi(optarg);
         if (num_channels < MIN_CHANNELS || num_channels > MAX_CHANNELS) {
@@ -186,6 +214,7 @@ int main (int argc, char **argv) {
   }
 
   fprintf(stderr, "port: %s\n", osc_port);
+  fprintf(stderr, "output: %s\n", output);
   fprintf(stderr, "channels: %u\n", g_num_channels);
   fprintf(stderr, "samplerate: %u\n", g_samplerate);
   fprintf(stderr, "gain (dB): %f\n", gain);
@@ -215,11 +244,7 @@ int main (int argc, char **argv) {
   fprintf(stderr, "workers: %u\n", num_workers);
 
   fprintf(stderr, "init audio\n");
-#ifdef JACK
-  audio_init(dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag, num_workers, sampleroot, shape_gain_comp_flag, preload_flag);
-#else
-  audio_init(dirty_compressor_flag, true, late_trigger_flag, num_workers, sampleroot, shape_gain_comp_flag, preload_flag);
-#endif
+  audio_init(output, dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag, num_workers, sampleroot, shape_gain_comp_flag, preload_flag);
 
   fprintf(stderr, "init open sound control\n");
   server_init(osc_port);
