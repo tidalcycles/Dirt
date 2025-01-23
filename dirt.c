@@ -41,7 +41,7 @@ int main (int argc, char **argv) {
   float gain = 20.0 * log10(g_gain/16.0);
   char *osc_port = DEFAULT_OSC_PORT;
   char *sampleroot = "./samples";
-  char *version = "1.0.0";
+  char *version = "1.1.0~prerelease";
 
   unsigned int num_workers = DEFAULT_WORKERS;
 
