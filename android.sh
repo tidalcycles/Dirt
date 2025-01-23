@@ -16,21 +16,10 @@ if [[ "$1" =~ "prepare" ]]
 then
   mkdir -p "${TOP}/android"
   cd "${TOP}/android"
-  mkdir -p arm64-v8a armeabi-v7a x86 x86_64
-  for d in lib include
-  do
-    ln -fs "${prefix}/aarch64/$d/" "${TOP}/android/arm64-v8a/$d"
-    ln -fs "${prefix}/armv7a/$d/" "${TOP}/android/armeabi-v7a/$d"
-    ln -fs "${prefix}/i686/$d/" "${TOP}/android/x86/$d"
-    ln -fs "${prefix}/x86_64/$d/" "${TOP}/android/x86_64/$d"
-  done
-  ln -fs ../../imgui/
-  ln -fs ../../imgui-filebrowser/
-  ln -fs ../ dirt
   wget -c "https://github.com/libsdl-org/SDL/releases/download/release-${SDLVERSION}/SDL2-${SDLVERSION}.tar.gz"
   tar xaf "SDL2-${SDLVERSION}.tar.gz"
   cd "SDL2-${SDLVERSION}/build-scripts"
-  ./androidbuild.sh "${PACKAGE}" ../../dirt/android.c
+  ./androidbuild.sh "${PACKAGE}" placeholder.cc
   cd "../build/${PACKAGE}/"
   rm -rf app
   cp -avf "${TOP}/app.in" app
@@ -78,7 +67,37 @@ EOF
 </resources>
 EOF
   mkdir -p app/jni/SDL
-  ln -fs "${TOP}/android/dirt/" app/jni/src
+  mkdir -p app/jni/src
+  cd app/jni/src
+  ln -fs "${TOP}/Android.mk"
+  ln -fs "${TOP}/android.cc"
+  ln -fs "${TOP}/audio.c"
+  ln -fs "${TOP}/audio.h"
+  ln -fs "${TOP}/common.c"
+  ln -fs "${TOP}/common.h"
+  ln -fs "${TOP}/config.h"
+  ln -fs "${TOP}/file.c"
+  ln -fs "${TOP}/file.h"
+  ln -fs "${TOP}/jobqueue.c"
+  ln -fs "${TOP}/jobqueue.h"
+  ln -fs "${TOP}/server.c"
+  ln -fs "${TOP}/server.h"
+  ln -fs "${TOP}/thpool.c"
+  ln -fs "${TOP}/thpool.h"
+  ln -fs "${TOP}/sdl2.c"
+  ln -fs "${TOP}/sdl2.h"
+  mkdir -p arm64-v8a armeabi-v7a x86 x86_64
+  for d in lib include
+  do
+    ln -fs "${prefix}/aarch64/$d/" "arm64-v8a/$d"
+    ln -fs "${prefix}/armv7a/$d/" "armeabi-v7a/$d"
+    ln -fs "${prefix}/i686/$d/" "x86/$d"
+    ln -fs "${prefix}/x86_64/$d/" "x86_64/$d"
+  done
+  ln -fs ../SDL/include/ SDL2
+  ln -fs "${TOP}/../imgui/"
+  ln -fs "${TOP}/../imgui-filebrowser/"
+  cd ../../..
   ln -fs "${TOP}/android/SDL2-${SDLVERSION}/include" app/jni/SDL/include
   ln -fs "${TOP}/android/SDL2-${SDLVERSION}/src" app/jni/SDL/src
   ln -fs "${TOP}/android/SDL2-${SDLVERSION}/android-project/app/src/main/java/org" app/src/main/java/org

@@ -1,8 +1,13 @@
 #include <unistd.h>
 
-#include "audio.h"
+#include "config.h"
+
+extern "C"
+{
 #include "common.h"
-#include "server.h"
+extern void audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, const char *sampleroot, bool shape_gain_comp, bool preload_flag);
+extern int server_init(const char *osc_port);
+};
 
 int main(int argc, char **argv)
 {
