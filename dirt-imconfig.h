@@ -22,6 +22,3 @@
 #define IMGUI_IMPL_OPENGL_ES3
 
 #endif
-
-#define ImDrawIdx unsigned int
-

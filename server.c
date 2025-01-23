@@ -249,6 +249,10 @@ void *zmqthread(void *data){
 extern int server_init(const char *osc_port) {
 
   lo_server_thread st = lo_server_thread_new(osc_port, error);
+  if (! st)
+  {
+    return 0;
+  }
 
   lo_server_thread_add_method(st, "/play", NULL, play_handler, NULL);
 

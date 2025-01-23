@@ -1045,7 +1045,7 @@ void thread_send_rms() {
 }
 #endif
 
-extern void audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, const char *sroot, bool shape_gain_comp, bool preload_flag) {
+extern int audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, const char *sroot, bool shape_gain_comp, bool preload_flag) {
   struct timeval tv;
 
   atexit(audio_close);
@@ -1080,44 +1080,45 @@ extern void audio_init(const char *output, bool dirty_compressor, bool autoconne
   pthread_create(&rms_t, NULL, (void*) thread_send_rms, NULL);
 #endif
 
-  // abort() should never be reached as main() validates args
+  // error messages should never be reached as main() validates args
   if (0 == strcmp("jack", output)) {
 #ifdef JACK
     jack_init(autoconnect);
 #else
     fprintf(stderr, "not compiled with jack support\n");
-    abort();
+    return 0;
 #endif
   } else if (0 == strcmp("portaudio", output)) {
 #ifdef PORTAUDIO
     pa_init();
 #else
     fprintf(stderr, "not compiled with portaudio support\n");
-    abort();
+    return 0;
 #endif
   } else if (0 == strcmp("pulse", output)) {
 #ifdef PULSE
     pulse_init();
 #else
     fprintf(stderr, "not compiled with pulse support\n");
-    abort();
+    return 0;
 #endif
   } else if (0 == strcmp("sdl2", output)) {
 #ifdef SDL2
     sdl2_init();
 #else
     fprintf(stderr, "not compiled with sdl2 support\n");
-    abort();
+    return 0;
 #endif
   } else {
     fprintf(stderr, "unknown output %s\n", output);
-    abort();
+    return 0;
   }
 
   compression_speed = 1000 / g_samplerate;
   use_dirty_compressor = dirty_compressor;
   use_late_trigger = late_trigger;
   use_shape_gain_comp = shape_gain_comp;
+  return 1;
 }
 
 extern void audio_close(void) {
