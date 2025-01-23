@@ -83,7 +83,7 @@ EOF
   ln -fs "${TOP}/android/SDL2-${SDLVERSION}/src" app/jni/SDL/src
   ln -fs "${TOP}/android/SDL2-${SDLVERSION}/android-project/app/src/main/java/org" app/src/main/java/org
 else
-  cd "${TOP}/android/src/SDL2-${SDLVERSION}/build/${PACKAGE}"
+  cd "${TOP}/android/SDL2-${SDLVERSION}/build/${PACKAGE}"
   if [[ "$1" =~ "release" ]]
   then
     if [ ! -e "~/.${PACKAGE}.ks" ]
@@ -94,7 +94,7 @@ else
     fi
     ./gradlew assembleRelease
     cd app/build/outputs/apk/release/
-    zipalign -v -p 4 app-release-unsigned.apk app-release-unsigned-aligned.apk
+    zipalign -v -p q4 app-release-unsigned.apk app-release-unsigned-aligned.apk
     apksigner sign --ks "~/.${PACKAGE}.ks" --out "$2-${VERSION}.apk" app-release-unsigned-aligned.apk
     cp -avi "$2-${VERSION}.apk" "${TOP}"
     adb install -r "$2-${VERSION}.apk"
