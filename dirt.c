@@ -124,6 +124,9 @@ int main (int argc, char **argv) {
 #ifdef PORTAUDIO
                "                  portaudio        PortAudio\n"
 #endif
+#ifdef SDL2
+               "                  sdl2             SDL2\n"
+#endif
                "  -c, --channels                   number of output channels (default: %u)\n"
                "  -r, --samplerate                 samplerate (default: %u)\n"
 #ifdef JACK
@@ -165,6 +168,9 @@ int main (int argc, char **argv) {
 #endif
 #ifdef PORTAUDIO
         if (0 == strcmp("portaudio", optarg)) output = optarg;
+#endif
+#ifdef SDL2
+        if (0 == strcmp("sdl2", optarg)) output = optarg;
 #endif
         if (0 != strcmp(output, optarg)) {
           fprintf(stderr, "invalid output: %s. resetting to default: %s\n", optarg, output);

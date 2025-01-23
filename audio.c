@@ -21,6 +21,9 @@
 #ifdef PULSE
 #include "pulse.h"
 #endif
+#ifdef SDL2
+#include "sdl2.h"
+#endif
 
 #include "audio.h"
 #include "server.h"
@@ -1098,6 +1101,13 @@ extern void audio_init(const char *output, bool dirty_compressor, bool autoconne
     pulse_init();
 #else
     fprintf(stderr, "not compiled with pulse support\n");
+    abort();
+#endif
+  } else if (0 == strcmp("sdl2", output)) {
+#ifdef SDL2
+    sdl2_init();
+#else
+    fprintf(stderr, "not compiled with sdl2 support\n");
     abort();
 #endif
   } else {

@@ -3,6 +3,7 @@ CC=gcc
 JACK = 1
 PORTAUDIO = 1
 PULSE = 1
+SDL2 = 1
 
 #CFLAGS += -O2 -march=armv6zk -mcpu=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp -g -I/usr/local/include -I/opt/local/include -Wall -std=gnu99 -DDEBUG -DHACK -DFASTSIN -Wdouble-promotion
 CFLAGS += -O2 -g -I/usr/local/include -I/opt/local/include -Wall -std=gnu99 -DDEBUG -DHACK -DFASTSIN -DSCALEPAN -MMD
@@ -28,6 +29,12 @@ LDFLAGS += `pkg-config --libs libpulse-simple` -lpthread
 SOURCES += pulse.c
 endif
 
+ifeq ($(SDL2),1)
+CFLAGS += -DSDL2 `pkg-config --cflags sdl2`
+LDFLAGS += `pkg-config --libs sdl2`
+SOURCES += sdl2.c
+endif
+
 ifeq ($(JACK),1)
 CFLAGS += -DDEFAULT_OUTPUT="\"jack\""
 else
@@ -36,6 +43,10 @@ CFLAGS += -DDEFAULT_OUTPUT="\"portaudio\""
 else
 ifeq ($(PULSE),1)
 CFLAGS += -DDEFAULT_OUTPUT="\"pulse\""
+else
+ifeq ($(SDL2),1)
+CFLAGS += -DDEFAULT_OUTPUT="\"sdl2\""
+endif
 endif
 endif
 endif
@@ -53,15 +64,6 @@ dirt-feedback: dirt
 
 dirt: $(OBJECTS) Makefile
 	$(CC) $(OBJECTS) $(CFLAGS) $(LDFLAGS) -o $@
-
-dirt-pa: $(OBJECTS) portaudio.o Makefile
-	$(CC) $(OBJECTS) portaudio.o $(CFLAGS) $(LDFLAGS) -o $@
-
-dirt-pulse: $(OBJECTS) pulse.o Makefile
-	$(CC) $(OBJECTS) pulse.o $(CFLAGS) $(LDFLAGS) -o $@
-
-test: test.c Makefile
-	$(CC) test.c -llo -o test
 
 install: dirt
 	install -d $(PREFIX)/bin
