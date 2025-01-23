@@ -46,7 +46,7 @@ void initialize_paths()
       std::filesystem::current_path(pref_path);
     }
 #endif
-    SDL_Quit();
+    // SDL_Quit();
   }
 }
 
@@ -119,6 +119,9 @@ GLADapiproc get_proc_address(void *userptr, const char *name)
 
 int main(int argc, char **argv)
 {
+  SDL_SetHint(SDL_HINT_ANDROID_BLOCK_ON_PAUSE, "0");
+  SDL_SetHint(SDL_HINT_ANDROID_BLOCK_ON_PAUSE_PAUSEAUDIO, "0");
+
   initialize_paths();
 
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
