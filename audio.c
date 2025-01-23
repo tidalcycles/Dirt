@@ -27,7 +27,6 @@
 
 #include "audio.h"
 #include "server.h"
-#include "pitch.h"
 
 #define HALF_PI 1.5707963267948966f
 
@@ -1046,7 +1045,7 @@ void thread_send_rms() {
 }
 #endif
 
-extern void audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, char *sroot, bool shape_gain_comp, bool preload_flag) {
+extern void audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, const char *sroot, bool shape_gain_comp, bool preload_flag) {
   struct timeval tv;
 
   atexit(audio_close);

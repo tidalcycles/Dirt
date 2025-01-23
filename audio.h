@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 #include "file.h"
 #include "config.h"
 #include "common.h"
@@ -156,7 +158,7 @@ typedef struct {
 #endif
 
 extern int audio_callback(int frames, float *input, float **outputs);
-extern void audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, char *sampleroot, bool shape_gain_comp, bool preload_flag);
+extern void audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, const char *sampleroot, bool shape_gain_comp, bool preload_flag);
 extern void audio_close(void);
 extern int audio_play(t_sound*);
 t_sound *new_sound();

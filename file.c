@@ -9,7 +9,7 @@
 
 #include "file.h"
 #include "common.h"
-#include "segment.h"
+//#include "segment.h"
 
 t_sample *samples[MAXSAMPLES];
 int sample_count = 0;
