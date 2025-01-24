@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 
 #include <pthread.h>
@@ -10,6 +9,7 @@
 #include "audio.h"
 #include "common.h"
 #include "pulse.h"
+#include "log.h"
 
 void *run_pulse(void *arg) {
   #define FRAMES 64
@@ -32,7 +32,7 @@ void *run_pulse(void *arg) {
   int error;
   if (!(s = pa_simple_new(NULL, "dirt", PA_STREAM_PLAYBACK, NULL,
     "playback", &ss, NULL, NULL, &error))) {
-    fprintf(stderr, __FILE__": pa_simple_new() failed: %s\n",
+    log_printf(LOG_ERR, __FILE__": pa_simple_new() failed: %s\n",
     pa_strerror(error));
     goto finish;
   }
@@ -41,11 +41,11 @@ void *run_pulse(void *arg) {
 
     pa_usec_t latency;
     if ((latency = pa_simple_get_latency(s, &error)) == (pa_usec_t) -1) {
-      fprintf(stderr, __FILE__": pa_simple_get_latency() failed: %s\n",
+      log_printf(LOG_ERR, __FILE__": pa_simple_get_latency() failed: %s\n",
 	      pa_strerror(error));
       goto finish;
     }
-    //fprintf(stderr, "%f sec    \n", ((float)latency)/1000000.0f);
+    //log_printf(LOG_ERR, "%f sec    \n", ((float)latency)/1000000.0f);
 
     gettimeofday(&tv, NULL);
     double now = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0));
@@ -60,13 +60,13 @@ void *run_pulse(void *arg) {
     }
 
     if (pa_simple_write(s, interlaced, sizeof(interlaced), &error) < 0) {
-      fprintf(stderr, __FILE__": pa_simple_write() failed: %s\n", pa_strerror(error));
+      log_printf(LOG_ERR, __FILE__": pa_simple_write() failed: %s\n", pa_strerror(error));
       goto finish;
     }
   }
   /* Make sure that every single sample was played */
   if (pa_simple_drain(s, &error) < 0) {
-    fprintf(stderr, __FILE__": pa_simple_drain() failed: %s\n", pa_strerror(error));
+    log_printf(LOG_ERR, __FILE__": pa_simple_drain() failed: %s\n", pa_strerror(error));
     goto finish;
   }
   //    ret = 0;

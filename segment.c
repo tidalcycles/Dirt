@@ -81,11 +81,11 @@ int *aubio_process(t_sample *sample, float *input, sf_count_t nframes) {
       if (isonset) {
         /* test for silence */
         if (aubio_silence_detection(ibuf, silence)==1) {
-          printf("silence.\n");
+          log_printf(LOG_OUT, "silence.\n");
           isonset=0;
         }
         else {
-          printf("onset! %d\n", pos);
+          log_printf(LOG_OUT, "onset! %d\n", pos);
           onsets[onset_n++] = pos;
         }
       }
@@ -96,7 +96,7 @@ int *aubio_process(t_sample *sample, float *input, sf_count_t nframes) {
   result = (int *) calloc(1, sizeof(int) * (onset_n + 1));
   memcpy(result, onsets, sizeof(int) * onset_n);
   result[onset_n] = -1;
-  printf("found %d onsets\n", onset_n);
+  log_printf(LOG_OUT, "found %d onsets\n", onset_n);
 
   return(result);
 }

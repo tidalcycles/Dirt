@@ -1,5 +1,4 @@
 #include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
 
@@ -8,6 +7,7 @@
 #include "audio.h"
 #include "common.h"
 #include "portaudio.h"
+#include "log.h"
 
 #ifdef __linux
 #include <pa_linux_alsa.h>
@@ -33,7 +33,7 @@ static int pa_callback(const void *inputBuffer, void *outputBuffer,
     epochOffset = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0))
       - timeInfo->outputBufferDacTime;
     #endif
-    /* printf("set offset (%f - %f) to %f\n", ((float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f))
+    /* log_printf(LOG_OUT, "set offset (%f - %f) to %f\n", ((float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f))
        , timeInfo->outputBufferDacTime, epochOffset); */
   }
   #ifdef HACK
@@ -41,7 +41,7 @@ static int pa_callback(const void *inputBuffer, void *outputBuffer,
   #else
   double now = timeInfo->outputBufferDacTime;
   #endif
-  // printf("%f %f %f\n", timeInfo->outputBufferDacTime, timeInfo->currentTime,   Pa_GetStreamTime(stream));
+  // log_printf(LOG_OUT, "%f %f %f\n", timeInfo->outputBufferDacTime, timeInfo->currentTime,   Pa_GetStreamTime(stream));
   float **buffers = (float **) outputBuffer;
   for (int i=0; i < framesPerBuffer; ++i) {
     double framenow = now + (((double) i)/((double) g_samplerate));
@@ -60,7 +60,7 @@ void pa_init(void) {
 
   PaError err;
 
-  printf("init pa\n");
+  log_printf(LOG_OUT, "init pa\n");
 
   err = Pa_Initialize();
   if( err != paNoError ) {
@@ -74,18 +74,18 @@ void pa_init(void) {
     goto error;
   }
 
-  printf("Devices = #%d\n", num);
+  log_printf(LOG_OUT, "Devices = #%d\n", num);
   for (int i =0; i < num; i++) {
      d = Pa_GetDeviceInfo(i);
-     printf("%d = %s: %fHz\n", i, d->name, d->defaultSampleRate);
+     log_printf(LOG_OUT, "%d = %s: %fHz\n", i, d->name, d->defaultSampleRate);
   }
 
   outputParameters.device = Pa_GetDefaultOutputDevice();
   if (outputParameters.device == paNoDevice) {
-    fprintf(stderr,"Error: No default output device.\n");
+    log_printf(LOG_ERR, "Error: No default output device.\n");
     goto error;
   }
-  printf("default device: %s\n", Pa_GetDeviceInfo(outputParameters.device)->name);
+  log_printf(LOG_OUT, "default device: %s\n", Pa_GetDeviceInfo(outputParameters.device)->name);
   outputParameters.channelCount = g_num_channels;
   outputParameters.sampleFormat = paFloat32 | paNonInterleaved;
   outputParameters.suggestedLatency = 0.050;
@@ -103,7 +103,7 @@ void pa_init(void) {
             pa_callback,
             (void *) foo );
     if( err != paNoError ) {
-      printf("failed to open stream.\n");
+      log_printf(LOG_OUT, "failed to open stream.\n");
       goto error;
     }
 
@@ -113,7 +113,7 @@ void pa_init(void) {
     }
 
 #ifdef __linux__
-    printf("setting realtime priority\n");
+    log_printf(LOG_OUT, "setting realtime priority\n");
     PaAlsa_EnableRealtimeScheduling(stream, 1);
 #endif
     
@@ -124,13 +124,13 @@ void pa_init(void) {
 
   return;
 error:
-    fprintf( stderr, "An error occured while using the portaudio stream\n" );
-    fprintf( stderr, "Error number: %d\n", err );
-    fprintf( stderr, "Error message: %s\n", Pa_GetErrorText( err ) );
+    log_printf(LOG_ERR, "An error occured while using the portaudio stream\n" );
+    log_printf(LOG_ERR, "Error number: %d\n", err );
+    log_printf(LOG_ERR, "Error message: %s\n", Pa_GetErrorText( err ) );
     if( err == paUnanticipatedHostError) {
 	const PaHostErrorInfo *hostErrorInfo = Pa_GetLastHostErrorInfo();
-	fprintf( stderr, "Host API error = #%ld, hostApiType = %d\n", hostErrorInfo->errorCode, hostErrorInfo->hostApiType );
-	fprintf( stderr, "Host API error = %s\n", hostErrorInfo->errorText );
+	log_printf(LOG_ERR, "Host API error = #%ld, hostApiType = %d\n", hostErrorInfo->errorCode, hostErrorInfo->hostApiType );
+	log_printf(LOG_ERR, "Host API error = %s\n", hostErrorInfo->errorText );
     }
     Pa_Terminate();
     exit(-1);

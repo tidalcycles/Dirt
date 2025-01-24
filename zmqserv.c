@@ -9,7 +9,7 @@ lo_server s;
 void *publisher;
 
 void error(int num, const char *msg, const char *path) {
-    printf("liblo server error %d in path %s: %s\n", num, path, msg);
+    log_printf(LOG_OUT, "liblo server error %d in path %s: %s\n", num, path, msg);
 }
 
 /**/
@@ -19,7 +19,7 @@ int generic_handler(const char *path, const char *types, lo_arg **argv,
     int i;
     int sz = lo_message_length(msg, path);
     void *m = lo_message_serialise(msg, path, NULL, NULL);
-    printf("message\n");
+    log_printf(LOG_OUT, "message\n");
     zmq_send(publisher, m, sz, 0);
     free(m);
     return 1;
@@ -45,7 +45,7 @@ int main (void) {
 
     while (1) {
       int sz = lo_server_recv(s);
-      //printf("processed message of size %d\n", sz);
+      //log_printf(LOG_OUT, "processed message of size %d\n", sz);
     }
     zmq_close (publisher);
     zmq_ctx_destroy (context);

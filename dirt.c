@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -11,6 +10,7 @@
 
 #include "common.h"
 #include "audio.h"
+#include "log.h"
 #include "server.h"
 
 #ifndef DEFAULT_OUTPUT
@@ -26,7 +26,7 @@ static int preload_flag = 0;
 
 #ifdef linux
 void sigint_handler(int sig) {
-  printf("\nCTRL-C detected\n");
+  log_printf(LOG_OUT, "\nCTRL-C detected\n");
   // explicitly call exit on signit so things registered via atexit() fire
   exit(-1);
 }
@@ -104,10 +104,10 @@ int main (int argc, char **argv) {
         if (long_options[option_index].flag != 0) break;
 
       case 'v':
-        printf("%s\n", version);
+        log_printf(LOG_OUT, "%s\n", version);
         return 1;
       case 'h':
-        printf("Usage: dirt [OPTION]...\n"
+        log_printf(LOG_OUT, "Usage: dirt [OPTION]...\n"
                "\n"
                "Dirt - a software sampler, mainly used with Tidal: http://yaxu.org/tidal/\n"
                "Released as free software under the terms of the GNU Public License version 3.0 and later.\n"
@@ -173,13 +173,13 @@ int main (int argc, char **argv) {
         if (0 == strcmp("sdl2", optarg)) output = optarg;
 #endif
         if (0 != strcmp(output, optarg)) {
-          fprintf(stderr, "invalid output: %s. resetting to default: %s\n", optarg, output);
+          log_printf(LOG_ERR, "invalid output: %s. resetting to default: %s\n", optarg, output);
         }
         break;
       case 'c':
         num_channels = atoi(optarg);
         if (num_channels < MIN_CHANNELS || num_channels > MAX_CHANNELS) {
-          fprintf(stderr, "invalid number of channels: %u (min: %u, max: %u). resetting to default\n", num_channels, MIN_CHANNELS, MAX_CHANNELS);
+          log_printf(LOG_ERR, "invalid number of channels: %u (min: %u, max: %u). resetting to default\n", num_channels, MIN_CHANNELS, MAX_CHANNELS);
           num_channels = DEFAULT_CHANNELS;
         }
         g_num_channels = num_channels;
@@ -187,7 +187,7 @@ int main (int argc, char **argv) {
       case 'r':
         samplerate = atoi(optarg);
         if (samplerate < MIN_SAMPLERATE || samplerate > MAX_SAMPLERATE) {
-          fprintf(stderr, "invalid number of channels: %u (min: %u, max: %u). resetting to default\n", samplerate, MIN_SAMPLERATE, MAX_SAMPLERATE);
+          log_printf(LOG_ERR, "invalid number of channels: %u (min: %u, max: %u). resetting to default\n", samplerate, MIN_SAMPLERATE, MAX_SAMPLERATE);
 	  samplerate = DEFAULT_SAMPLERATE;
         }
 	g_samplerate = samplerate;
@@ -198,7 +198,7 @@ int main (int argc, char **argv) {
       case 'w':
         num_workers = atoi(optarg);
         if (num_workers < 1) {
-          fprintf(stderr, "invalid number of workers: %u. resetting to default\n", num_workers);
+          log_printf(LOG_ERR, "invalid number of workers: %u. resetting to default\n", num_workers);
           num_workers = DEFAULT_WORKERS;
         }
         break;
@@ -219,40 +219,40 @@ int main (int argc, char **argv) {
     }
   }
 
-  fprintf(stderr, "port: %s\n", osc_port);
-  fprintf(stderr, "output: %s\n", output);
-  fprintf(stderr, "channels: %u\n", g_num_channels);
-  fprintf(stderr, "samplerate: %u\n", g_samplerate);
-  fprintf(stderr, "gain (dB): %f\n", gain);
-  fprintf(stderr, "gain factor: %f\n", g_gain);
+  log_printf(LOG_ERR, "port: %s\n", osc_port);
+  log_printf(LOG_ERR, "output: %s\n", output);
+  log_printf(LOG_ERR, "channels: %u\n", g_num_channels);
+  log_printf(LOG_ERR, "samplerate: %u\n", g_samplerate);
+  log_printf(LOG_ERR, "gain (dB): %f\n", gain);
+  log_printf(LOG_ERR, "gain factor: %f\n", g_gain);
 
   if (!dirty_compressor_flag) {
-    fprintf(stderr, "dirty compressor disabled\n");
+    log_printf(LOG_ERR, "dirty compressor disabled\n");
   }
   if (shape_gain_comp_flag) {
-    fprintf(stderr, "distortion gain compensation enabled\n");
+    log_printf(LOG_ERR, "distortion gain compensation enabled\n");
   }
 
 #ifdef JACK
   if (!jack_auto_connect_flag) {
-    fprintf(stderr, "port auto-connection disabled\n");
+    log_printf(LOG_ERR, "port auto-connection disabled\n");
   }
 #endif
 
   if (!late_trigger_flag) {
-    fprintf(stderr, "late trigger disabled\n");
+    log_printf(LOG_ERR, "late trigger disabled\n");
   }
 
     if (preload_flag) {
-    fprintf(stderr, "sample preloading enabled\n");
+    log_printf(LOG_ERR, "sample preloading enabled\n");
   }
 
-  fprintf(stderr, "workers: %u\n", num_workers);
+  log_printf(LOG_ERR, "workers: %u\n", num_workers);
 
-  fprintf(stderr, "init audio\n");
+  log_printf(LOG_ERR, "init audio\n");
   audio_init(output, dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag, num_workers, sampleroot, shape_gain_comp_flag, preload_flag);
 
-  fprintf(stderr, "init open sound control\n");
+  log_printf(LOG_ERR, "init open sound control\n");
   server_init(osc_port);
 
   sleep(-1);

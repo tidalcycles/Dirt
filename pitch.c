@@ -69,7 +69,7 @@ extern float *pitch_calc(t_loop *loop) {
     param[1] = XTRACT_POSITIVE_SLOPE;
     xtract[XTRACT_FLUX](loop->in, loop->chunksz, &param, &flux);
 
-    printf("pitches: %f %f %f %f\n", pitch, flux, centroid, rmsAmplitude);
+    log_printf(LOG_OUT, "pitches: %f %f %f %f\n", pitch, flux, centroid, rmsAmplitude);
     result[0] = pitch;
     result[1] = flux;
     result[2] = centroid;

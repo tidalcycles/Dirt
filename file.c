@@ -9,6 +9,7 @@
 
 #include "file.h"
 #include "common.h"
+#include "log.h"
 //#include "segment.h"
 
 t_sample *samples[MAXSAMPLES];
@@ -62,13 +63,13 @@ void fix_samplerate (t_sample *sample) {
   int max_output_frames;
   int channels = sample->info->channels;
 
-  //printf("start frames: %d\n", sample->info->frames);
-  //printf("compare %d and %d\n", sample->info->samplerate, g_samplerate);
+  //log_printf(LOG_OUT, "start frames: %d\n", sample->info->frames);
+  //log_printf(LOG_OUT, "compare %d and %d\n", sample->info->samplerate, g_samplerate);
   if (sample->info->samplerate == g_samplerate) {
     return;
   }
   data.src_ratio = (float) g_samplerate / (float) sample->info->samplerate;
-  //printf("ratio: %d / %d = %f\n", sample->info->samplerate, samplerate, data.src_ratio);
+  //log_printf(LOG_OUT, "ratio: %d / %d = %f\n", sample->info->samplerate, samplerate, data.src_ratio);
   max_output_frames = sample->info->frames * data.src_ratio + 32;
 
   data.data_in = sample->items;
@@ -86,7 +87,7 @@ void fix_samplerate (t_sample *sample) {
   sample->items = data.data_out;
   sample->info->samplerate = g_samplerate;
   sample->info->frames = data.output_frames_gen;
-  //printf("end samplerate: %d frames: %d\n", (int) sample->info->samplerate, sample->info->frames);
+  //log_printf(LOG_OUT, "end samplerate: %d frames: %d\n", (int) sample->info->samplerate, sample->info->frames);
 }
 
 extern int file_count_samples(char *set, const char *sampleroot) {
@@ -136,7 +137,7 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
     if (sscanf(samplename, "%[a-z0-9A-Z]%[/:]%d", set, sep, &set_n)) {
       int n;
       snprintf(path, sizeof(path), "%s/%s", sampleroot, set);
-      //printf("looking in %s\n", set);
+      //log_printf(LOG_OUT, "looking in %s\n", set);
       n = scandir(path, &namelist, wav_filter, alphasort);
       if (n > 0) {
         snprintf(path, sizeof(path),
@@ -154,10 +155,10 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
 
     info = (SF_INFO *) calloc(1, sizeof(SF_INFO));
 
-    //printf("opening %s.\n", path);
+    //log_printf(LOG_OUT, "opening %s.\n", path);
 
     if ((sndfile = (SNDFILE *) sf_open(path, SFM_READ, info)) == NULL) {
-      printf("could not open sound file %s for sample %s\n", path, samplename);
+      log_printf(LOG_OUT, "could not open sound file %s for sample %s\n", path, samplename);
       free(info);
     } else {
       items = (float *) calloc(1, sizeof(float) * info->frames * info->channels);
@@ -215,7 +216,7 @@ extern void file_preload_samples(const char *sampleroot) {
   if (srcdir == NULL) {
     return;
   }
-  fprintf(stderr, "preloading ..\n");
+  log_printf(LOG_ERR, "preloading ..\n");
   while((dent = readdir(srcdir)) != NULL) {
     struct stat st;
     if(strcmp(dent->d_name, ".") == 0 || strcmp(dent->d_name, "..") == 0)
@@ -229,11 +230,11 @@ extern void file_preload_samples(const char *sampleroot) {
       int n = file_count_samples(dent->d_name, sampleroot);
       for (int i = 0; i < n; ++i) {
 	snprintf(samplename, sizeof(samplename), "%s:%d", dent->d_name, i);
-	fprintf(stderr, "> %s\n", samplename);
+	log_printf(LOG_ERR, "> %s\n", samplename);
 	file_get(samplename, sampleroot);
       }
     }
   }
-  fprintf(stderr, "preload done.\n");
+  log_printf(LOG_ERR, "preload done.\n");
   closedir(srcdir);
 }

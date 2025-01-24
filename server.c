@@ -1,5 +1,4 @@
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -12,6 +11,7 @@
 #include "server.h"
 #include "audio.h"
 #include "config.h"
+#include "log.h"
 
 #ifdef ZEROMQ
 #include <zmq.h>
@@ -29,7 +29,7 @@ int generic_handler(const char *path, const char *types, lo_arg **argv,
 /**/
 
 void error(int num, const char *msg, const char *path) {
-    printf("liblo server error %d in path %s: %s\n", num, path, msg);
+    log_printf(LOG_OUT, "liblo server error %d in path %s: %s\n", num, path, msg);
 }
 
 /**/
@@ -38,13 +38,13 @@ int generic_handler(const char *path, const char *types, lo_arg **argv,
 		    int argc, void *data, void *user_data) {
     int i;
     
-    printf("path: <%s>\n", path);
+    log_printf(LOG_OUT, "path: <%s>\n", path);
     for (i=0; i<argc; i++) {
-      printf("arg %d '%c' ", i, types[i]);
+      log_printf(LOG_OUT, "arg %d '%c' ", i, types[i]);
       lo_arg_pp(types[i], argv[i]);
-      printf("\n");
+      log_printf(LOG_OUT, "\n");
     }
-    printf("\n");
+    log_printf(LOG_OUT, "\n");
 
     return 1;
 }
@@ -64,7 +64,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 
   float cps = argv[2]->f;
   poffset = 3;
-  // printf("timing info: when, cps = %f\t%f a %i b %i\n", when, cps, argv[0]->i, argv[1]->i);
+  // log_printf(LOG_OUT, "timing info: when, cps = %f\t%f a %i b %i\n", when, cps, argv[0]->i, argv[1]->i);
 
   char *sample_name = (char *) argv[0+poffset];
 
@@ -106,10 +106,10 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   float release = argc > (29+poffset) ? argv[29+poffset]->f : 0;
 
   int orbit = argc > (30+poffset) ? argv[30+poffset]->i : 0;
-  //printf("orb: %d\n", orbit);
+  //log_printf(LOG_OUT, "orb: %d\n", orbit);
   static bool extraWarned = false;
   if (argc > 31+poffset && !extraWarned) {
-    printf("play server unexpectedly received extra parameters, maybe update Dirt?\n");
+    log_printf(LOG_OUT, "play server unexpectedly received extra parameters, maybe update Dirt?\n");
     extraWarned = true;
   }
 
@@ -126,7 +126,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   case 'o': case 'O': vowelnum = 3; break;
   case 'u': case 'U': vowelnum = 4; break;
   }
-  //printf("vowel: %s num: %d\n", vowel_s, vowelnum);
+  //log_printf(LOG_OUT, "vowel: %s num: %d\n", vowel_s, vowelnum);
 
   int unit = -1;
   switch(unit_name[0]) {
@@ -140,7 +140,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
 
   t_sound *sound = new_sound();
   if (sound == NULL) {
-    //printf("hit max sounds (%d)\n", MAXSOUNDS);
+    //log_printf(LOG_OUT, "hit max sounds (%d)\n", MAXSOUNDS);
     return(0);
   }
   sound->active = 1;
@@ -174,7 +174,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   sound->cps = cps;
   sound->when = when;
   sound->orbit = (orbit <= MAX_ORBIT) ? orbit : MAX_ORBIT;
-  //printf("orbit: %d\n", sound->orbit);
+  //log_printf(LOG_OUT, "orbit: %d\n", sound->orbit);
   if (sample_n) {
     sample_n = abs(sample_n);
     snprintf(sound->samplename, MAXPATHSIZE, "%s:%d", 
@@ -237,7 +237,7 @@ void *zmqthread(void *data){
       lo_server_dispatch_data(s, buffer, size);
     }
     else {
-      printf("oops.\n");
+      log_printf(LOG_OUT, "oops.\n");
     }
   }
   return(NULL);
@@ -278,7 +278,7 @@ extern void osc_send_pitch(double starttime, unsigned int chunk,
   if (pid == 0) {
     pid = (int) getpid();
   }
-  //printf("send [%d] %f\n", chunk, pitch);
+  //log_printf(LOG_OUT, "send [%d] %f\n", chunk, pitch);
   // pid, starttime, chunk, v_pitch, v_flux, v_centroid
   lo_send(t, "/chunk", "ififff", 
           pid,
@@ -300,7 +300,7 @@ extern void osc_send_play(double when, int lowchunk, float pitch, float flux, fl
   if (pid == 0) {
     pid = (int) getpid();
   }
-  printf("play [%d] %f\n", lowchunk, pitch);
+  log_printf(LOG_OUT, "play [%d] %f\n", lowchunk, pitch);
   // pid, starttime, chunk, v_pitch, v_flux, v_centroid
   lo_send(t, "/play", "iiiifff", 
           pid,

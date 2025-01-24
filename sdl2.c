@@ -4,6 +4,7 @@
 #include <sys/time.h>
 
 #include "audio.h"
+#include "log.h"
 #include "sdl2.h"
 
 float **sdl2_audio_buffer;
@@ -32,7 +33,7 @@ void sdl2_audio_callback(void *userdata, Uint8 *stream, int len)
   double now = tv.tv_sec + tv.tv_usec / 1000000.0;
   if (sdl2_dac_time > now || now > sdl2_dac_time + 2 * sdl2_latency)
   {
-    printf("xrun?\n");
+    log_printf(LOG_OUT, "xrun?\n");
     sdl2_update_timebase(now);
   }
 
@@ -64,8 +65,8 @@ void sdl2_init(void)
   want.samples = 1024;
   want.callback = sdl2_audio_callback;
   SDL_AudioDeviceID dev = SDL_OpenAudioDevice(NULL, 0, &want, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_SAMPLES_CHANGE);
-  printf("engine sample rate: %d\n", have.freq);
-  printf("engine block size: %d\n", have.samples);
+  log_printf(LOG_OUT, "engine sample rate: %d\n", have.freq);
+  log_printf(LOG_OUT, "engine block size: %d\n", have.samples);
   g_samplerate = have.freq;
 
   // allocate output buffers

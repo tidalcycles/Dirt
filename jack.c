@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -11,6 +10,7 @@
 #include "config.h"
 #include "audio.h"
 #include "common.h"
+#include "log.h"
 
 typedef int (*t_callback)(int, float *, float **);
 
@@ -55,7 +55,7 @@ extern int jack_callback(int frames, float *input, float **outputs) {
     gettimeofday(&tv, NULL);
     epochOffset = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0))
       - ((double) jack_get_time() / 1000000.0);
-    //printf("jack time: %d tv_sec %d epochOffset: %f\n", jack_get_time(), tv.tv_sec, epochOffset);
+    //log_printf(LOG_OUT, "jack time: %d tv_sec %d epochOffset: %f\n", jack_get_time(), tv.tv_sec, epochOffset);
 
   now = jack_last_frame_time(jack_client);
 
@@ -90,26 +90,26 @@ extern jack_client_t *jack_start(t_callback callback, bool autoconnect) {
   
   client = jack_client_open(client_name, options, &status, server_name);
   if (client == NULL) {
-    fprintf(stderr, "jack_client_open() failed, "
+    log_printf(LOG_ERR, "jack_client_open() failed, "
              "status = 0x%2.0x\n", status);
     if (status & JackServerFailed) {
-      fprintf(stderr, "Unable to connect to JACK server\n");
+      log_printf(LOG_ERR, "Unable to connect to JACK server\n");
     }
     exit(1);
   }
   if (status & JackServerStarted) {
-    fprintf(stderr, "JACK server started\n");
+    log_printf(LOG_ERR, "JACK server started\n");
   }
   if (status & JackNameNotUnique) {
     client_name = jack_get_client_name(client);
-    fprintf(stderr, "unique name `%s' assigned\n", client_name);
+    log_printf(LOG_ERR, "unique name `%s' assigned\n", client_name);
   }
   
   jack_set_process_callback(client, process, (void *) callback);
   
   jack_on_shutdown(client, jack_shutdown, 0);
 
-  printf("engine sample rate: %" PRIu32 "\n",
+  log_printf(LOG_OUT, "engine sample rate: %" PRIu32 "\n",
           jack_get_sample_rate(client));
 
 #ifdef INPUT
@@ -119,14 +119,14 @@ extern jack_client_t *jack_start(t_callback callback, bool autoconnect) {
                                   JackPortIsInput, 0);
 
   if (input_port == NULL) {
-    fprintf(stderr, "no JACK input ports available\n");
+    log_printf(LOG_ERR, "no JACK input ports available\n");
     exit(1);
   }
 #endif
 
   output_ports = malloc((g_num_channels + 1) * sizeof(jack_port_t*));
   if (!output_ports) {
-    fprintf(stderr, "no memory to allocate `output_ports'\n");
+    log_printf(LOG_ERR, "no memory to allocate `output_ports'\n");
     exit(1);
   }
 
@@ -136,7 +136,7 @@ extern jack_client_t *jack_start(t_callback callback, bool autoconnect) {
                                          JACK_DEFAULT_AUDIO_TYPE,
                                          JackPortIsOutput, 0);
     if (output_ports[i] == NULL) {
-      fprintf(stderr, "no more JACK ports available\n");
+      log_printf(LOG_ERR, "no more JACK ports available\n");
       if (output_ports) free(output_ports);
       exit(1);
     }
@@ -145,7 +145,7 @@ extern jack_client_t *jack_start(t_callback callback, bool autoconnect) {
   output_ports[g_num_channels] = NULL;
   
   if (jack_activate(client)) {
-    fprintf(stderr, "cannot activate client");
+    log_printf(LOG_ERR, "cannot activate client");
     if (output_ports) free(output_ports);
     exit(1);
   }
@@ -155,7 +155,7 @@ extern jack_client_t *jack_start(t_callback callback, bool autoconnect) {
     ports = jack_get_ports(client, NULL, NULL,
                            JackPortIsPhysical|JackPortIsInput);
     if (!ports) {
-      fprintf(stderr, "cannot find any physical capture ports\n");
+      log_printf(LOG_ERR, "cannot find any physical capture ports\n");
     } else {
       for (i = 0; i < g_num_channels; ++i) {
         if (ports[i] == NULL) {
@@ -163,7 +163,7 @@ extern jack_client_t *jack_start(t_callback callback, bool autoconnect) {
         }
         //sprintf(portname, "output_%d", i);
         if (jack_connect(client, jack_port_name(output_ports[i]), ports[i])) {
-          fprintf(stderr, "cannot connect output ports\n");
+          log_printf(LOG_ERR, "cannot connect output ports\n");
         }
       }
       free(ports);
@@ -174,10 +174,10 @@ extern jack_client_t *jack_start(t_callback callback, bool autoconnect) {
                            JackPortIsPhysical|JackPortIsOutput);
     //strcpy(portname, "input");
     if (!ports) {
-      fprintf(stderr, "cannot find any physical capture ports\n");
+      log_printf(LOG_ERR, "cannot find any physical capture ports\n");
     } else {
       if (jack_connect(client, ports[0], jack_port_name(input_port))) {
-        fprintf(stderr, "cannot connect input port\n");
+        log_printf(LOG_ERR, "cannot connect input port\n");
       }
       free(ports);
     }

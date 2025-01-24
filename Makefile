@@ -9,7 +9,7 @@ SDL2 = 1
 CFLAGS += -O2 -g -I/usr/local/include -I/opt/local/include -Wall -std=gnu99 -DDEBUG -DHACK -DFASTSIN -DSCALEPAN -MMD
 LDFLAGS += -g -lm -L/usr/local/lib -L/opt/local/lib -llo -lsndfile -lsamplerate -lpthread 
 
-SOURCES = dirt.c common.c audio.c file.c server.c jobqueue.c thpool.c
+SOURCES = dirt.c common.c audio.c file.c server.c jobqueue.c thpool.c log-stdio.c
 
 ifeq ($(JACK),1)
 CFLAGS += -DJACK

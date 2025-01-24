@@ -11,6 +11,7 @@
 #include "common.h"
 #include "config.h"
 #include "thpool.h"
+#include "log.h"
 
 #ifdef JACK
 #include "jack.h"
@@ -147,7 +148,7 @@ int queue_size(t_sound *queue) {
     result++;
     queue = queue->next;
     if (result > 4096) {
-      printf("whoops, big queue %d\n", result);
+      log_printf(LOG_OUT, "whoops, big queue %d\n", result);
       break;
     }
   }
@@ -201,7 +202,7 @@ void queue_add(t_sound **queue, t_sound *new) {
 
 
 void queue_remove(t_sound **queue, t_sound *old) {
-  // printf("played %d\n", old->played);
+  // log_printf(LOG_OUT, "played %d\n", old->played);
   if (old->prev == NULL) {
     *queue = old->next;
     if (*queue  != NULL) {
@@ -286,7 +287,7 @@ void init_formant_history (t_sound *sound) {
     }
 
     if (failed) {
-      fprintf(stderr, "no memory to allocate `formant_history' array\n");
+      log_printf(LOG_ERR, "no memory to allocate `formant_history' array\n");
       exit(1);
     }
   }
@@ -313,7 +314,7 @@ void init_crs(t_sound *sound) {
   if (!sound->coarsef) {
     sound->coarsef = malloc(g_num_channels * sizeof(t_crs));
     if (!sound->coarsef) {
-      fprintf(stderr, "no memory to allocate crs struct\n");
+      log_printf(LOG_ERR, "no memory to allocate crs struct\n");
       exit(1);
     }
   }
@@ -324,7 +325,7 @@ void init_vcf (t_sound *sound) {
   if (!sound->vcf) {
     sound->vcf = malloc(g_num_channels * sizeof(t_vcf));
     if (!sound->vcf) {
-      fprintf(stderr, "no memory to allocate vcf struct\n");
+      log_printf(LOG_ERR, "no memory to allocate vcf struct\n");
       exit(1);
     }
   }
@@ -353,7 +354,7 @@ void init_hpf (t_sound *sound) {
   if (!sound->hpf) {
     sound->hpf = malloc(g_num_channels * sizeof(t_vcf));
     if (!sound->hpf) {
-      fprintf(stderr, "no memory to allocate hpf struct\n");
+      log_printf(LOG_ERR, "no memory to allocate hpf struct\n");
       exit(1);
     }
   }
@@ -380,7 +381,7 @@ void init_bpf (t_sound *sound) {
   if (!sound->bpf) {
     sound->bpf = malloc(g_num_channels * sizeof(t_vcf));
     if (!sound->bpf) {
-      fprintf(stderr, "no memory to allocate bpf struct\n");
+      log_printf(LOG_ERR, "no memory to allocate bpf struct\n");
       exit(1);
     }
   }
@@ -519,7 +520,7 @@ float effect_bpf(float in, t_sound *sound, int channel) {
 void add_delay(t_line *line, float sample, float delay, float feedback) {
   int point = (line->point + (int) ( delay * MAXLINE )) % MAXLINE;
 
-  //printf("'feedback': %f\n", feedback);
+  //log_printf(LOG_OUT, "'feedback': %f\n", feedback);
   line->samples[point] += (sample * feedback);
 }
 
@@ -553,7 +554,7 @@ extern int audio_play(t_sound* sound) {
     pthread_mutex_lock(&queue_loading_lock);
     if (!is_sample_loading(sound->samplename)) {
       if (!thpool_add_job(read_file_pool, read_file_func, (void*) sound)) {
-	fprintf(stderr, "audio_play: Could not add file reading job for '%s'\n", sound->samplename);
+	log_printf(LOG_ERR, "audio_play: Could not add file reading job for '%s'\n", sound->samplename);
       }
     }
     mark_as_loading(sound);
@@ -664,7 +665,7 @@ void init_sound(t_sound *sound) {
     end_pc = 1 - tmp;
   }
 
-  //printf("frames: %f\n", new->end);
+  //log_printf(LOG_OUT, "frames: %f\n", new->end);
   if (start_pc > 0 && start_pc <= 1) {
     sound->start = start_pc * sound->end;
   }
@@ -679,8 +680,8 @@ void init_sound(t_sound *sound) {
 
 t_sound *queue_next(t_sound **queue, sampletime_t now) {
   t_sound *result = NULL;
-  // printf("queue_next - waiting sz %d / %d\n", queue_size(*queue), queue_size(waiting));
-  //printf("%f vs %f\n", *queue == NULL ? 0 : (*queue)->startT, now);
+  // log_printf(LOG_OUT, "queue_next - waiting sz %d / %d\n", queue_size(*queue), queue_size(waiting));
+  //log_printf(LOG_OUT, "%f vs %f\n", *queue == NULL ? 0 : (*queue)->startT, now);
   if (*queue != NULL && (*queue)->startT <= now) {
     result = *queue;
     *queue = (*queue)->next;
@@ -744,7 +745,7 @@ void dequeue(sampletime_t now) {
     assert(s == (queue_size(playing) - 1));
 #endif
 
-    //printf("done.\n");
+    //log_printf(LOG_OUT, "done.\n");
   }
   pthread_mutex_unlock(&queue_waiting_lock);
 }
@@ -803,15 +804,15 @@ void playback(float **buffers, int frame, sampletime_t now) {
       continue;
     }
     if ((!p->started) && p->checks == 0 && p->startT < now) {
-      /*      printf("started late by %f frames (%d checks)\n",
+      /*      log_printf(LOG_OUT, "started late by %f frames (%d checks)\n",
 	     now - p->startT, p->checks
 	     );*/
       p->started = 1;
     }
-    //printf("playing %s\n", p->samplename);
+    //log_printf(LOG_OUT, "playing %s\n", p->samplename);
     channels = p->channels;
 
-    //printf("channels: %d\n", channels);
+    //log_printf(LOG_OUT, "channels: %d\n", channels);
     for (channel = 0; channel < channels; ++channel) {
       float roundoff = 1;
       float value;
@@ -851,14 +852,14 @@ void playback(float **buffers, int frame, sampletime_t now) {
 
       if ((p->end - p->position) < ROUNDOFF) {
         // TODO what if end < ROUNDOFF?)
-        //printf("roundoff: %f\n", (p->end - pos) / (float) ROUNDOFF);
+        //log_printf(LOG_OUT, "roundoff: %f\n", (p->end - pos) / (float) ROUNDOFF);
         roundoff = (p->end - p->position) / (float) ROUNDOFF;
-        //printf("end roundoff: %f (%f)\n", roundoff, p->end - p->position);
+        //log_printf(LOG_OUT, "end roundoff: %f (%f)\n", roundoff, p->end - p->position);
       }
       else {
         if ((p->position - p->start) < ROUNDOFF) {
           roundoff = (p->position - p->start) / (float) ROUNDOFF;
-          //printf("start roundoff: %f (%f / %d)\n", roundoff, p->position - p->start, ROUNDOFF);
+          //log_printf(LOG_OUT, "start roundoff: %f (%f / %d)\n", roundoff, p->position - p->start, ROUNDOFF);
         }
       }
 
@@ -963,7 +964,7 @@ void playback(float **buffers, int frame, sampletime_t now) {
     p->playtime += 1.0 / g_samplerate;
 
     p->played++;
-    //printf("position: %d of %d\n", p->position, playing->end);
+    //log_printf(LOG_OUT, "position: %d of %d\n", p->position, playing->end);
     /* remove dead sounds */
     tmp = p;
     p = p->next;
@@ -1056,7 +1057,7 @@ extern int audio_init(const char *output, bool dirty_compressor, bool autoconnec
 
   delays = calloc(g_num_channels, sizeof(t_line));
   if (!delays) {
-    fprintf(stderr, "no memory to allocate `delays' array\n");
+    log_printf(LOG_ERR, "no memory to allocate `delays' array\n");
     exit(1);
   }
   
@@ -1070,7 +1071,7 @@ extern int audio_init(const char *output, bool dirty_compressor, bool autoconnec
   
   read_file_pool = thpool_init(num_workers);
   if (!read_file_pool) {
-    fprintf(stderr, "could not initialize `read_file_pool'\n");
+    log_printf(LOG_ERR, "could not initialize `read_file_pool'\n");
     exit(1);
   }
 
@@ -1085,32 +1086,32 @@ extern int audio_init(const char *output, bool dirty_compressor, bool autoconnec
 #ifdef JACK
     jack_init(autoconnect);
 #else
-    fprintf(stderr, "not compiled with jack support\n");
+    log_printf(LOG_ERR, "not compiled with jack support\n");
     return 0;
 #endif
   } else if (0 == strcmp("portaudio", output)) {
 #ifdef PORTAUDIO
     pa_init();
 #else
-    fprintf(stderr, "not compiled with portaudio support\n");
+    log_printf(LOG_ERR, "not compiled with portaudio support\n");
     return 0;
 #endif
   } else if (0 == strcmp("pulse", output)) {
 #ifdef PULSE
     pulse_init();
 #else
-    fprintf(stderr, "not compiled with pulse support\n");
+    log_printf(LOG_ERR, "not compiled with pulse support\n");
     return 0;
 #endif
   } else if (0 == strcmp("sdl2", output)) {
 #ifdef SDL2
     sdl2_init();
 #else
-    fprintf(stderr, "not compiled with sdl2 support\n");
+    log_printf(LOG_ERR, "not compiled with sdl2 support\n");
     return 0;
 #endif
   } else {
-    fprintf(stderr, "unknown output %s\n", output);
+    log_printf(LOG_ERR, "unknown output %s\n", output);
     return 0;
   }
 
@@ -1183,14 +1184,14 @@ t_sound *new_sound() {
     }
   }
 
-  // printf("playing: %d dying: %d \n", playing_n, dying);
+  // log_printf(LOG_OUT, "playing: %d dying: %d \n", playing_n, dying);
   
   // Treat MAX_PLAYING as a soft limit - those about to finish
   // aren't counted.
   if ((playing_n - dying) >= MAX_PLAYING) {
-    // printf("hit soft buffer, playing_n %d, dying %d, MAX_PLAYING %d(-%d)\n", playing_n, dying, MAX_PLAYING, MAX_PLAYING_SOFT_BUFFER);
+    // log_printf(LOG_OUT, "hit soft buffer, playing_n %d, dying %d, MAX_PLAYING %d(-%d)\n", playing_n, dying, MAX_PLAYING, MAX_PLAYING_SOFT_BUFFER);
     if (oldest != NULL) {
-      // printf("culling sound with end %f, position %f, ROUNDOFF %d\n", oldest->end, oldest->position, ROUNDOFF);
+      // log_printf(LOG_OUT, "culling sound with end %f, position %f, ROUNDOFF %d\n", oldest->end, oldest->position, ROUNDOFF);
 
       // Rather than stop immediately, set it to finish in ROUNDOFF
       // samples, so the envelope is applied thereby
@@ -1205,6 +1206,6 @@ t_sound *new_sound() {
   }
 
   pthread_mutex_unlock(&mutex_sounds);
-  // printf("qs: playing %d waiting %d loading %d\n", queue_size(playing), queue_size(waiting), queue_size(loading));
+  // log_printf(LOG_OUT, "qs: playing %d waiting %d loading %d\n", queue_size(playing), queue_size(waiting), queue_size(loading));
   return(result);
 }
