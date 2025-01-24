@@ -150,8 +150,8 @@ int main (int argc, char **argv) {
                "  -h, --help                       display this help and exit\n"
                "  -v, --version                    output version information and exit\n",
                DEFAULT_OSC_PORT, DEFAULT_OUTPUT, DEFAULT_CHANNELS,
-	       DEFAULT_SAMPLERATE,
-               20.0*log10(DEFAULT_GAIN/16.0),
+               DEFAULT_SAMPLERATE,
+               DEFAULT_GAIN_DB,
                DEFAULT_WORKERS);
         return 1;
 
@@ -205,8 +205,8 @@ int main (int argc, char **argv) {
       
       case 'g':
         gain = atof(optarg);
-        gain = (gain > 40)? 40 : gain;
-        gain = (gain < -40)?(-40): gain;
+        gain = (gain > MAX_GAIN_DB) ? MAX_GAIN_DB : gain;
+        gain = (gain < MIN_GAIN_DB) ? MIN_GAIN_DB : gain;
         g_gain = 16.0 * pow(10.0, gain/20.0);
         break;
 
