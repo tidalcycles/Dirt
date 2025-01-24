@@ -30,12 +30,18 @@ VERSION = 1.1.0
 
 LOCAL_CFLAGS := \
 -fPIC \
--DSDL2
+-Wno-documentation-unknown-command \
+-DSDL2 \
+
+LOCAL_CPPFLAGS := \
+-fPIC \
+-std=c++2a \
+-Wno-documentation-unknown-command \
+-DSDL2 \
 -DDIRT_VERSION_STRING="\"$(VERSION)\"" \
 -DIMGUI_USER_CONFIG="\"dirt-imconfig.h\"" \
 -DIMGUI_GIT_VERSION_STRING="\"$(shell cd $(LOCAL_PATH)/imgui && git describe --tags --always --dirty=+)\"" \
 
-LOCAL_CPPFLAGS := -std=c++2a -Wno-documentation-unknown-command
 LOCAL_CPP_FEATURES := 
 LOCAL_CPP_EXTENSION := .cpp .cc
 
@@ -45,17 +51,16 @@ audio.c \
 common.c \
 file.c \
 jobqueue.c \
+log-imgui.cc \
+sdl2.c \
 server.c \
 thpool.c \
-sdl2.c \
 imgui/imgui.cpp \
-imgui/imgui_demo.cpp \
 imgui/imgui_draw.cpp \
 imgui/imgui_tables.cpp \
 imgui/imgui_widgets.cpp \
 imgui/backends/imgui_impl_sdl2.cpp \
 imgui/backends/imgui_impl_opengl3.cpp \
-imgui/misc/cpp/imgui_stdlib.cpp \
 
 LOCAL_SHARED_LIBRARIES := SDL2
 LOCAL_STATIC_LIBRARIES := lo samplerate sndfile
