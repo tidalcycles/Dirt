@@ -107,7 +107,7 @@ else
   cd "${TOP}/android/SDL2-${SDLVERSION}/build/${PACKAGE}"
   if [[ "$1" =~ "release" ]]
   then
-    if [ ! -e "~/.${PACKAGE}.ks" ]
+    if [ ! -f ~/".${PACKAGE}.ks" ]
     then
       echo "you need a signing keystore in ~/.${PACKAGE}.ks"
       echo "you can create one with: keytool -genkeypair -v -keystore ~/.${PACKAGE}.ks -alias dirt -keyalg RSA -keysize 2048 -validity 10000"
@@ -115,8 +115,9 @@ else
     fi
     ./gradlew assembleRelease
     cd app/build/outputs/apk/release/
-    zipalign -v -p q4 app-release-unsigned.apk app-release-unsigned-aligned.apk
-    apksigner sign --ks "~/.${PACKAGE}.ks" --out "$2-${VERSION}.apk" app-release-unsigned-aligned.apk
+    rm -f app-release-unsigned-aligned.apk
+    zipalign -v -p 4 app-release-unsigned.apk app-release-unsigned-aligned.apk
+    apksigner sign --ks ~/".${PACKAGE}.ks" --out "$2-${VERSION}.apk" app-release-unsigned-aligned.apk
     cp -avi "$2-${VERSION}.apk" "${TOP}"
     adb install -r "$2-${VERSION}.apk"
   else
