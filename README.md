@@ -223,3 +223,150 @@ Then you get a `dirt-pa.exe` that works. Maybe this even works on any
 windows system without having to compile. You'd need `cygwin1.dll` at
 least though.
 
+# Android
+
+## Building
+
+If you're not hacking on Dirt's code, you can skip this section
+and follow the next one.
+
+### SDK + NDK
+
+You need Android SDK + NDK in `${ANDROID_HOME}` and `${ANDROID_NDK_HOME}`,
+for setup on Debian Linux see:
+<https://mathr.co.uk/web/build-scripts.html#SDK-and-NDK>.
+
+You also need a fair amount of free disk space.
+
+### Dependencies
+
+Use `build-scripts` to install `lo`, `samplerate`, and `sndfile` for Android:
+
+~~~~bash
+git clone https://code.mathr.co.uk/build-scripts.git
+cd build-scripts
+for arch in download aarch64-linux-android21 armv7a-linux-androideabi21 i686-linux-android21 x86_64-linux-android21
+do
+  ./BUILD.sh "${arch}" "lo samplerate sndfile"
+done
+~~~~
+
+The sources are downloaded to `${HOME}/opt/src`
+and compiled output will be in `${HOME}/opt/android/21`.
+
+### Dear ImGui
+
+Dirt for Android uses Dear ImGui for user interface,
+the cloned respository is expected to be
+next to the Dirt folder.  For example:
+
+~~~~bash
+git clone https://github.com/ocornut/imgui.git
+git clone https://github.com/tidalcycles/Dirt.git
+~~~~
+
+### Building Dirt for Android
+
+First you need to choose the package name of the app:
+
+~~~~bash
+export DIRT_PACKAGE=name.domain.your.dirt.v1
+~~~~
+
+A good choice is your own domain name
+with components in reverse order,
+plus the name of the app, and a version tag.
+It isn't preset, so that different developers can make
+their own versions that can be installed in parallel.
+
+Dirt for Android uses SDL2 as application wrapper,
+to download SDL2 and set up the app do:
+
+~~~~bash
+cd Dirt
+./android.sh prepare ${DIRT_PACKAGE}
+~~~~
+
+Then to do a debug build and install on a connected device:
+
+~~~~bash
+./android.sh debug ${DIRT_PACKAGE}
+~~~~
+
+To do a release build (faster, requires signing):
+
+~~~~bash
+./android.sh release ${DIRT_PACKAGE}
+~~~~
+
+It will be installed on a connected device and
+you should also end up with a
+`${DIRT_PACKAGE}-${VERSION}.apk`
+file in the main Dirt directory.
+
+## Installing
+
+If you're hacking on Dirt's code, you can skip this section
+and follow the previous one.
+
+There is no official Dirt APK yet.
+
+You can get an unofficial one from
+`https://mathr.co.uk/web/dirt.html#Android`.
+
+## Samples
+
+Dirt for Android doesn't come with any samples.
+You need to install them separately.
+Depending on Android version, permissions, etc,
+you might have to put them internal storage and SD card won't work.
+
+Samples are expected to be in
+`Storage` / `Android` / `data` / `${DIRT_PACKAGE}` / `files` / `samples` / `${SAMPLE_NAME}` / `${SAMPLE_FILE}.wav`.
+
+To get the default Dirt samples follow these steps
+(maybe you are lucky and you can replace Internal Storage with SD):
+
+1. On your Android device, download `Dirt-Samples` as a zip archive:
+   <https://github.com/tidalcycles/Dirt-Samples/archive/refs/heads/master.zip> (170MB).
+
+2. Move the zip to `Internal Storage` / `Android` / `data` / `${DIRT_PACKAGE}` / `files`.
+
+3. Unzip the zip (this will take up another 225MB).
+
+4. If your unzipper helpfully made an extra directory, like `master/Dirt-Samples-master`,
+   move the `Dirt-Samples-master` directory to be inside the parent directory `files`.
+
+5. Rename the `Dirt-Samples-master` directory to `samples`.
+
+6. You should end up `...` / `${DIRT_PACKAGE}` / `files` / `samples`,
+   with many folders inside, each containing WAV sample files.
+
+7. You can now delete the zip archive to save space.
+
+## Launch
+
+Launch Dirt as you would any other app.
+You will see a configuration screen that lets you choose some settings,
+defaults are usually fine.
+Then activate the checkbox to the left of the start button to unlock it,
+and press the start button to start the Dirt engine.
+
+There is no elegant way to stop or restart the Dirt engine yet,
+use normal Android method force stop for now
+(e.g. on the open apps list, swipe the Dirt app off the screen).
+
+If the log gets too full, you can clear it:
+activate the checkbox to the left of the clear button to unlock it,
+and press the clear button to clear the log.
+
+Dirt for Android tries to keep running in the background,
+but it can sometimes be stopped by the system if you
+open other apps that demand too many resources.
+
+## Make Noise
+
+Send OSC to Dirt from your favourite tools as usual,
+perhaps some commmand line magic
+running in Debian inside the UserLAnd app
+installed from f-Droid.
