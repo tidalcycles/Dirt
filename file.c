@@ -222,9 +222,16 @@ extern void file_preload_samples(const char *sampleroot) {
     if(strcmp(dent->d_name, ".") == 0 || strcmp(dent->d_name, "..") == 0)
       continue;
 
+#ifdef _WIN32
+    snprintf(samplename, sizeof(samplename), "%s/%s", sampleroot, dent->d_name);
+    if (stat(samplename, &st) < 0) {
+      continue;
+    }
+#else
     if (fstatat(dirfd(srcdir), dent->d_name, &st, 0) < 0) {
       continue;
     }
+#endif
 
     if (S_ISDIR(st.st_mode)) {
       int n = file_count_samples(dent->d_name, sampleroot);
