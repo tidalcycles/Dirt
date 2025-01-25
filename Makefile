@@ -1,60 +1,76 @@
 CC=gcc
 
 JACK = 1
+SDL2 = 1
 PORTAUDIO = 1
 PULSE = 1
-SDL2 = 1
+
+WINDOWS = 0
+ARCH = x86_64
 
 #CFLAGS += -O2 -march=armv6zk -mcpu=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp -g -I/usr/local/include -I/opt/local/include -Wall -std=gnu99 -DDEBUG -DHACK -DFASTSIN -Wdouble-promotion
-CFLAGS += -O2 -g -I/usr/local/include -I/opt/local/include -Wall -std=gnu99 -DDEBUG -DHACK -DFASTSIN -DSCALEPAN -MMD
-LDFLAGS += -g -lm -L/usr/local/lib -L/opt/local/lib -llo -lsndfile -lsamplerate -lpthread 
+CFLAGS += -O2 -g -I/usr/local/include -I/opt/local/include -Wall -std=gnu99 -DDEBUG -DHACK -DFASTSIN -DSCALEPAN -MMD -pthread
+LDFLAGS += -g -lm -L/usr/local/lib -L/opt/local/lib -pthread
 
 SOURCES = dirt.c common.c audio.c file.c server.c jobqueue.c thpool.c log-stdio.c
 
+PKGS = liblo sndfile samplerate
+
+ifeq ($(WINDOWS),1)
+PKG_CONFIG_PATH = $(HOME)/opt/windows/posix/$(ARCH)/lib/pkgconfig
+PKG_CONFIG_FLAGS = --static
+CFLAGS += -I../dirent_h
+LDFLAGS += -lshlwapi -Wl,-Bstatic -lpthread -Wl,-Bdynamic
+EXEEXT = .exe
+endif
+
 ifeq ($(JACK),1)
 CFLAGS += -DJACK
-LDFLAGS += -ljack
+PKGS += jack
 SOURCES += jack.c
+endif
+
+ifeq ($(SDL2),1)
+CFLAGS += -DSDL2
+PKGS += sdl2
+SOURCES += sdl2.c
 endif
 
 ifeq ($(PORTAUDIO),1)
 CFLAGS += -DPORTAUDIO
-LDFLAGS += -lportaudio
+PKGS += portaudio-2.0
 SOURCES += portaudio.c
 endif
 
 ifeq ($(PULSE),1)
-CFLAGS += -DPULSE `pkg-config --cflags libpulse-simple`
-LDFLAGS += `pkg-config --libs libpulse-simple` -lpthread
+CFLAGS += -DPULSE
+PKGS += libpulse-simple
 SOURCES += pulse.c
-endif
-
-ifeq ($(SDL2),1)
-CFLAGS += -DSDL2 `pkg-config --cflags sdl2`
-LDFLAGS += `pkg-config --libs sdl2`
-SOURCES += sdl2.c
 endif
 
 ifeq ($(JACK),1)
 CFLAGS += -DDEFAULT_OUTPUT="\"jack\""
+else
+ifeq ($(SDL2),1)
+CFLAGS += -DDEFAULT_OUTPUT="\"sdl2\""
 else
 ifeq ($(PORTAUDIO),1)
 CFLAGS += -DDEFAULT_OUTPUT="\"portaudio\""
 else
 ifeq ($(PULSE),1)
 CFLAGS += -DDEFAULT_OUTPUT="\"pulse\""
-else
-ifeq ($(SDL2),1)
-CFLAGS += -DDEFAULT_OUTPUT="\"sdl2\""
 endif
 endif
 endif
 endif
 
-OBJECTS=$(SOURCES:.c=.o)
-DEPENDS=$(OBJECTS:.o=.d)
+CFLAGS += `PKG_CONFIG_PATH="$(PKG_CONFIG_PATH)" pkg-config $(PKG_CONFIG_FLAGS) --cflags $(PKGS)`
+LDFLAGS += `PKG_CONFIG_PATH="$(PKG_CONFIG_PATH)" pkg-config $(PKG_CONFIG_FLAGS) --libs $(PKGS)`
 
-all: dirt
+OBJECTS = $(SOURCES:.c=.o)
+DEPENDS = $(OBJECTS:.o=.d)
+
+all: dirt$(EXEEXT)
 
 clean:
 	rm -f *.d *.o *~ dirt
@@ -62,7 +78,7 @@ clean:
 dirt-feedback: CFLAGS += -DFEEDBACK -DINPUT
 dirt-feedback: dirt
 
-dirt: $(OBJECTS) Makefile
+dirt$(EXEEXT): $(OBJECTS) Makefile
 	$(CC) $(OBJECTS) $(CFLAGS) $(LDFLAGS) -o $@
 
 install: dirt
