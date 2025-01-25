@@ -8,15 +8,43 @@ Released under the GNU Public Licence version 3
 Here's how to install dirt under Debian, Ubuntu or a similar distribution:
 
 ~~~~sh
-sudo apt-get install build-essential libsndfile1-dev libsamplerate0-dev \
-                     liblo-dev portaudio19-dev \
-		     libjack-jackd2-dev qjackctl jackd git
+sudo apt-get install \
+    build-essential git \
+    libsndfile1-dev libsamplerate0-dev liblo-dev \
+    libpulse-dev portaudio19-dev libsdl2-dev libjack-jackd2-dev \
+    qjackctl jackd
 git clone --recursive https://github.com/tidalcycles/Dirt.git
 cd Dirt
 make clean; make
 ~~~~
 
+To disable a subset of audio backends at build time:
+
+~~~~sh
+make clean; make JACK=0 SDL2=0 PULSE=0 PORTAUDIO=0
+~~~~
+
 ## Starting Dirt under Linux
+
+The history of Linux audio is complicated.
+Therefore there are several ways to get Dirt to talk to your hardware.
+
+### SDL2 backend
+
+SDL2 is a cross-platform framework for realtime multimedia applications
+(for example, games).
+
+The SDL2 backend is new in Dirt version 1.1, so it is not as well-tested
+as the JACK backend, but it is usually a lot easier to get started with:
+
+~~~~sh
+cd ~/Dirt
+./dirt -o sdl2
+~~~~
+
+### JACK backend
+
+JACK is a sound server designed for professional live and studio use.
 
 First of all, start the "jack" audio layer. The easier way to do this
 is with the "qjackctl" app, which you should find in your program
@@ -39,12 +67,31 @@ And finally you should be able to start dirt with this:
 
 ~~~~sh
 cd ~/Dirt
-./dirt &
+./dirt -o jack &
 ~~~~
 
 If you have problems with jack, try enabling realtime audio, and
 adjusting the settings by installing and using the "qjackctl"
 software. Some more info can be found in the [Ubuntu Community page for JACK configuration](https://help.ubuntu.com/community/HowToJACKConfiguration)
+
+### PulseAudio backend
+
+PulseAudio is a sound server designed for desktop use.
+
+~~~~sh
+cd ~/Dirt
+./dirt -o pulse
+~~~~
+
+### PortAudio backend
+
+PortAudio is a cross-platform compatibility layer
+for audio applications.
+
+~~~~sh
+cd ~/Dirt
+./dirt -o portaudio
+~~~~
 
 # MacOS installation
 
@@ -124,7 +171,7 @@ Compile dirt:
 
 ~~~bash
 cd ~/Dirt
-make clean; make
+make clean; make SDL2=0 PULSE=0 PORTAUDIO=0
 ~~~
 
 If Dirt fails to compile after using the JackOSX installer as above,
@@ -168,7 +215,9 @@ cd ~/Dirt
 
 # Windows installation
 
-## Cygwin
+## Building on Windows using Cygwin
+
+### Cygwin
 
 First, install [Cygwin](https://www.cygwin.com). In Cygwin, make sure the
 following packages are installed:
@@ -184,7 +233,7 @@ libsamplerate
 libsamplerate-devel
 ~~~~
 
-## Portaudio
+### Portaudio
 
 Download Portaudio from http://www.portaudio.com. In Cygwin, Unpack
 the download with `tar fxvz`. After unpacking, from Cygwin, go to the directory
@@ -194,7 +243,7 @@ where you unpacked Portaudio and then run:
 ./configure && make && make install
 ~~~~
 
-## Liblo
+### Liblo
 
 Download [Liblo](http://liblo.sourceforge.net).
 In Cygwin, unpack Liblo with `tar fxvz`, then in Cygwin go to the directory where you
@@ -204,7 +253,7 @@ unpacked Liblo and then run:
 ./configure && make && make install
 ~~~~
 
-## Dirt
+### Dirt
 
 In Cygwin:
 
@@ -222,6 +271,64 @@ make dirt-pa
 Then you get a `dirt-pa.exe` that works. Maybe this even works on any
 windows system without having to compile. You'd need `cygwin1.dll` at
 least though.
+
+## Building for Windows from Linux
+
+These instructions are for `x86_64` (aka `x64`, `amd64`)
+CPU architecture, which is most Windows PCs (64bit).
+ARM is starting to appear on some new laptops, and
+some old systems might still be 32bit (aka `x86`, `i686`).
+Adapting these instructions to other architectures is possible,
+see <https://mathr.co.uk/web/build-scripts.html#Prerequisites>
+for inspiration.
+
+### MINGW
+
+You need the MINGW toolchain to cross-compile for Windows.
+
+~~~~sh
+sudo apt-get install mingw-w64
+~~~~
+
+You might also want to get Wine to test Windows programs on Linux.
+
+~~~~sh
+sudo apt-get install wine
+~~~~
+
+### Dependencies
+
+Use `build-scripts` to install `lo`, `samplerate`, `sndfile` and `sdl2`
+for Windows:
+
+~~~~sh
+git clone https://code.mathr.co.uk/build-scripts.git
+cd build-scripts
+for arch in download x86_64-w64-mingw32
+do
+  ./BUILD.sh "${arch}" "lo samplerate sndfile sdl2"
+done
+~~~~
+
+The sources are downloaded to `${HOME}/opt/src`
+and compiled output will be in `${HOME}/opt/windows/posix`.
+
+### Building Dirt
+
+~~~~sh
+make CC=x86_64-w64-mingw32-gcc WINDOWS=1 JACK=0 PORTAUDIO=0 PULSE=0
+~~~~
+
+### Testing Dirt
+
+~~~~sh
+wine dirt.exe
+~~~~
+
+Some versions of Wine show console output, some don't
+(matching Microsoft Windows).
+
+A better logging solution for debugging is needed.
 
 # Android
 
