@@ -4,7 +4,6 @@
 #include <sys/time.h>
 #include <math.h>
 #include <assert.h>
-#include <dirent.h>
 #include <lo/lo.h>
 #include <unistd.h>
 
