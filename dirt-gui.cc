@@ -82,6 +82,30 @@ const char *samplerate_names[] = { "16000", "22050", "32000", "44100", "48000", 
 const int   samplerate_value[] = {  16000 ,  22050 ,  32000 ,  44100 ,  48000 ,  88200 ,  96000  };
 int         samplerate_index = 3;
 
+const char *audioapi_names[] = { "SDL2"
+#ifdef JACK
+, "JACK"
+#endif
+#ifdef PULSE
+, "PulseAudio"
+#endif
+#ifdef PORTAUDIO
+, "PortAudio"
+#endif
+};
+const char *audioapi_value[] = { "sdl2"
+#ifdef JACK
+, "jack"
+#endif
+#ifdef PULSE
+, "pulse"
+#endif
+#ifdef PORTAUDIO
+, "portaudio"
+#endif
+};
+int audioapi_index = 0; // always available
+
 bool display(bool server_running, bool audio_running)
 {
   bool restart = false;
@@ -138,6 +162,11 @@ bool display(bool server_running, bool audio_running)
       osc_port = atoi(DEFAULT_OSC_PORT);
     }
     snprintf(osc_port_string, sizeof(osc_port_string), "%d", osc_port);
+  }
+
+  if (ImGui::Combo("Audio Backend", &audioapi_index, audioapi_names, IM_ARRAYSIZE(audioapi_names)))
+  {
+    // nop
   }
 
   if (ImGui::InputInt("Channels", &num_channels))
@@ -366,7 +395,7 @@ int main(int argc, char **argv)
       if (! audio_running)
       {
         audio_running = audio_init
-          ( "sdl2"
+          ( audioapi_value[audioapi_index]
           , dirty_compressor_flag
           , jack_auto_connect_flag
           , late_trigger_flag

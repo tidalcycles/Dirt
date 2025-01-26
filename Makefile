@@ -49,25 +49,25 @@ dirt-gui$(EXEEXT): LDFLAGS += -lGL
 endif
 
 ifeq ($(JACK),1)
-CFLAGS += -DJACK
+FLAGS += -DJACK
 PKGS += jack
 SOURCES += jack.c
 endif
 
 ifeq ($(SDL2),1)
-CFLAGS += -DSDL2
+FLAGS += -DSDL2
 PKGS += sdl2
 SOURCES += sdl2.c
 endif
 
 ifeq ($(PORTAUDIO),1)
-CFLAGS += -DPORTAUDIO
+FLAGS += -DPORTAUDIO
 PKGS += portaudio-2.0
 SOURCES += portaudio.c
 endif
 
 ifeq ($(PULSE),1)
-CFLAGS += -DPULSE
+FLAGS += -DPULSE
 PKGS += libpulse-simple
 SOURCES += pulse.c
 endif
