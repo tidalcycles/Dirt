@@ -1,7 +1,5 @@
 #include <SDL.h>
-#define GLAD_GLES2_IMPLEMENTATION
-#include "gles2.h"
-#undef GLAD_GLES2_IMPLEMENTATION
+#include <SDL_opengl.h>
 
 #include <filesystem>
 #include <string>
@@ -13,7 +11,11 @@
 #include "dirt-imconfig.h"
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
+#ifdef __ANDROID__
 #include <imgui_impl_opengl3.h>
+#else
+#include <imgui_impl_opengl2.h>
+#endif
 
 #include "config.h"
 #include "log-imgui.h"
@@ -29,9 +31,15 @@ std::string pref_path = "";
 
 void initialize_paths()
 {
+#ifdef __ANDROID__
   if (! SDL_Init(0))
   {
-#ifdef __ANDROID__
+    char *p = SDL_GetPrefPath("uk.co.mathr", "dirt");
+    if (p)
+    {
+      pref_path = std::string(p);
+      SDL_free(p);
+    }
     const char *default_path = SDL_AndroidGetExternalStoragePath();
     if (default_path)
     {
@@ -43,9 +51,9 @@ void initialize_paths()
       // last resort, cannot be accessed outside this app
       std::filesystem::current_path(pref_path);
     }
-#endif
     // SDL_Quit();
   }
+#endif
 }
 
 char liblo_version_string[64] = {0};
@@ -201,7 +209,11 @@ bool want_capture(int type)
 
 bool gui(SDL_Window* window, bool &running, bool server_running, bool audio_running)
 {
+#ifdef __ANDROID__
   ImGui_ImplOpenGL3_NewFrame();
+#else
+  ImGui_ImplOpenGL2_NewFrame();
+#endif
   ImGui_ImplSDL2_NewFrame();
   ImGui::NewFrame();
 
@@ -216,16 +228,14 @@ bool gui(SDL_Window* window, bool &running, bool server_running, bool audio_runn
   glClearColor(0, 0, 0, 1);
   glClear(GL_COLOR_BUFFER_BIT);
 
+#ifdef __ANDROID__
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+#else
+  ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
+#endif
   SDL_GL_SwapWindow(window);
 
   return restart;
-}
-
-GLADapiproc get_proc_address(void *userptr, const char *name)
-{
-  (void) userptr;
-  return (GLADapiproc) SDL_GL_GetProcAddress(name);
 }
 
 int main(int argc, char **argv)
@@ -272,8 +282,10 @@ int main(int argc, char **argv)
 
   // decide GL+GLSL versions
   // see dirt-imconfig.h
+#ifdef __ANDROID__
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, OPENGL_FLAGS);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, OPENGL_PROFILE);
+#endif
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, OPENGL_MAJOR);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, OPENGL_MINOR);
 
@@ -304,16 +316,8 @@ int main(int argc, char **argv)
     return 1;
   }
   SDL_GL_MakeCurrent(window, gl_context);
-  gladLoadGLES2UserPtr(get_proc_address, nullptr);
-  const char *gl_version = (const char *) glGetString(GL_VERSION);
-
   SDL_GL_SetSwapInterval(1);
-  int win_pixel_width = 0;
-  int win_pixel_height = 0;
-  SDL_GL_GetDrawableSize(window, &win_pixel_width, &win_pixel_height);
 
-  glDisable(GL_DEPTH_TEST);
-  glDisable(GL_BLEND);
   glClearColor(0, 0, 0, 1);
   glClear(GL_COLOR_BUFFER_BIT);
 
@@ -323,7 +327,11 @@ int main(int argc, char **argv)
   ImGui::StyleColorsDark();
   ImGui::GetIO().IniFilename = nullptr;
   ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
-  ImGui_ImplOpenGL3_Init(OPENGL_GLSL_VERSION);
+#ifdef __ANDROID__
+  ImGui_ImplOpenGL3_Init();
+#else
+  ImGui_ImplOpenGL2_Init();
+#endif
 
   ImGui::GetIO().FontGlobalScale = ui_scale / 100.0f;
 
@@ -392,7 +400,11 @@ int main(int argc, char **argv)
   }
 
   // cleanup
+#ifdef __ANDROID__
   ImGui_ImplOpenGL3_Shutdown();
+#else
+  ImGui_ImplOpenGL2_Shutdown();
+#endif
   ImGui_ImplSDL2_Shutdown();
   ImGui::DestroyContext();
   SDL_GL_DeleteContext(gl_context);

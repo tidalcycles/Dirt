@@ -29,7 +29,7 @@ SOURCES_IMGUI = \
 ../imgui/imgui_tables.cpp \
 ../imgui/imgui_widgets.cpp \
 ../imgui/backends/imgui_impl_sdl2.cpp \
-../imgui/backends/imgui_impl_opengl3.cpp
+../imgui/backends/imgui_impl_opengl2.cpp
 
 PKGS = liblo sndfile samplerate
 
@@ -37,7 +37,6 @@ ifeq ($(WINDOWS),1)
 CC = $(ARCH)-w64-mingw32-gcc
 CXX = $(ARCH)-w64-mingw32-g++
 PULSE = 0
-PORTAUDIO = 0
 JACK = 0
 PKG_CONFIG_PATH = $(HOME)/opt/windows/posix/$(ARCH)/lib/pkgconfig
 PKG_CONFIG_FLAGS = --static
@@ -45,6 +44,8 @@ FLAGS += -I../dirent_h -D__USE_MINGW_ANSI_STDIO=1 -DWINVER=0x501 -D_WIN32_WINNT=
 LDFLAGS += -lshlwapi -Wl,-Bstatic -lpthread -Wl,-Bdynamic -static-libgcc -static-libstdc++
 EXEEXT = .exe
 dirt-gui$(EXEEXT): LDFLAGS += -lopengl32
+else
+dirt-gui$(EXEEXT): LDFLAGS += -lGL
 endif
 
 ifeq ($(JACK),1)
