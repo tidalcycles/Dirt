@@ -32,12 +32,6 @@ void initialize_paths()
 {
   if (! SDL_Init(0))
   {
-    char *p = SDL_GetPrefPath("uk.co.mathr", "dirt");
-    if (p)
-    {
-      pref_path = std::string(p);
-      SDL_free(p);
-    }
 #ifdef __ANDROID__
     const char *default_path = SDL_AndroidGetExternalStoragePath();
     if (default_path)
@@ -146,7 +140,7 @@ bool display(bool server_running, bool audio_running)
       num_channels = DEFAULT_CHANNELS;
     }
   }
-  
+
   if (ImGui::Combo("Sample Rate", &samplerate_index, samplerate_names, IM_ARRAYSIZE(samplerate_names)))
   {
     // nop
@@ -225,7 +219,7 @@ bool gui(SDL_Window* window, bool &running, bool server_running, bool audio_runn
 
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
   SDL_GL_SwapWindow(window);
-  
+
   return restart;
 }
 
@@ -268,9 +262,11 @@ int main(int argc, char **argv)
   }
   int win_screen_width = mode.w;
   int win_screen_height = mode.h;
+  int ui_scale = 200;
 #else
-  int win_screen_width = 1024;
-  int win_screen_height = 576;
+  int win_screen_width = 400;
+  int win_screen_height = 600;
+  int ui_scale = 100;
 #endif
 
   // decide GL+GLSL versions
@@ -328,8 +324,6 @@ int main(int argc, char **argv)
   ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
   ImGui_ImplOpenGL3_Init(OPENGL_GLSL_VERSION);
 
-  // initialize_clipboard();
-  float ui_scale = 200; // FIXME
   ImGui::GetIO().FontGlobalScale = ui_scale / 100.0f;
 
   // main loop
