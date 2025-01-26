@@ -316,19 +316,21 @@ and compiled output will be in `${HOME}/opt/windows/posix`.
 ### Building Dirt
 
 ~~~~sh
-make CC=x86_64-w64-mingw32-gcc WINDOWS=1 JACK=0 PORTAUDIO=0 PULSE=0
+make WINDOWS=1
 ~~~~
+
+You need to run `make clean` between non-Windows and Windows builds.
 
 ### Testing Dirt
 
 ~~~~sh
 wine dirt.exe
+wine dirt-gui.exe
 ~~~~
 
 Some versions of Wine show console output, some don't
 (matching Microsoft Windows).
-
-A better logging solution for debugging is needed.
+The GUI version displays messages in a window.
 
 # Android
 
