@@ -314,7 +314,7 @@ int main(int argc, char **argv)
 
   glDisable(GL_DEPTH_TEST);
   glDisable(GL_BLEND);
-  glClearColor(1, 0, 0, 1);
+  glClearColor(0, 0, 0, 1);
   glClear(GL_COLOR_BUFFER_BIT);
 
   // setup Dear ImGui context
