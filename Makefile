@@ -9,8 +9,11 @@ WINDOWS = 0
 ARCH = x86_64
 
 #CFLAGS += -O2 -march=armv6zk -mcpu=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp -g -I/usr/local/include -I/opt/local/include -Wall -std=gnu99 -DDEBUG -DHACK -DFASTSIN -Wdouble-promotion
-CFLAGS += -O2 -g -I/usr/local/include -I/opt/local/include -Wall -std=gnu99 -DDEBUG -DHACK -DFASTSIN -DSCALEPAN -MMD -pthread
-LDFLAGS += -g -lm -L/usr/local/lib -L/opt/local/lib -pthread
+DEBUG = -g -DDEBUG
+CFLAGS += $(DEBUG)
+LDFLAGS += $(DEBUG)
+CFLAGS += -O2 -I/usr/local/include -I/opt/local/include -Wall -std=gnu99 -DHACK -DFASTSIN -DSCALEPAN -MMD -pthread
+LDFLAGS += -lm -L/usr/local/lib -L/opt/local/lib -pthread
 
 SOURCES = dirt.c common.c audio.c file.c server.c jobqueue.c thpool.c log-stdio.c
 
