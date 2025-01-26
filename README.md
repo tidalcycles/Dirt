@@ -298,7 +298,8 @@ sudo apt-get install wine
 
 ### Dependencies
 
-Use `build-scripts` to install `lo`, `samplerate`, `sndfile` and `sdl2`
+Use `build-scripts` to install
+`lo`, `samplerate`, `sndfile`, `portaudio` and `sdl2`
 for Windows:
 
 ~~~~sh
@@ -306,12 +307,14 @@ git clone https://code.mathr.co.uk/build-scripts.git
 cd build-scripts
 for arch in download x86_64-w64-mingw32
 do
-  ./BUILD.sh "${arch}" "lo samplerate sndfile sdl2"
+  ./BUILD.sh "${arch}" "lo samplerate sndfile portaudio sdl2"
 done
 ~~~~
 
 The sources are downloaded to `${HOME}/opt/src`
 and compiled output will be in `${HOME}/opt/windows/posix`.
+
+You can omit `portaudio` if you add `PORTAUDIO=0` to the `make` command.
 
 ### Building Dirt
 
