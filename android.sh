@@ -70,12 +70,12 @@ EOF
   mkdir -p app/jni/src
   cd app/jni/src
   ln -fs "${TOP}/Android.mk"
-  ln -fs "${TOP}/android.cc"
   ln -fs "${TOP}/audio.c"
   ln -fs "${TOP}/audio.h"
   ln -fs "${TOP}/common.c"
   ln -fs "${TOP}/common.h"
   ln -fs "${TOP}/config.h"
+  ln -fs "${TOP}/dirt-gui.cc"
   ln -fs "${TOP}/dirt-imconfig.h"
   ln -fs "${TOP}/file.c"
   ln -fs "${TOP}/file.h"

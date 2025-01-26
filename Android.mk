@@ -46,9 +46,9 @@ LOCAL_CPP_FEATURES :=
 LOCAL_CPP_EXTENSION := .cpp .cc
 
 LOCAL_SRC_FILES := \
-android.cc \
 audio.c \
 common.c \
+dirt-gui.cc \
 file.c \
 jobqueue.c \
 log-imgui.cc \

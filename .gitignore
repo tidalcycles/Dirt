@@ -2,8 +2,8 @@
 *.o
 *.wav
 dirt
-dirt-pa
-dirt-pulse
 dirt.exe
+dirt-gui
+dirt-gui.exe
 android
 *.apk

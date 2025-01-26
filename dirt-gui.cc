@@ -3,18 +3,17 @@
 #include "gles2.h"
 #undef GLAD_GLES2_IMPLEMENTATION
 
-#include <imgui_impl_sdl2.h>
-#include <imgui_impl_opengl3.h>
-#include <imgui_stdlib.h>
-
 #include <filesystem>
+#include <string>
 
-#include <imgui.h>
 #include <lo/lo.h>
 #include <samplerate.h>
 #include <sndfile.h>
 
 #include "dirt-imconfig.h"
+#include <imgui.h>
+#include <imgui_impl_sdl2.h>
+#include <imgui_impl_opengl3.h>
 
 #include "config.h"
 #include "log-imgui.h"
@@ -231,8 +230,10 @@ GLADapiproc get_proc_address(void *userptr, const char *name)
 
 int main(int argc, char **argv)
 {
+#ifdef __ANDROID__
   SDL_SetHint(SDL_HINT_ANDROID_BLOCK_ON_PAUSE, "0");
   SDL_SetHint(SDL_HINT_ANDROID_BLOCK_ON_PAUSE_PAUSEAUDIO, "0");
+#endif
 
   log_init();
   initialize_paths();
