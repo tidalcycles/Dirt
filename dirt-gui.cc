@@ -34,7 +34,7 @@ void initialize_paths()
 #ifdef __ANDROID__
   if (! SDL_Init(0))
   {
-    char *p = SDL_GetPrefPath("uk.co.mathr", "dirt");
+    char *p = SDL_GetPrefPath("org.tidalcycles", "dirt");
     if (p)
     {
       pref_path = std::string(p);
