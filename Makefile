@@ -18,7 +18,7 @@ LDFLAGS += $(DEBUG)
 CFLAGS += -std=gnu99
 CXXFLAGS += -std=c++17
 FLAGS += -O2 -I/usr/local/include -I/opt/local/include -Wall -DHACK -DFASTSIN -DSCALEPAN -MMD -pthread -DDIRT_VERSION_STRING="\"$(VERSION)\""
-CXXFLAGS += -I../imgui -I../imgui/backends -DIMGUI_GIT_VERSION_STRING="\"$(shell cd ../imgui && git describe --tags --always --dirty=+)\""
+CXXFLAGS += -I../imgui -I../imgui/backends -I../imgui-filebrowser -DIMGUI_GIT_VERSION_STRING="\"$(shell cd ../imgui && git describe --tags --always --dirty=+)\"" -DIMGUI_FILE_BROWSER_GIT_VERSION_STRING="\"$(shell cd ../imgui-filebrowser && git describe --tags --always --dirty=+)\""
 LDFLAGS += -lm -L/usr/local/lib -L/opt/local/lib -pthread
 
 SOURCES = common.c audio.c file.c server.c jobqueue.c thpool.c

@@ -35,14 +35,15 @@ LOCAL_CFLAGS := \
 
 LOCAL_CPPFLAGS := \
 -fPIC \
--std=c++2a \
+-std=c++17 \
 -Wno-documentation-unknown-command \
 -DSDL2 \
 -DDIRT_VERSION_STRING="\"$(VERSION)\"" \
 -DIMGUI_USER_CONFIG="\"dirt-imconfig.h\"" \
 -DIMGUI_GIT_VERSION_STRING="\"$(shell cd $(LOCAL_PATH)/imgui && git describe --tags --always --dirty=+)\"" \
+-DIMGUI_FILE_BROWSER_GIT_VERSION_STRING="\"$(shell cd $(LOCAL_PATH)/imgui-filebrowser && git describe --tags --always --dirty=+)\"" \
 
-LOCAL_CPP_FEATURES := 
+LOCAL_CPP_FEATURES := exceptions
 LOCAL_CPP_EXTENSION := .cpp .cc
 
 LOCAL_SRC_FILES := \

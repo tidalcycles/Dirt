@@ -31,6 +31,7 @@
 #else
 #include <imgui_impl_opengl2.h>
 #endif
+#include <imfilebrowser.h>
 
 #include "config.h"
 #include "log-imgui.h"
@@ -103,7 +104,7 @@ bool dirty_compressor_flag = true;
 bool jack_auto_connect_flag = true;
 bool late_trigger_flag = true;
 int num_workers = 2;
-const char *sample_dir = "./samples/";
+std::filesystem::path samples_path = "./samples/";
 bool shape_gain_comp_flag = false;
 bool preload_flag = false;
 int num_channels = DEFAULT_CHANNELS;
@@ -138,7 +139,7 @@ const char *audioapi_value[] = { "sdl2"
 };
 int audioapi_index = 0; // always available
 
-bool display(bool server_running, bool audio_running)
+bool display(bool server_running, bool audio_running, ImGui::FileBrowser *chooseDir)
 {
   bool restart = false;
   ImVec2 center(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f);
@@ -177,7 +178,8 @@ bool display(bool server_running, bool audio_running)
       , "Dirt-%s (c) 2015-2025 Alex McLean and contributors\n"
         "using:\n"
         "- SDL %d.%d.%d (using %d.%d.%d)\n"
-        "- Dear ImGui %s,\n"
+        "- Dear ImGui %s\n"
+        "- imgui-filebrowser %s\n"
 #ifdef JACK
         "- JACK %d.%d.%d (protocol version %d)\n"
 #endif
@@ -197,6 +199,7 @@ bool display(bool server_running, bool audio_running)
       , sdl_compiled.major, sdl_compiled.minor, sdl_compiled.patch
       , sdl_linked.major, sdl_linked.minor, sdl_linked.patch
       , IMGUI_GIT_VERSION_STRING
+      , IMGUI_FILE_BROWSER_GIT_VERSION_STRING
 #ifdef JACK
       , jack_version_major, jack_version_minor, jack_version_micro, jack_version_proto
 #endif
@@ -280,7 +283,11 @@ bool display(bool server_running, bool audio_running)
     }
   }
 
-  ImGui::Text("Samples Root Path: %s", sample_dir);
+  if (ImGui::Button("Samples Root Path"))
+  {
+    chooseDir->Open();
+  }
+  ImGui::Text("%s", samples_path.string().c_str());
 
   ImGui::Checkbox("##ReallyClear", &really_clear);
   ImGui::SameLine();
@@ -291,6 +298,13 @@ bool display(bool server_running, bool audio_running)
   }
   log_display();
   ImGui::End();
+
+  chooseDir->Display();
+  if (chooseDir->HasSelected())
+  {
+    samples_path = std::filesystem::relative(chooseDir->GetSelected(), std::filesystem::current_path());
+    chooseDir->ClearSelected();
+  }
 
   return restart;
 }
@@ -312,7 +326,7 @@ bool want_capture(int type)
       type == SDL_KEYUP)) ;
 }
 
-bool gui(SDL_Window* window, bool &running, bool server_running, bool audio_running)
+bool gui(SDL_Window* window, bool &running, bool server_running, bool audio_running, ImGui::FileBrowser *chooseDir)
 {
 #ifdef __ANDROID__
   ImGui_ImplOpenGL3_NewFrame();
@@ -322,7 +336,7 @@ bool gui(SDL_Window* window, bool &running, bool server_running, bool audio_runn
   ImGui_ImplSDL2_NewFrame();
   ImGui::NewFrame();
 
-  bool restart = display(server_running, audio_running);
+  bool restart = display(server_running, audio_running, chooseDir);
 
   ImGui::Render();
 
@@ -440,6 +454,10 @@ int main(int argc, char **argv)
 
   ImGui::GetIO().FontGlobalScale = ui_scale / 100.0f;
 
+  ImGui::FileBrowser chooseDir(ImGuiFileBrowserFlags_SelectDirectory | ImGuiFileBrowserFlags_HideRegularFiles | ImGuiFileBrowserFlags_SkipItemsCausingError);
+  chooseDir.SetTitle("Samples Root Path");
+  chooseDir.SetWindowSize(win_screen_width - 50, 450);
+
   // main loop
   bool audio_running = false;
   bool server_running = false;
@@ -447,7 +465,7 @@ int main(int argc, char **argv)
   SDL_Event e;
   while (running)
   {
-    bool restart = gui(window, running, server_running, audio_running);
+    bool restart = gui(window, running, server_running, audio_running, &chooseDir);
 
     if (restart)
     {
@@ -476,7 +494,7 @@ int main(int argc, char **argv)
           , jack_auto_connect_flag
           , late_trigger_flag
           , num_workers
-          , sample_dir
+          , strdup(samples_path.string().c_str()) // FIXME unicode issues, small memory leak
           , shape_gain_comp_flag
           , preload_flag
           );
