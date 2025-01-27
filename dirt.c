@@ -23,6 +23,7 @@ static int jack_auto_connect_flag = 1;
 static int late_trigger_flag = 1;
 static int shape_gain_comp_flag = 0;
 static int preload_flag = 0;
+static int output_time_flag = 1;
 
 #ifdef linux
 void sigint_handler(int sig) {
@@ -77,6 +78,9 @@ int main (int argc, char **argv) {
 
       {"preload",               no_argument, &preload_flag, 1},
       {"no-preload",            no_argument, &preload_flag, 0},
+
+      {"output-time",           no_argument, &output_time_flag, 1},
+      {"no-output-time",        no_argument, &output_time_flag, 0},
 
       {"version", no_argument, 0, 'v'},
       {"help",    no_argument, 0, 'h'},
@@ -145,6 +149,8 @@ int main (int argc, char **argv) {
                "      --no-late-trigger            disable sample retrigger after loading\n"
                "      --preload                    enable sample preloading at startup\n"
                "      --no-preload                 disable sample preloading at startup (default)\n"
+               "      --output-time                assume audio output reports time correctly (default)\n"
+               "      --no-output-time             enable scheduling workaround for broken outputs\n"
 	             "  -s  --samples-root-path          set a samples root directory path\n"
                "  -w, --workers                    number of sample-reading workers (default: %u)\n"
                "  -h, --help                       display this help and exit\n"
@@ -250,7 +256,7 @@ int main (int argc, char **argv) {
   log_printf(LOG_ERR, "workers: %u\n", num_workers);
 
   log_printf(LOG_ERR, "init audio\n");
-  audio_init(output, dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag, num_workers, sampleroot, shape_gain_comp_flag, preload_flag);
+  audio_init(output, dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag, num_workers, sampleroot, shape_gain_comp_flag, preload_flag, output_time_flag);
 
   log_printf(LOG_ERR, "init open sound control\n");
   server_init(osc_port);

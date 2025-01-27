@@ -39,7 +39,7 @@
 extern "C"
 {
 #include "common.h"
-extern int audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, const char *sampleroot, bool shape_gain_comp, bool preload_flag);
+extern int audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, const char *sampleroot, bool shape_gain_comp, bool preload_flag, bool output_time_flag);
 extern int server_init(const char *osc_port);
 };
 
@@ -107,6 +107,7 @@ int num_workers = 2;
 std::filesystem::path samples_path = "./samples/";
 bool shape_gain_comp_flag = false;
 bool preload_flag = false;
+bool output_time_flag = true;
 int num_channels = DEFAULT_CHANNELS;
 int gain_db = DEFAULT_GAIN_DB;
 int samplerate = DEFAULT_SAMPLERATE;
@@ -243,7 +244,7 @@ bool display(bool server_running, bool audio_running, ImGui::FileBrowser *choose
     snprintf(osc_port_string, sizeof(osc_port_string), "%d", osc_port);
   }
 
-  if (ImGui::Combo("Audio Backend", &audioapi_index, audioapi_names, IM_ARRAYSIZE(audioapi_names)))
+  if (ImGui::Combo("Audio Output", &audioapi_index, audioapi_names, IM_ARRAYSIZE(audioapi_names)))
   {
     // nop
   }
@@ -260,6 +261,8 @@ bool display(bool server_running, bool audio_running, ImGui::FileBrowser *choose
   {
     // nop
   }
+
+  ImGui::Checkbox("Use Output DAC Time", &output_time_flag);
 
   ImGui::Checkbox("Dirty Compressor", &dirty_compressor_flag);
 
@@ -500,6 +503,7 @@ int main(int argc, char **argv)
           , strdup(samples_path.string().c_str()) // FIXME unicode issues, small memory leak
           , shape_gain_comp_flag
           , preload_flag
+          , output_time_flag
           );
       }
       if (! server_running)

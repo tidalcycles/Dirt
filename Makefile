@@ -11,13 +11,13 @@ ARCH = x86_64
 
 VERSION = 1.1.0
 
-#CFLAGS += -O2 -march=armv6zk -mcpu=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp -g -I/usr/local/include -I/opt/local/include -Wall -std=gnu99 -DDEBUG -DHACK -DFASTSIN -Wdouble-promotion
+#CFLAGS += -O2 -march=armv6zk -mcpu=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp -g -I/usr/local/include -I/opt/local/include -Wall -std=gnu99 -DDEBUG -DFASTSIN -Wdouble-promotion
 DEBUG = -g -DDEBUG
 CFLAGS += $(DEBUG)
 LDFLAGS += $(DEBUG)
 CFLAGS += -std=gnu99
 CXXFLAGS += -std=c++17
-FLAGS += -O2 -I/usr/local/include -I/opt/local/include -Wall -DHACK -DFASTSIN -DSCALEPAN -MMD -pthread -DDIRT_VERSION_STRING="\"$(VERSION)\""
+FLAGS += -O2 -I/usr/local/include -I/opt/local/include -Wall -DFASTSIN -DSCALEPAN -MMD -pthread -DDIRT_VERSION_STRING="\"$(VERSION)\""
 CXXFLAGS += -I../imgui -I../imgui/backends -I../imgui-filebrowser -DIMGUI_GIT_VERSION_STRING="\"$(shell cd ../imgui && git describe --tags --always --dirty=+)\"" -DIMGUI_FILE_BROWSER_GIT_VERSION_STRING="\"$(shell cd ../imgui-filebrowser && git describe --tags --always --dirty=+)\""
 LDFLAGS += -lm -L/usr/local/lib -L/opt/local/lib -pthread
 

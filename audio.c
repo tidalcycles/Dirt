@@ -1052,7 +1052,7 @@ void thread_send_rms() {
 }
 #endif
 
-extern int audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, const char *sroot, bool shape_gain_comp, bool preload_flag) {
+extern int audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, const char *sroot, bool shape_gain_comp, bool preload_flag, bool output_time_flag) {
   struct timeval tv;
 
   atexit(audio_close);
@@ -1097,7 +1097,7 @@ extern int audio_init(const char *output, bool dirty_compressor, bool autoconnec
 #endif
   } else if (0 == strcmp("portaudio", output)) {
 #ifdef PORTAUDIO
-    pa_init();
+    pa_init(output_time_flag);
 #else
     log_printf(LOG_ERR, "not compiled with portaudio support\n");
     return 0;

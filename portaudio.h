@@ -1,3 +1,5 @@
 #pragma once
 
-void pa_init(void);
+#include <stdbool.h>
+
+void pa_init(bool trustDacTime);

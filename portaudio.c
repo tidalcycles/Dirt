@@ -17,37 +17,54 @@ PaStream *stream;
 
 #define PA_FRAMES_PER_BUFFER 1024
 
+bool pa_trust_dac_time;
+double pa_time_origin;
+double pa_estimated_dac_time;
+const double pa_latency = 0.125;
+
+void pa_update_timebase(double now, double dac_time)
+{
+  if (pa_trust_dac_time)
+  {
+    epochOffset = now - dac_time;
+  }
+  else
+  {
+    pa_estimated_dac_time = now + pa_latency;
+    epochOffset = now - pa_estimated_dac_time;
+  }
+}
+
 static int pa_callback(const void *inputBuffer, void *outputBuffer,
 		       unsigned long framesPerBuffer,
 		       const PaStreamCallbackTimeInfo* timeInfo,
 		       PaStreamCallbackFlags statusFlags,
 		       void *userData) {
 
+  // portaudio has a way to get audio-at-DAC time
+  // but it has historically been unreliable on some platforms
+  // so when portaudio is untrusted, count audio frames
+  // try to detect when out-of-sync with real time
+  // (unconditionally updating timebase leads to
+  // unacceptable timing jitter)
   struct timeval tv;
-
-  if (epochOffset == 0) {
-    gettimeofday(&tv, NULL);
-    #ifdef HACK
-    epochOffset = 0;
-    #else
-    epochOffset = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0))
-      - timeInfo->outputBufferDacTime;
-    #endif
-    /* log_printf(LOG_OUT, "set offset (%f - %f) to %f\n", ((float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f))
-       , timeInfo->outputBufferDacTime, epochOffset); */
+  gettimeofday(&tv, NULL);
+  double now = tv.tv_sec + tv.tv_usec / 1000000.0;
+  double start = pa_trust_dac_time ? (timeInfo->outputBufferDacTime - pa_time_origin) : pa_estimated_dac_time;
+  if (! (start > now && now > start - 2 * pa_latency))
+  {
+    log_printf(LOG_OUT, "xrun?\n");
+    pa_update_timebase(now, start);
   }
-  #ifdef HACK
-  double now = ((double) tv.tv_sec + ((double) tv.tv_usec / 1000000.0));
-  #else
-  double now = timeInfo->outputBufferDacTime;
-  #endif
-  // log_printf(LOG_OUT, "%f %f %f\n", timeInfo->outputBufferDacTime, timeInfo->currentTime,   Pa_GetStreamTime(stream));
+
   float **buffers = (float **) outputBuffer;
   for (int i=0; i < framesPerBuffer; ++i) {
-    double framenow = now + (((double) i)/((double) g_samplerate));
+    double framenow = start + i / (double) g_samplerate;
     playback(buffers, i, framenow);
     dequeue(framenow);
   }
+  pa_estimated_dac_time += framesPerBuffer / (double) g_samplerate;
+
   return paContinue;
 }
 
@@ -55,7 +72,8 @@ static void StreamFinished( void* userData ) {
   printf( "Stream Completed\n");
 }
 
-void pa_init(void) {
+void pa_init(bool trustDacTime) {
+
   PaStreamParameters outputParameters;
 
   PaError err;
@@ -116,6 +134,13 @@ void pa_init(void) {
     log_printf(LOG_OUT, "setting realtime priority\n");
     PaAlsa_EnableRealtimeScheduling(stream, 1);
 #endif
+
+  pa_trust_dac_time = trustDacTime;
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  double now = tv.tv_sec + tv.tv_usec / 1000000.0;
+  pa_time_origin = Pa_GetStreamTime(stream) - now;
+  pa_update_timebase(now, now);
     
     err = Pa_StartStream(stream);
     if( err != paNoError ) {
