@@ -234,16 +234,12 @@ Tested on Debian Bookworm, other distributions may differ.
 
 ### Windows Toolchain
 
-You need the MINGW toolchain to cross-compile for Windows.
-
-~~~~sh
-sudo apt install mingw-w64
-~~~~
-
+You need the MINGW toolchain to cross-compile for Windows,
+and `build-scripts` needs `wget`.
 You might also want to get Wine to test Windows programs on Linux.
 
 ~~~~sh
-sudo apt install wine
+sudo apt install mingw-w64 wget wine
 ~~~~
 
 ### Windows Dependencies
