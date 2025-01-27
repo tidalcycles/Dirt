@@ -4,9 +4,19 @@
 #include <filesystem>
 #include <string>
 
+// for version report
 #include <lo/lo.h>
 #include <samplerate.h>
 #include <sndfile.h>
+#ifdef JACK
+#include <jack/jack.h>
+#endif
+#ifdef PULSE
+#include <pulse/version.h>
+#endif
+#ifdef PORTAUDIO
+#include <portaudio.h>
+#endif
 
 #include "dirt-imconfig.h"
 #include <imgui.h>
@@ -56,9 +66,7 @@ void initialize_paths()
 #endif
 }
 
-char liblo_version_string[64] = {0};
-char *libsamplerate_version_string = nullptr;
-const char *libsndfile_version_string = nullptr;
+char version_text[1024] = {0};
 
 bool really_restart = false;
 bool really_clear = false;
@@ -114,30 +122,74 @@ bool display(bool server_running, bool audio_running)
   ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
   ImGui::SetNextWindowSize(size, ImGuiCond_Appearing);
   ImGui::Begin("Dirt");
-  if (liblo_version_string[0] == 0)
+  if (version_text[0] == 0)
   {
+    char liblo_version_string[64] = {0};
     lo_version(liblo_version_string, sizeof(liblo_version_string), 0, 0, 0, 0, 0, 0, 0);
-    libsamplerate_version_string = strdup(src_get_version());
+    char *libsamplerate_version_string = strdup(src_get_version());
     char *space = strchr(libsamplerate_version_string, ' ');
     if (space)
     {
       *space = 0;
     }
-    libsndfile_version_string = sf_version_string();
-  }
-  ImGui::Text
-    ( "Dirt-%s (c) 2015-2025 Alex McLean and contributors\n"
-      "using: "
-      "liblo-%s, "
-      "%s,\n"
-      "%s, "
-      "imgui-%s\n"
-    , DIRT_VERSION_STRING
-    , liblo_version_string
-    , libsndfile_version_string
-    , libsamplerate_version_string
-    , IMGUI_GIT_VERSION_STRING
+    const char *libsndfile_version_string = sf_version_string();
+#ifdef JACK
+    int jack_version_major, jack_version_minor, jack_version_micro, jack_version_proto;
+    jack_get_version(&jack_version_major, &jack_version_minor, &jack_version_micro, &jack_version_proto);
+#endif
+#ifdef PULSE
+    const char *pulseaudio_version_string = pa_get_library_version();
+#endif
+#ifdef PORTAUDIO
+    const PaVersionInfo *portaudio_version = Pa_GetVersionInfo();
+#endif
+    SDL_version sdl_compiled;
+    SDL_version sdl_linked;
+    SDL_VERSION(&sdl_compiled);
+    SDL_GetVersion(&sdl_linked);
+    snprintf
+      ( version_text
+      , sizeof(version_text)
+      , "Dirt-%s (c) 2015-2025 Alex McLean and contributors\n"
+        "using:\n"
+        "- SDL %d.%d.%d (using %d.%d.%d)\n"
+        "- Dear ImGui %s,\n"
+#ifdef JACK
+        "- JACK %d.%d.%d (protocol version %d)\n"
+#endif
+#ifdef PULSE
+        "- PulseAudio %d.%d.%d (using %s)\n"
+#endif
+#ifdef PORTAUDIO
+        "- PortAudio %d.%d.%d\n"
+#endif
+        "- liblo-%s\n"
+        "- %s\n"
+        "- %s\n"
+#ifdef _WIN32
+        "- win32ports/dirent_h\n"
+#endif
+      , DIRT_VERSION_STRING
+      , sdl_compiled.major, sdl_compiled.minor, sdl_compiled.patch
+      , sdl_linked.major, sdl_linked.minor, sdl_linked.patch
+      , IMGUI_GIT_VERSION_STRING
+#ifdef JACK
+      , jack_version_major, jack_version_minor, jack_version_micro, jack_version_proto
+#endif
+#ifdef PULSE
+      , PA_MAJOR, PA_MINOR, PA_MICRO, pulseaudio_version_string
+#endif
+#ifdef PORTAUDIO
+      , portaudio_version->versionMajor, portaudio_version->versionMinor, portaudio_version->versionSubMinor
+#endif
+      , liblo_version_string
+      , libsndfile_version_string
+      , libsamplerate_version_string
     );
+    free(libsamplerate_version_string);
+  }
+  ImGui::TextUnformatted(version_text);
+
   ImGui::Text("OSC server is %s", server_running ? "running" : "not running");
   ImGui::Text("Audio engine is %s", audio_running ? "running" : "not running");
 
