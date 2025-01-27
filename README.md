@@ -3,7 +3,7 @@ An unimpressive thingie for playing bits of samples with some level of accuracy.
 (c) Alex McLean and contributors, 2016
 Released under the GNU Public Licence version 3 
 
-# Linux installation
+# Linux
 
 Here's how to install dirt under Debian, Ubuntu or a similar distribution:
 
@@ -13,8 +13,11 @@ sudo apt-get install \
     libsndfile1-dev libsamplerate0-dev liblo-dev \
     libpulse-dev portaudio19-dev libsdl2-dev libjack-jackd2-dev \
     qjackctl jackd
+git clone https://github.com/ocornut/imgui.git
+git clone https://github.com/AirGuanZ/imgui-filebrowser.git
 git clone --recursive https://github.com/tidalcycles/Dirt.git
 cd Dirt
+git checkout 1.1-dev
 make clean; make
 ~~~~
 
@@ -93,7 +96,9 @@ cd ~/Dirt
 ./dirt -o portaudio
 ~~~~
 
-# MacOS installation
+# MacOS
+
+(These instructions haven't been tested for a while, hopefully they still work.)
 
 Installing Dirt's dependencies on Mac OS X can be done via homebrew or
 MacPorts, but choose only one to avoid conflicts with duplicate system
@@ -213,9 +218,100 @@ cd ~/Dirt
 ./dirt &
 ~~~
 
-# Windows installation
+# Windows
+
+## Building for Windows from Linux
+
+These instructions are for `x86_64` (aka `x64`, `amd64`)
+target CPU architecture, which is most Windows PCs (64bit).
+ARM is starting to appear on some new laptops, and
+some old systems might still be 32bit (aka `x86`, `i686`).
+Adapting these instructions to other architectures is possible,
+see <https://mathr.co.uk/web/build-scripts.html#Prerequisites>
+for inspiration.
+
+Tested on Debian Bookworm, other distributions may differ.
+
+### Windows Toolchain
+
+You need the MINGW toolchain to cross-compile for Windows.
+
+~~~~sh
+sudo apt install mingw-w64
+~~~~
+
+You might also want to get Wine to test Windows programs on Linux.
+
+~~~~sh
+sudo apt install wine
+~~~~
+
+### Windows Dependencies
+
+You need `imgui`, `imgui-filebrowser` and `dirent_h`
+cloned next to the `Dirt` folder:
+
+~~~~sh
+git clone https://github.com/ocornut/imgui.git
+git clone https://github.com/AirGuanZ/imgui-filebrowser.git
+git clone https://github.com/claudeha/dirent_h.git
+git clone --recursive https://github.com/tidalcycles/Dirt.git
+~~~~
+
+Use `build-scripts` to install
+`lo`, `samplerate`, `sndfile`, `portaudio` and `sdl2`
+for Windows:
+
+~~~~sh
+git clone https://code.mathr.co.uk/build-scripts.git
+cd build-scripts
+./BUILD.sh download "lo samplerate sndfile portaudio sdl2"
+./BUILD.sh x86_64-w64-mingw32 "lo samplerate sndfile portaudio sdl2"
+cd ..
+~~~~
+
+The sources are downloaded to `${HOME}/opt/src`
+and compiled output will be in `${HOME}/opt/windows/posix`.
+
+### Building Dirt for Windows
+
+~~~~sh
+cd Dirt
+make WINDOWS=1
+~~~~
+
+You need to run `make clean` between non-Windows and Windows builds,
+and when changing build options.
+
+You can omit `portaudio` dependency if you build with:
+
+~~~~sh
+make WINDOWS=1 PORTAUDIO=0
+~~~~
+
+You can omit `sdl2`, `imgui` and `imgui-filebrowser` dependencies
+if you build only command line Dirt:
+
+~~~~sh
+make WINDOWS=1 SDL2=0 dirt.exe
+~~~~
+
+### Testing Windows Dirt on Linux with Wine
+
+~~~~sh
+wine dirt.exe
+wine dirt-gui.exe
+~~~~
+
+Some versions of Wine show console output, some don't
+(matching Microsoft Windows).
+The GUI version displays messages in a window.
+
+The EXEs should work on Microsoft Windows without needing any extra DLLs.
 
 ## Building on Windows using Cygwin
+
+(These instructions haven't been tested for a while, hopefully they still work.)
 
 ### Cygwin
 
@@ -272,77 +368,14 @@ Then you get a `dirt-pa.exe` that works. Maybe this even works on any
 windows system without having to compile. You'd need `cygwin1.dll` at
 least though.
 
-## Building for Windows from Linux
-
-These instructions are for `x86_64` (aka `x64`, `amd64`)
-CPU architecture, which is most Windows PCs (64bit).
-ARM is starting to appear on some new laptops, and
-some old systems might still be 32bit (aka `x86`, `i686`).
-Adapting these instructions to other architectures is possible,
-see <https://mathr.co.uk/web/build-scripts.html#Prerequisites>
-for inspiration.
-
-### MINGW
-
-You need the MINGW toolchain to cross-compile for Windows.
-
-~~~~sh
-sudo apt-get install mingw-w64
-~~~~
-
-You might also want to get Wine to test Windows programs on Linux.
-
-~~~~sh
-sudo apt-get install wine
-~~~~
-
-### Dependencies
-
-Use `build-scripts` to install
-`lo`, `samplerate`, `sndfile`, `portaudio` and `sdl2`
-for Windows:
-
-~~~~sh
-git clone https://code.mathr.co.uk/build-scripts.git
-cd build-scripts
-for arch in download x86_64-w64-mingw32
-do
-  ./BUILD.sh "${arch}" "lo samplerate sndfile portaudio sdl2"
-done
-~~~~
-
-The sources are downloaded to `${HOME}/opt/src`
-and compiled output will be in `${HOME}/opt/windows/posix`.
-
-You can omit `portaudio` if you add `PORTAUDIO=0` to the `make` command.
-
-### Building Dirt
-
-~~~~sh
-make WINDOWS=1
-~~~~
-
-You need to run `make clean` between non-Windows and Windows builds.
-
-### Testing Dirt
-
-~~~~sh
-wine dirt.exe
-wine dirt-gui.exe
-~~~~
-
-Some versions of Wine show console output, some don't
-(matching Microsoft Windows).
-The GUI version displays messages in a window.
-
 # Android
 
-## Building
+## Building for Android fom Linux
 
 If you're not hacking on Dirt's code, you can skip this section
 and follow the next one.
 
-### SDK + NDK
+### Android SDK + NDK
 
 You need Android SDK + NDK in `${ANDROID_HOME}` and `${ANDROID_NDK_HOME}`,
 for setup on Debian Linux see:
@@ -350,7 +383,7 @@ for setup on Debian Linux see:
 
 You also need a fair amount of free disk space.
 
-### Dependencies
+### Android Dependencies
 
 Use `build-scripts` to install `lo`, `samplerate`, and `sndfile` for Android:
 
@@ -366,14 +399,13 @@ done
 The sources are downloaded to `${HOME}/opt/src`
 and compiled output will be in `${HOME}/opt/android/21`.
 
-### Dear ImGui
-
-Dirt for Android uses Dear ImGui for user interface,
-the cloned respository is expected to be
-next to the Dirt folder.  For example:
+Dirt for Android uses Dear ImGui and imgui-filebrowser for user interface,
+the cloned respositories are expected to be next to the Dirt folder.
+For example:
 
 ~~~~bash
 git clone https://github.com/ocornut/imgui.git
+git clone https://github.com/AirGuanZ/imgui-filebrowser.git
 git clone https://github.com/tidalcycles/Dirt.git
 ~~~~
 
@@ -388,8 +420,8 @@ export DIRT_PACKAGE=name.domain.your.dirt.v1
 A good choice is your own domain name
 with components in reverse order,
 plus the name of the app, and a version tag.
-It isn't preset, so that different developers can make
-their own versions that can be installed in parallel.
+It isn't preset, so that different developers can make (and sign!)
+their own unofficial versions that can be installed in parallel.
 
 Dirt for Android uses SDL2 as application wrapper,
 to download SDL2 and set up the app do:
@@ -416,7 +448,7 @@ you should also end up with a
 `${DIRT_PACKAGE}-${VERSION}.apk`
 file in the main Dirt directory.
 
-## Installing
+## Installing on Android
 
 If you're hacking on Dirt's code, you can skip this section
 and follow the previous one.
@@ -424,22 +456,25 @@ and follow the previous one.
 There is no official Dirt APK yet.
 
 You can get an unofficial one from
-`https://mathr.co.uk/web/dirt.html#Android`.
+`https://mathr.co.uk/web/dirt.html#Android`
+and sideload it in the normal way.
 
 ## Samples on Android
 
 Dirt for Android doesn't come with any samples.
 You need to install them separately.
 Depending on Android version, permissions, etc,
-you might have to put them internal storage and SD card won't work.
+you might have to put them internal storage,
+and external SD card won't be recognized.
 
 Samples are expected to be in
-`Storage` / `Android` / `data` / `${DIRT_PACKAGE}` / `files` / `samples` / `${SAMPLE_NAME}` / `${SAMPLE_FILE}.wav`.
+`Storage` / `Android` / `data` / `${DIRT_PACKAGE}` / `files` / `${SAMPLES}` / `${SAMPLE_NAME}` / `${SAMPLE_FILE}.wav`.
 
-You can check you have the right place as starting Dirt creates
-a file called `README-samples-go-here.html` in the `files` folder.
+You can check you have the right place: starting Dirt creates
+a file called `README-samples-go-here.html` in the relevant `files` folder.
 
 To get the default Dirt samples follow these steps
+using your usual Android file manager
 (maybe you are lucky and you can replace Internal Storage with SD):
 
 1. On your Android device, download `Dirt-Samples` as a zip archive:
@@ -449,17 +484,26 @@ To get the default Dirt samples follow these steps
 
 3. Unzip the zip (this will take up another 225MB).
 
-4. If your unzipper helpfully made an extra directory, like `master/Dirt-Samples-master`,
+4. You can now delete the zip archive to save space.
+
+On Dirt startup, activate the `Samples Root Path` button
+and choose the samples folder in the file dialog:
+choose the parent directory, `Dirt-Samples-master`,
+of the folders containing the WAV files.
+
+To avoid having to choose on every Dirt startup, you can rename
+the folder to the default, `...` / `files` / `samples`
+using your usual Android file manager:
+
+1. If your unzipper helpfully made an extra directory, like `master/Dirt-Samples-master`,
    move the `Dirt-Samples-master` directory to be inside the parent directory `files`.
 
-5. Rename the `Dirt-Samples-master` directory to `samples`.
+2. Rename the `Dirt-Samples-master` directory to `samples`.
 
-6. You should end up `...` / `${DIRT_PACKAGE}` / `files` / `samples`,
+3. You should end up `...` / `${DIRT_PACKAGE}` / `files` / `samples`,
    with many folders inside, each containing WAV sample files.
 
-7. You can now delete the zip archive to save space.
-
-## Launch
+## Android Tips
 
 Launch Dirt as you would any other app.
 You will see a configuration screen that lets you choose some settings,
@@ -478,8 +522,6 @@ and press the clear button to clear the log.
 Dirt for Android tries to keep running in the background,
 but it can sometimes be stopped by the system if you
 open other apps that demand too many resources.
-
-## Make Noise
 
 Send OSC to Dirt from your favourite tools as usual,
 perhaps some commmand line magic
