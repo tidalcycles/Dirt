@@ -302,7 +302,7 @@ bool display(bool server_running, bool audio_running, ImGui::FileBrowser *choose
   chooseDir->Display();
   if (chooseDir->HasSelected())
   {
-    samples_path = std::filesystem::relative(chooseDir->GetSelected(), std::filesystem::current_path());
+    samples_path = std::filesystem::proximate(chooseDir->GetSelected(), std::filesystem::current_path());
     chooseDir->ClearSelected();
   }
 
