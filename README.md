@@ -426,7 +426,7 @@ There is no official Dirt APK yet.
 You can get an unofficial one from
 `https://mathr.co.uk/web/dirt.html#Android`.
 
-## Samples
+## Samples on Android
 
 Dirt for Android doesn't come with any samples.
 You need to install them separately.
@@ -435,6 +435,9 @@ you might have to put them internal storage and SD card won't work.
 
 Samples are expected to be in
 `Storage` / `Android` / `data` / `${DIRT_PACKAGE}` / `files` / `samples` / `${SAMPLE_NAME}` / `${SAMPLE_FILE}.wav`.
+
+You can check you have the right place as starting Dirt creates
+a file called `README-samples-go-here.html` in the `files` folder.
 
 To get the default Dirt samples follow these steps
 (maybe you are lucky and you can replace Internal Storage with SD):

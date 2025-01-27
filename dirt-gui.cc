@@ -4,6 +4,11 @@
 #include <filesystem>
 #include <string>
 
+#ifdef __ANDROID__
+#include <fcntl.h>
+#include <unistd.h>
+#endif
+
 // for version report
 #include <lo/lo.h>
 #include <samplerate.h>
@@ -37,6 +42,19 @@ extern int audio_init(const char *output, bool dirty_compressor, bool autoconnec
 extern int server_init(const char *osc_port);
 };
 
+const char *samples_go_here_html =
+  "<!DOCTYPE html>\n"
+  "<html><head><meta charset='UTF-8'>\n"
+  "<title>Dirt samples go here</title>\n"
+  "</head><body>\n"
+  "<h1>Dirt samples go here</h1>\n"
+  "<p>Put your folder of folder of WAV files next to this file.</p>\n"
+  "<p>For more information see: "
+  "<a href='https://github.com/tidalcycles/Dirt/tree/1.1-dev?tab=readme-ov-file#samples-on-android'>github.com/tidalcycles/Dirt</a>"
+  "</p>\n"
+  "</body></html>\n"
+;
+
 std::string pref_path = "";
 
 void initialize_paths()
@@ -62,6 +80,12 @@ void initialize_paths()
       std::filesystem::current_path(pref_path);
     }
     // SDL_Quit();
+    int fd = open("README-samples-go-here.html", O_CREAT | O_EXCL | O_RDWR, 0644);
+    if (fd != -1)
+    {
+      write(fd, samples_go_here_html, strlen(samples_go_here_html));
+      close(fd);
+    }
   }
 #endif
 }
