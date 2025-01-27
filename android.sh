@@ -79,7 +79,6 @@ EOF
   ln -fs "${TOP}/dirt-imconfig.h"
   ln -fs "${TOP}/file.c"
   ln -fs "${TOP}/file.h"
-  ln -fs "${TOP}/gles2.h"
   ln -fs "${TOP}/jobqueue.c"
   ln -fs "${TOP}/jobqueue.h"
   ln -fs "${TOP}/log.h"
