@@ -3,7 +3,7 @@ set -e
 TOP="$(pwd)"
 prefix="${HOME}/opt/android/21"
 VERSION="1.1.0"
-SDLVERSION="2.30.3"
+SDLVERSION="2.30.11"
 PACKAGE="${2}"
 if [[ "x${PACKAGE}" = "x" ]]
 then
@@ -38,7 +38,7 @@ then
 
   mkdir -p "app/src/main/java/$(echo "${PACKAGE}" | sed 's|\.|/|g')/"
   cat <<EOF > "app/src/main/java/$(echo "${PACKAGE}" | sed 's|\.|/|g')/DirtActivity.java"
-package $2;
+package ${PACKAGE};
 
 import org.libsdl.app.SDLActivity;
 
