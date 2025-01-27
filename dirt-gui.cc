@@ -221,6 +221,7 @@ bool display(bool server_running, bool audio_running, ImGui::FileBrowser *choose
   ImGui::Text("Audio engine is %s", audio_running ? "running" : "not running");
 
   ImGui::BeginDisabled(audio_running || server_running);
+
   ImGui::Checkbox("##ReallyRestart", &really_restart);
   ImGui::SameLine();
   if (ImGui::Button((audio_running || server_running) ? "Restarting with new settings not yet supported" : "Start") && really_restart)
@@ -228,7 +229,6 @@ bool display(bool server_running, bool audio_running, ImGui::FileBrowser *choose
     really_restart = false;
     restart = true;
   }
-  ImGui::EndDisabled();
 
   if (osc_port == 0)
   {
@@ -289,6 +289,8 @@ bool display(bool server_running, bool audio_running, ImGui::FileBrowser *choose
   }
   ImGui::Text("%s", samples_path.string().c_str());
 
+  ImGui::EndDisabled();
+
   ImGui::Checkbox("##ReallyClear", &really_clear);
   ImGui::SameLine();
   if (ImGui::Button("Clear Log") && really_clear)
@@ -297,6 +299,7 @@ bool display(bool server_running, bool audio_running, ImGui::FileBrowser *choose
     log_clear();
   }
   log_display();
+
   ImGui::End();
 
   chooseDir->Display();
