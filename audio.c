@@ -43,6 +43,7 @@ t_sound *playing = NULL;
 
 t_sound sounds[MAX_SOUNDS];
 int playing_n = 0;
+int g_polyphony = DEFAULT_POLYPHONY;
 
 double epochOffset = 0;
 float starttime = 0;
@@ -1052,7 +1053,7 @@ void thread_send_rms() {
 }
 #endif
 
-extern int audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, const char *sroot, bool shape_gain_comp, bool preload_flag, bool output_time_flag) {
+extern int audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, int polyphony, unsigned int num_workers, const char *sroot, bool shape_gain_comp, bool preload_flag, bool output_time_flag) {
   struct timeval tv;
 
   atexit(audio_close);
@@ -1125,6 +1126,7 @@ extern int audio_init(const char *output, bool dirty_compressor, bool autoconnec
   use_dirty_compressor = dirty_compressor;
   use_late_trigger = late_trigger;
   use_shape_gain_comp = shape_gain_comp;
+  g_polyphony = polyphony;
   return 1;
 }
 
@@ -1144,7 +1146,7 @@ t_sound *new_sound() {
   t_sound *result = NULL;
   t_sound *oldest = NULL;
   int dying = 0;
-  int cull = playing_n >= MAX_PLAYING;
+  int cull = playing_n >= g_polyphony;
 
   pthread_mutex_lock(&mutex_sounds);
   
@@ -1167,9 +1169,9 @@ t_sound *new_sound() {
 
   // log_printf(LOG_OUT, "playing: %d dying: %d \n", playing_n, dying);
   
-  // Treat MAX_PLAYING as a soft limit - those about to finish
+  // Treat polyphony as a soft limit - those about to finish
   // aren't counted.
-  if ((playing_n - dying) >= MAX_PLAYING) {
+  if ((playing_n - dying) >= g_polyphony) {
     // log_printf(LOG_OUT, "hit soft buffer, playing_n %d, dying %d, MAX_PLAYING %d(-%d)\n", playing_n, dying, MAX_PLAYING, MAX_PLAYING_SOFT_BUFFER);
     if (oldest != NULL) {
       // log_printf(LOG_OUT, "culling sound with end %f, position %f, ROUNDOFF %d\n", oldest->end, oldest->position, ROUNDOFF);

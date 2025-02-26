@@ -9,11 +9,6 @@
 #define MAXLINE  44100
 #define MAX_SOUNDS 512 // includes queue!
 
-// not a hard limit, after this number sounds will start being
-// culled (given ROUNDOFF samples to live to avoid
-// discontinuities).
-#define MAX_PLAYING 8
-
 #define ROUNDOFF 16
 #define MAX_DB 12
 
@@ -185,7 +180,7 @@ typedef struct {
 #endif
 
 extern int audio_callback(int frames, float *input, float **outputs);
-extern int audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, const char *sampleroot, bool shape_gain_comp, bool preload_flag, bool output_time_flag);
+extern int audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, int polyphony, unsigned int num_workers, const char *sampleroot, bool shape_gain_comp, bool preload_flag, bool output_time_flag);
 extern void audio_close(void);
 extern int audio_play(t_sound*);
 t_sound *new_sound();

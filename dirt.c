@@ -43,13 +43,13 @@ int main (int argc, char **argv) {
   char *osc_port = DEFAULT_OSC_PORT;
   char *sampleroot = "./samples";
   char *version = DIRT_VERSION_STRING;
-
+  int polyphony = DEFAULT_POLYPHONY;
   unsigned int num_workers = DEFAULT_WORKERS;
 
 #ifdef linux
   signal(SIGINT, sigint_handler);
 #endif
-  
+
   while (1)
   {
     static struct option long_options[] =
@@ -73,6 +73,7 @@ int main (int argc, char **argv) {
       {"no-late-trigger",       no_argument, &late_trigger_flag, 0},
       {"samples-root-path",     required_argument, 0, 's'},
       {"workers",               required_argument, 0, 'w'},
+      {"polyphony",             required_argument, 0, 'y'},
 
       {"gain",                  required_argument, 0, 'g'},
 
@@ -95,7 +96,7 @@ int main (int argc, char **argv) {
       required_argument: ":"
       optional_argument: "::" */
 
-    c = getopt_long(argc, argv, "p:o:c:r:s:w:g:vh",
+    c = getopt_long(argc, argv, "p:o:c:r:s:w:y:g:vh",
                     long_options, &option_index);
 
     if (c == -1)
@@ -151,13 +152,15 @@ int main (int argc, char **argv) {
                "      --no-preload                 disable sample preloading at startup (default)\n"
                "      --output-time                assume audio output reports time correctly (default)\n"
                "      --no-output-time             enable scheduling workaround for broken outputs\n"
-	             "  -s  --samples-root-path          set a samples root directory path\n"
+               "  -s, --samples-root-path          set a samples root directory path\n"
+               "  -y, --polyphony                  number of simultaneous voices (default: %u)\n"
                "  -w, --workers                    number of sample-reading workers (default: %u)\n"
                "  -h, --help                       display this help and exit\n"
                "  -v, --version                    output version information and exit\n",
                DEFAULT_OSC_PORT, DEFAULT_OUTPUT, DEFAULT_CHANNELS,
                DEFAULT_SAMPLERATE,
                DEFAULT_GAIN_DB,
+               DEFAULT_POLYPHONY,
                DEFAULT_WORKERS);
         return 1;
 
@@ -201,6 +204,14 @@ int main (int argc, char **argv) {
       case 's':
 	sampleroot = optarg;
 	break;
+
+      case 'y':
+        polyphony = atoi(optarg);
+        if (polyphony <= 0) {
+          polyphony = MAX_SOUNDS;
+        }
+        break;
+
       case 'w':
         num_workers = atoi(optarg);
         if (num_workers < 1) {
@@ -208,7 +219,7 @@ int main (int argc, char **argv) {
           num_workers = DEFAULT_WORKERS;
         }
         break;
-      
+
       case 'g':
         gain = atof(optarg);
         gain = (gain > MAX_GAIN_DB) ? MAX_GAIN_DB : gain;
@@ -253,10 +264,11 @@ int main (int argc, char **argv) {
     log_printf(LOG_ERR, "sample preloading enabled\n");
   }
 
+  log_printf(LOG_ERR, "polyphony: %d\n", polyphony);
   log_printf(LOG_ERR, "workers: %u\n", num_workers);
 
   log_printf(LOG_ERR, "init audio\n");
-  audio_init(output, dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag, num_workers, sampleroot, shape_gain_comp_flag, preload_flag, output_time_flag);
+  audio_init(output, dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag, polyphony, num_workers, sampleroot, shape_gain_comp_flag, preload_flag, output_time_flag);
 
   log_printf(LOG_ERR, "init open sound control\n");
   server_init(osc_port);

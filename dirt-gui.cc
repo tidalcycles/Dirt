@@ -39,7 +39,7 @@
 extern "C"
 {
 #include "common.h"
-extern int audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, unsigned int num_workers, const char *sampleroot, bool shape_gain_comp, bool preload_flag, bool output_time_flag);
+extern int audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, int polyphony, unsigned int num_workers, const char *sampleroot, bool shape_gain_comp, bool preload_flag, bool output_time_flag);
 extern int server_init(const char *osc_port);
 };
 
@@ -110,11 +110,14 @@ bool preload_flag = false;
 bool output_time_flag = true;
 int num_channels = DEFAULT_CHANNELS;
 int gain_db = DEFAULT_GAIN_DB;
-int samplerate = DEFAULT_SAMPLERATE;
 
 const char *samplerate_names[] = { "16000", "22050", "32000", "44100", "48000", "88200", "96000" };
 const int   samplerate_value[] = {  16000 ,  22050 ,  32000 ,  44100 ,  48000 ,  88200 ,  96000  };
 int         samplerate_index = 3;
+
+const char *polyphony_names[] = { "4", "8", "16", "32", "64", "128", "256", "512" };
+const int   polyphony_value[] = {  4 ,  8 ,  16 ,  32 ,  64 ,  128 ,  256 ,  512  };
+int         polyphony_index = 5;
 
 const char *audioapi_names[] = { "SDL2"
 #ifdef JACK
@@ -278,6 +281,11 @@ bool display(bool server_running, bool audio_running, ImGui::FileBrowser *choose
 
   ImGui::Checkbox("Late Trigger", &late_trigger_flag);
 
+  if (ImGui::Combo("Polyphony", &polyphony_index, polyphony_names, IM_ARRAYSIZE(polyphony_names)))
+  {
+    // nop
+  }
+
   if (ImGui::InputInt("Workers", &num_workers))
   {
     if (! (1 <= num_workers && num_workers <= 8))
@@ -401,7 +409,7 @@ int main(int argc, char **argv)
   int ui_scale = 200;
 #else
   int win_screen_width = 400;
-  int win_screen_height = 600;
+  int win_screen_height = 640;
   int ui_scale = 100;
 #endif
 
@@ -499,6 +507,7 @@ int main(int argc, char **argv)
           , dirty_compressor_flag
           , jack_auto_connect_flag
           , late_trigger_flag
+          , polyphony_value[polyphony_index]
           , num_workers
           , strdup(samples_path.string().c_str()) // FIXME unicode issues, small memory leak
           , shape_gain_comp_flag

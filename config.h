@@ -18,6 +18,8 @@
 #define MIN_SAMPLERATE 1024
 #define MAX_SAMPLERATE 128000
 
+#define DEFAULT_POLYPHONY 128
+
 #define DEFAULT_WORKERS 2
 
 // Brings it into being roughly equivalent to superdirt
