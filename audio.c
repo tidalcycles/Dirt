@@ -671,14 +671,8 @@ void init_sound(t_sound *sound) {
   if (sound->delay > 1) {
     sound->delay = 1;
   }
-
-  if (sound->delaytime > 1) {
-    sound->delaytime = 1;
-  }
-
-  if (sound->delayfeedback >= 1) {
-    sound->delayfeedback = 0.9999;
-  }
+  sound->delaytime = fminf(fmaxf(0, sound->delaytime), 1);
+  sound->delayfeedback = fminf(fmaxf(-0.9999f, sound->delayfeedback), 0.9999f);
 
   sound->startT = sound->when - epochOffset;
 
@@ -738,7 +732,7 @@ void init_sound(t_sound *sound) {
   if (sound->delaytime >= 0) {
     delay_time = sound->delaytime;
   }
-  if (sound->delayfeedback >= 0) {
+  if (sound->delayfeedback != 0) {
     delay_feedback = sound->delayfeedback;
   }
 
@@ -964,7 +958,7 @@ void playback_finalize(float **buffers, int frame) {
   int channel;
   for (channel = 0; channel < g_num_channels; ++channel) {
     float tmp = shift_delay(&delays[channel]);
-    if (delay_feedback > 0 && tmp != 0) {
+    if (delay_feedback != 0 && tmp != 0) {
       add_delay(&delays[channel], tmp, delay_time, delay_feedback);
     }
     buffers[channel][frame] += tmp;
