@@ -862,11 +862,11 @@ float playback_source(t_sound *p, int channel)
 {
   float value = 0;
   int ix = (p->channels * (p->reverse ? (p->sample->info->frames - (int) p->position) : (int) p->position)) + channel;
-  if (0 <= ix && ix < p->end)
+  if (0 <= ix && ix < p->end * p->channels)
   {
     value = p->items[ix];
     int next_ix = p->reverse ? ix - p->channels : ix + p->channels;
-    if (0 <= next_ix && next_ix < p->end)
+    if (0 <= next_ix && next_ix < p->end * p->channels)
     {
       float next_value = p->items[next_ix];
       float tween_amount = (p->position - (int) p->position);
