@@ -33,8 +33,8 @@
 const char *compressor_names[compressors] =
 { "none"
 , "dirty"
-, "dave"
 , "clean"
+, "dave"
 };
 
 t_line* delays;
