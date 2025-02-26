@@ -33,6 +33,7 @@
 const char *compressor_names[compressors] =
 { "none"
 , "dirty"
+, "dave"
 };
 
 t_line* delays;
@@ -969,6 +970,14 @@ void playback_finalize(float **buffers, int frame) {
       break;
     }
 
+    case compressor_dave:
+    {
+      for (channel = 0; channel < g_num_channels; ++channel) {
+        buffers[channel][frame] = compressdave(buffers[channel][frame]) * g_gain / 5.0f;
+      }
+      break;
+    }
+
     default:
     case compressor_none:
     {
@@ -1137,7 +1146,7 @@ extern int audio_init(const char *output, compressor_t compressor, bool autoconn
     return 0;
   }
 
-  compression_speed = 1000 / g_samplerate;
+  compression_speed = 1000.0 / g_samplerate;
   use_compressor = compressor;
   use_late_trigger = late_trigger;
   use_shape_gain_comp = shape_gain_comp;

@@ -139,6 +139,7 @@ int main (int argc, char **argv) {
                "  -m, --compressor                 choose compressor for audio output (default: %s)\n"
                "                  none             no dynamic range compression\n"
                "                  dirty            dirty compressor\n"
+               "                  dave             dave compressor\n"
                "      --shape-gain-compensation    enable distortion gain compensation\n"
                "      --no-shape-gain-compensation disable distortion gain compensation (default)\n"
                "  -g, --gain                       gain adjustment (default %f db)\n"

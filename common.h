@@ -8,6 +8,7 @@ extern int g_samplerate;
 typedef enum {
   compressor_none = 0,
   compressor_dirty,
+  compressor_dave,
   compressors
 } compressor_t;
 extern const char *compressor_names[compressors];
