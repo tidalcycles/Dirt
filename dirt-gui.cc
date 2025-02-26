@@ -118,7 +118,7 @@ const char *polyphony_names[] = { "4", "8", "16", "32", "64", "128", "256", "512
 const int   polyphony_value[] = {  4 ,  8 ,  16 ,  32 ,  64 ,  128 ,  256 ,  512  };
 int         polyphony_index = 5;
 
-const compressor_t compressor_value[] = { compressor_none, compressor_dirty, compressor_dave };
+const compressor_t compressor_value[] = { compressor_none, compressor_dirty, compressor_dave, compressor_clean };
 int compressor_index = DEFAULT_COMPRESSOR;
 
 const char *audioapi_names[] = { "SDL2"

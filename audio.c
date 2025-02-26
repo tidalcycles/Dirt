@@ -34,6 +34,7 @@ const char *compressor_names[compressors] =
 { "none"
 , "dirty"
 , "dave"
+, "clean"
 };
 
 t_line* delays;
@@ -862,6 +863,22 @@ float compressdave(float in) {
   return(result);
 }
 
+float compressclean(float in) {
+  const float pregain = 4;
+  static float env = 0;
+  float result = in * pregain;
+  float t = result * result;
+  env = env * (1-compression_speed) + t*compression_speed;
+  float actual_rms = sqrtf(env);
+  float target_rms = 0.5; // oo:1 compression ratio
+  if (target_rms < actual_rms) // don't increase volume or divide by zero
+  {
+    float gain = target_rms / actual_rms;
+    result *= gain;
+  }
+  return tanhf(result); // soft clipping for transients
+}
+
 /**/
 
 static inline
@@ -955,6 +972,7 @@ void playback_finalize(float **buffers, int frame) {
 
   switch (use_compressor)
   {
+    default:
     case compressor_dirty:
     {
       float max = 0;
@@ -978,7 +996,14 @@ void playback_finalize(float **buffers, int frame) {
       break;
     }
 
-    default:
+    case compressor_clean:
+    {
+      for (channel = 0; channel < g_num_channels; ++channel) {
+        buffers[channel][frame] = compressclean(buffers[channel][frame]) * g_gain / 5.0f;
+      }
+      break;
+    }
+
     case compressor_none:
     {
       for (channel = 0; channel < g_num_channels; ++channel) {
@@ -1146,8 +1171,15 @@ extern int audio_init(const char *output, compressor_t compressor, bool autoconn
     return 0;
   }
 
-  compression_speed = 1000.0 / g_samplerate;
+  switch (compressor)
+  {
+    default:
+    case compressor_dave: compression_speed = 1000.0 / g_samplerate; break;
+    case compressor_clean: compression_speed = 60.0 / g_samplerate; break;
+    case compressor_none: compression_speed = 0; break;
+  }
   use_compressor = compressor;
+
   use_late_trigger = late_trigger;
   use_shape_gain_comp = shape_gain_comp;
   g_polyphony = polyphony;

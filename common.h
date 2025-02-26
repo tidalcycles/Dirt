@@ -9,6 +9,7 @@ typedef enum {
   compressor_none = 0,
   compressor_dirty,
   compressor_dave,
+  compressor_clean,
   compressors
 } compressor_t;
 extern const char *compressor_names[compressors];
