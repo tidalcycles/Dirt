@@ -97,7 +97,7 @@ extern int file_count_samples(char *set, const char *sampleroot) {
 
   snprintf(path, sizeof(path), "%s/%s", sampleroot, set);
   result = scandir(path, &namelist, wav_filter, alphasort);
-  
+
   if (result >= 0) {
     free(namelist);
   }
@@ -105,22 +105,38 @@ extern int file_count_samples(char *set, const char *sampleroot) {
     // Some error reading the folder
     result = 0;
   }
-  
+
   return(result);
 }
 
 extern t_sample *file_get(char *samplename, const char *sampleroot) {
+  static int warned = 0; // only print the too-many-samples message once
   t_sample* sample;
-
+  // Initialize mutexes if needed FIXME is this racy?
+  if (!mutex_samples_init) {
+    pthread_mutex_init(&mutex_samples, NULL);
+    mutex_samples_init = true;
+  }
   sample = find_sample(samplename);
 
   // If sample was not in cache, read it from disk asynchronously
   if (sample == NULL) {
-    // Initialize mutexes if needed
-    if (!mutex_samples_init) {
-      pthread_mutex_init(&mutex_samples, NULL);
-      mutex_samples_init = true;
+
+    // if the sample cache is full, don't bother trying to load
+    int worth_trying;
+    pthread_mutex_lock(&mutex_samples);
+    worth_trying = sample_count < MAXSAMPLES;
+    pthread_mutex_unlock(&mutex_samples);
+    if (! worth_trying)
+    {
+      if (! warned)
+      {
+        log_printf(LOG_ERR, "too many samples, not loading any more\n");
+        warned = 1;
+      }
+      return NULL;
     }
+    // another thread might get in before we do, checked later...
 
     SNDFILE *sndfile;
     char path[2 * MAXPATHSIZE + 24];
@@ -158,6 +174,7 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
     //log_printf(LOG_OUT, "opening %s.\n", path);
 
     if ((sndfile = (SNDFILE *) sf_open(path, SFM_READ, info)) == NULL) {
+      // FIXME should this only print the message once per path to avoid flood?
       log_printf(LOG_OUT, "could not open sound file %s for sample %s\n", path, samplename);
       free(info);
     } else {
@@ -190,11 +207,33 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
     }
     // else an error message will already have been printed
 
-    // If sample was succesfully read, load it into cache
+    // If sample was succesfully read, load it into cache if there is space
     if (sample) {
+      int failed = 0;
       pthread_mutex_lock(&mutex_samples);
-      samples[sample_count++] = sample;
+      if (sample_count < MAXSAMPLES)
+      {
+        samples[sample_count++] = sample;
+      }
+      else
+      {
+        // another thread got in before us
+        failed = 1;
+      }
       pthread_mutex_unlock(&mutex_samples);
+      if (failed)
+      {
+        if (! warned)
+        {
+          log_printf(LOG_ERR, "too many samples, not loading any more\n");
+          warned = 1;
+        }
+        // don't leak the sample data
+        free(sample->info);
+        free(sample->items);
+        free(sample);
+        sample = NULL;
+      }
     }
   }
 
@@ -212,7 +251,7 @@ extern void file_preload_samples(const char *sampleroot) {
 
   // sample set name
   char samplename[MAXPATHSIZE + 24];
-  
+
   if (srcdir == NULL) {
     return;
   }
@@ -236,12 +275,14 @@ extern void file_preload_samples(const char *sampleroot) {
     if (S_ISDIR(st.st_mode)) {
       int n = file_count_samples(dent->d_name, sampleroot);
       for (int i = 0; i < n; ++i) {
-	snprintf(samplename, sizeof(samplename), "%s:%d", dent->d_name, i);
-	log_printf(LOG_ERR, "> %s\n", samplename);
-	file_get(samplename, sampleroot);
+        snprintf(samplename, sizeof(samplename), "%s:%d", dent->d_name, i);
+        t_sample *s = file_get(samplename, sampleroot);
+        if (! s) goto done;
+        log_printf(LOG_ERR, "> %s\n", s->name);
       }
     }
   }
+done:
   log_printf(LOG_ERR, "preload done.\n");
   closedir(srcdir);
 }

@@ -1,6 +1,6 @@
 #include <sndfile.h>
 
-#define MAXSAMPLES 2048
+#define MAXSAMPLES 512
 #define MAXFILES 4096
 #define MAXPATHSIZE 256
 

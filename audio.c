@@ -1121,10 +1121,6 @@ extern int audio_init(const char *output, compressor_t compressor, bool autoconn
   pthread_mutex_init(&queue_loading_lock, NULL);
   pthread_mutex_init(&mutex_sounds, NULL);
 
-  if (preload_flag) {
-    file_preload_samples(sampleroot);
-  }
-  
   read_file_pool = thpool_init(num_workers);
   if (!read_file_pool) {
     log_printf(LOG_ERR, "could not initialize `read_file_pool'\n");
@@ -1183,6 +1179,11 @@ extern int audio_init(const char *output, compressor_t compressor, bool autoconn
   use_late_trigger = late_trigger;
   use_shape_gain_comp = shape_gain_comp;
   g_polyphony = polyphony;
+
+  if (preload_flag) {
+    file_preload_samples(sampleroot);
+  }
+
   return 1;
 }
 
