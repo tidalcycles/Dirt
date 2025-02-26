@@ -39,7 +39,7 @@
 extern "C"
 {
 #include "common.h"
-extern int audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, int polyphony, unsigned int num_workers, const char *sampleroot, bool shape_gain_comp, bool preload_flag, bool output_time_flag);
+extern int audio_init(const char *output, compressor_t compressor, bool autoconnect, bool late_trigger, int polyphony, unsigned int num_workers, const char *sampleroot, bool shape_gain_comp, bool preload_flag, bool output_time_flag);
 extern int server_init(const char *osc_port);
 };
 
@@ -100,7 +100,6 @@ int active_osc_port = 0;
 char osc_port_string[64] = {0};
 int osc_port = 0;
 
-bool dirty_compressor_flag = true;
 bool jack_auto_connect_flag = true;
 bool late_trigger_flag = true;
 int num_workers = 2;
@@ -118,6 +117,9 @@ int         samplerate_index = 3;
 const char *polyphony_names[] = { "4", "8", "16", "32", "64", "128", "256", "512" };
 const int   polyphony_value[] = {  4 ,  8 ,  16 ,  32 ,  64 ,  128 ,  256 ,  512  };
 int         polyphony_index = 5;
+
+const int compressor_value[] = { 0, 1 };
+int compressor_index = DEFAULT_COMPRESSOR;
 
 const char *audioapi_names[] = { "SDL2"
 #ifdef JACK
@@ -267,7 +269,10 @@ bool display(bool server_running, bool audio_running, ImGui::FileBrowser *choose
 
   ImGui::Checkbox("Use Output DAC Time", &output_time_flag);
 
-  ImGui::Checkbox("Dirty Compressor", &dirty_compressor_flag);
+  if (ImGui::Combo("Compressor", &compressor_index, compressor_names, IM_ARRAYSIZE(compressor_value)))
+  {
+    // nop
+  }
 
   ImGui::Checkbox("Shape Gain Compensation", &shape_gain_comp_flag);
 
@@ -504,7 +509,7 @@ int main(int argc, char **argv)
       {
         audio_running = audio_init
           ( audioapi_value[audioapi_index]
-          , dirty_compressor_flag
+          , (compressor_t) compressor_value[compressor_index]
           , jack_auto_connect_flag
           , late_trigger_flag
           , polyphony_value[polyphony_index]

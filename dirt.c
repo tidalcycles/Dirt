@@ -18,7 +18,7 @@
 #endif
 
 static const char *output = DEFAULT_OUTPUT;
-static int dirty_compressor_flag = 1;
+static compressor_t use_compressor = DEFAULT_COMPRESSOR;
 static int jack_auto_connect_flag = 1;
 static int late_trigger_flag = 1;
 static int shape_gain_comp_flag = 0;
@@ -61,8 +61,7 @@ int main (int argc, char **argv) {
       {"output",                required_argument, 0, 'o'},
       {"channels",              required_argument, 0, 'c'},
       {"samplerate",            required_argument, 0, 'r'},
-      {"dirty-compressor",      no_argument, &dirty_compressor_flag, 1},
-      {"no-dirty-compressor",   no_argument, &dirty_compressor_flag, 0},
+      {"compressor",            required_argument, 0, 'm'},
       {"shape-gain-compensation",      no_argument, &shape_gain_comp_flag, 1},
       {"no-shape-gain-compensation",   no_argument, &shape_gain_comp_flag, 0},
 #ifdef JACK
@@ -96,7 +95,7 @@ int main (int argc, char **argv) {
       required_argument: ":"
       optional_argument: "::" */
 
-    c = getopt_long(argc, argv, "p:o:c:r:s:w:y:g:vh",
+    c = getopt_long(argc, argv, "p:o:c:r:m:s:w:y:g:vh",
                     long_options, &option_index);
 
     if (c == -1)
@@ -137,8 +136,9 @@ int main (int argc, char **argv) {
 #ifdef JACK
                "                                   (-o jack uses engine rate)\n"
 #endif
-               "      --dirty-compressor           enable dirty compressor on audio output (default)\n"
-               "      --no-dirty-compressor        disable dirty compressor on audio output\n"
+               "  -m, --compressor                 choose compressor for audio output (default: %s)\n"
+               "                  none             no dynamic range compression\n"
+               "                  dirty            dirty compressor\n"
                "      --shape-gain-compensation    enable distortion gain compensation\n"
                "      --no-shape-gain-compensation disable distortion gain compensation (default)\n"
                "  -g, --gain                       gain adjustment (default %f db)\n"
@@ -159,6 +159,7 @@ int main (int argc, char **argv) {
                "  -v, --version                    output version information and exit\n",
                DEFAULT_OSC_PORT, DEFAULT_OUTPUT, DEFAULT_CHANNELS,
                DEFAULT_SAMPLERATE,
+               compressor_names[DEFAULT_COMPRESSOR],
                DEFAULT_GAIN_DB,
                DEFAULT_POLYPHONY,
                DEFAULT_WORKERS);
@@ -201,6 +202,27 @@ int main (int argc, char **argv) {
         }
 	g_samplerate = samplerate;
         break;
+
+      case 'm':
+        {
+          int c = -1;
+          for (int i = 0; i < compressors; ++i)
+          {
+            if (0 == strcmp(compressor_names[i], optarg))
+            {
+              c = i;
+              break;
+            }
+          }
+          if (c == -1)
+          {
+            log_printf(LOG_ERR, "invalid compressor: %s. resetting to default\n", optarg);
+            c = DEFAULT_COMPRESSOR;
+          }
+          use_compressor = c;
+        }
+        break;
+
       case 's':
 	sampleroot = optarg;
 	break;
@@ -242,10 +264,8 @@ int main (int argc, char **argv) {
   log_printf(LOG_ERR, "samplerate: %u\n", g_samplerate);
   log_printf(LOG_ERR, "gain (dB): %f\n", gain);
   log_printf(LOG_ERR, "gain factor: %f\n", g_gain);
+  log_printf(LOG_ERR, "compressor : %s\n", compressor_names[use_compressor]);
 
-  if (!dirty_compressor_flag) {
-    log_printf(LOG_ERR, "dirty compressor disabled\n");
-  }
   if (shape_gain_comp_flag) {
     log_printf(LOG_ERR, "distortion gain compensation enabled\n");
   }
@@ -268,7 +288,7 @@ int main (int argc, char **argv) {
   log_printf(LOG_ERR, "workers: %u\n", num_workers);
 
   log_printf(LOG_ERR, "init audio\n");
-  audio_init(output, dirty_compressor_flag, jack_auto_connect_flag, late_trigger_flag, polyphony, num_workers, sampleroot, shape_gain_comp_flag, preload_flag, output_time_flag);
+  audio_init(output, use_compressor, jack_auto_connect_flag, late_trigger_flag, polyphony, num_workers, sampleroot, shape_gain_comp_flag, preload_flag, output_time_flag);
 
   log_printf(LOG_ERR, "init open sound control\n");
   server_init(osc_port);

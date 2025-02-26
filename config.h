@@ -22,6 +22,8 @@
 
 #define DEFAULT_WORKERS 2
 
+#define DEFAULT_COMPRESSOR 1
+
 // Brings it into being roughly equivalent to superdirt
 #define CUTOFFRATIO 30000.0f
 

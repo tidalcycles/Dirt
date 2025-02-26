@@ -30,6 +30,11 @@
 
 #define HALF_PI 1.5707963267948966f
 
+const char *compressor_names[compressors] =
+{ "none"
+, "dirty"
+};
+
 t_line* delays;
 float line_feedback_delay;
 
@@ -53,7 +58,7 @@ float compression_speed = -1;
 float delay_time = 0.1;
 float delay_feedback = 0.7;
 
-bool use_dirty_compressor = false;
+compressor_t use_compressor = DEFAULT_COMPRESSOR;
 bool use_late_trigger = false;
 bool use_shape_gain_comp = false;
 
@@ -947,23 +952,33 @@ void playback_finalize(float **buffers, int frame) {
     buffers[channel][frame] += tmp;
   }
 
-  if (use_dirty_compressor) {
-    float max = 0;
-
-    for (channel = 0; channel < g_num_channels; ++channel) {
-      if (fabsf(buffers[channel][frame]) > max) {
-        max = buffers[channel][frame];
+  switch (use_compressor)
+  {
+    case compressor_dirty:
+    {
+      float max = 0;
+      for (channel = 0; channel < g_num_channels; ++channel) {
+        if (fabsf(buffers[channel][frame]) > max) {
+          max = buffers[channel][frame];
+        }
       }
+      float factor = compress(max);
+      for (channel = 0; channel < g_num_channels; ++channel) {
+        buffers[channel][frame] *= factor * g_gain/5.0f;
+      }
+      break;
     }
-    float factor = compress(max);
-    for (channel = 0; channel < g_num_channels; ++channel) {
-      buffers[channel][frame] *= factor * g_gain/5.0f;
-    }
-  } else {
-    for (channel = 0; channel < g_num_channels; ++channel) {
-      buffers[channel][frame] *= g_gain;
+
+    default:
+    case compressor_none:
+    {
+      for (channel = 0; channel < g_num_channels; ++channel) {
+        buffers[channel][frame] *= g_gain;
+      }
+      break;
     }
   }
+
 #ifdef SEND_RMS
   for (int i = 0; i < MAX_ORBIT*2; ++i) {
     rms[i].sum_of_squares -= rms[i].squares[rms[i].n];
@@ -1053,7 +1068,7 @@ void thread_send_rms() {
 }
 #endif
 
-extern int audio_init(const char *output, bool dirty_compressor, bool autoconnect, bool late_trigger, int polyphony, unsigned int num_workers, const char *sroot, bool shape_gain_comp, bool preload_flag, bool output_time_flag) {
+extern int audio_init(const char *output, compressor_t compressor, bool autoconnect, bool late_trigger, int polyphony, unsigned int num_workers, const char *sroot, bool shape_gain_comp, bool preload_flag, bool output_time_flag) {
   struct timeval tv;
 
   atexit(audio_close);
@@ -1123,7 +1138,7 @@ extern int audio_init(const char *output, bool dirty_compressor, bool autoconnec
   }
 
   compression_speed = 1000 / g_samplerate;
-  use_dirty_compressor = dirty_compressor;
+  use_compressor = compressor;
   use_late_trigger = late_trigger;
   use_shape_gain_comp = shape_gain_comp;
   g_polyphony = polyphony;
