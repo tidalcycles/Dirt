@@ -43,7 +43,8 @@ PKG_CONFIG_FLAGS = --static
 FLAGS += -I../dirent_h -D__USE_MINGW_ANSI_STDIO=1 -DWINVER=0x501 -D_WIN32_WINNT=0x501
 LDFLAGS += -lshlwapi -Wl,-Bstatic -lpthread -Wl,-Bdynamic -static-libgcc -static-libstdc++
 EXEEXT = .exe
-dirt-gui$(EXEEXT): LDFLAGS += -lopengl32
+dirt$(EXEEXT): LDFLAGS += -mconsole
+dirt-gui$(EXEEXT): LDFLAGS += -lopengl32 -mwindows
 else
 dirt-gui$(EXEEXT): LDFLAGS += -lGL
 endif
