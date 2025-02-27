@@ -1101,6 +1101,8 @@ extern int audio_init(const char *output, compressor_t compressor, bool autoconn
 
   atexit(audio_close);
 
+  file_init();
+
   gettimeofday(&tv, NULL);
   sampleroot = sroot;
   starttime = (float) tv.tv_sec + ((float) tv.tv_usec / 1000000.0f);

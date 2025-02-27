@@ -16,7 +16,6 @@ t_sample *samples[MAXSAMPLES];
 int sample_count = 0;
 
 pthread_mutex_t mutex_samples;
-bool mutex_samples_init = false;
 
 t_loop *new_loop(float seconds) {
   t_loop *result = (t_loop *) calloc(1, sizeof(t_loop));
@@ -112,11 +111,6 @@ extern int file_count_samples(char *set, const char *sampleroot) {
 extern t_sample *file_get(char *samplename, const char *sampleroot) {
   static int warned = 0; // only print the too-many-samples message once
   t_sample* sample;
-  // Initialize mutexes if needed FIXME is this racy?
-  if (!mutex_samples_init) {
-    pthread_mutex_init(&mutex_samples, NULL);
-    mutex_samples_init = true;
-  }
   sample = find_sample(samplename);
 
   // If sample was not in cache, read it from disk asynchronously
@@ -285,4 +279,23 @@ extern void file_preload_samples(const char *sampleroot) {
 done:
   log_printf(LOG_ERR, "preload done.\n");
   closedir(srcdir);
+}
+
+extern void file_init(void)
+{
+  pthread_mutex_init(&mutex_samples, NULL);
+  if (sample_count < MAXSAMPLES)
+  {
+    // add tiny silent sample with name ""
+    // this is to allow setting global effects (delaytime, delayfeedback)
+    // without having to do hacks like
+    // choosing a known-existing sample and setting gain to 0
+    t_sample *silence = calloc(1, sizeof(*silence));
+    silence->info = calloc(1, sizeof(*silence->info));
+    silence->info->channels = 1;
+    silence->info->frames = 1;
+    silence->info->samplerate = g_samplerate;
+    silence->items = calloc(1, sizeof(*silence->items));
+    samples[sample_count++] = silence;
+  }
 }

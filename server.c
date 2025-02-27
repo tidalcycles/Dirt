@@ -176,7 +176,11 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   sound->orbit = (orbit <= MAX_ORBIT) ? orbit : MAX_ORBIT;
   //log_printf(LOG_OUT, "orbit: %d\n", sound->orbit);
   sample_n = abs(sample_n);
-  snprintf(sound->samplename, MAXPATHSIZE, "%s:%d", sample_name, sample_n);
+  if (sample_name[0]) {
+    snprintf(sound->samplename, MAXPATHSIZE, "%s:%d", sample_name, sample_n);
+  } else {
+    sound->samplename[0] = 0;
+  }
   sound->attack = attack;
   sound->hold = hold;
   sound->release = release;

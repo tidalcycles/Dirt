@@ -39,3 +39,4 @@ t_loop *new_loop(float seconds);
 void free_loop(t_loop*);
 extern int file_count_samples(char *set, const char *sampleroot);
 extern void file_preload_samples(const char *sampleroot);
+extern void file_init(void);
