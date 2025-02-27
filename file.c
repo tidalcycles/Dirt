@@ -17,6 +17,8 @@ int sample_count = 0;
 
 pthread_mutex_t mutex_samples;
 
+int g_allow_unsafe_paths = 0;
+
 t_loop *new_loop(float seconds) {
   t_loop *result = (t_loop *) calloc(1, sizeof(t_loop));
   //result->chunksz = 2048 * 2;
@@ -48,6 +50,24 @@ t_sample *find_sample (char *samplename) {
     }
   }
   return(sample);
+}
+
+int is_absolute_path(const char *name) {
+  return name[0] == '/'; // FIXME windows path separator, windows drives?
+}
+
+int path_inside(const char *haystack, const char *needle)
+{
+  char *haystack_path = realpath(haystack, NULL);
+  char *needle_path = realpath(needle, NULL);
+  int allowed =
+    haystack_path &&
+    needle_path &&
+    0 == strncmp(haystack_path, needle_path, strlen(haystack_path)) &&
+    (needle_path[strlen(haystack_path)] == '/') ; // FIXME windows path separator?
+  free(haystack_path);
+  free(needle_path);
+  return allowed;
 }
 
 int wav_filter (const struct dirent *d) {
@@ -146,7 +166,7 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
     struct dirent **namelist;
 
     // load it from disk
-    if (sscanf(samplename, "%[a-z0-9A-Z]%[/:]%d", set, sep, &set_n)) {
+    if (3 == sscanf(samplename, "%[a-z0-9A-Z]%[/:]%d", set, sep, &set_n)) {
       int n;
       snprintf(path, sizeof(path), "%s/%s", sampleroot, set);
       //log_printf(LOG_OUT, "looking in %s\n", set);
@@ -162,14 +182,50 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
 	snprintf(path, sizeof(path), "%s/%s", sampleroot, samplename);
       }
     } else {
-      snprintf(path, MAXPATHSIZE -1, "%s/%s", sampleroot, samplename);
+      if (is_absolute_path(samplename)) {
+        strncpy(path, samplename, sizeof(path) - 1);
+      } else {
+        snprintf(path, sizeof(path), "%s/%s", sampleroot, samplename);
+      }
     }
 
     info = (SF_INFO *) calloc(1, sizeof(SF_INFO));
 
     //log_printf(LOG_OUT, "opening %s.\n", path);
+    if (! (g_allow_unsafe_paths || path_inside(sampleroot, path)))
+    {
+      // file is forbidden
+      // only print the message once per sample
+      char samplebase[MAXPATHSIZE];
+      samplebase[0] = ' ';
+      strncpy(samplebase + 1, samplename, sizeof(samplebase) - 2);
+      char *colon = strchr(samplebase, ':');
+      if (colon) {
+        colon[0] = ' ';
+        colon[1] = 0;
+      }
+      int warn = 0;
+      pthread_mutex_lock(&mutex_samples);
+      if (! strstr(warned_samples, samplebase))
+      {
+        if (strlen(warned_samples) + strlen(samplebase) < sizeof(warned_samples) - 1) {
+          strncat(warned_samples, samplebase, sizeof(warned_samples) - 1);
+          warn = 1;
+        } else {
+          warn = 2;
+        }
+      }
+      pthread_mutex_unlock(&mutex_samples);
+      if (warn == 1) {
+        log_printf(LOG_ERR, "forbidden sound file %s for sample %s\n", path, samplename);
+      } else if (warn == 2) {
+        if (! warned_samples_error) {
+          warned_samples_error = 1;
+          log_printf(LOG_ERR, "too many sound file errors, not printing any more\n");
+        }
+      }
 
-    if ((sndfile = (SNDFILE *) sf_open(path, SFM_READ, info)) == NULL) {
+    } else if ((sndfile = (SNDFILE *) sf_open(path, SFM_READ, info)) == NULL) {
       // only print the message once per sample
       char samplebase[MAXPATHSIZE];
       samplebase[0] = ' ';
@@ -310,8 +366,9 @@ done:
   closedir(srcdir);
 }
 
-extern void file_init(void)
+extern void file_init(int allow_unsafe_sample_paths)
 {
+  g_allow_unsafe_paths = allow_unsafe_sample_paths;
   pthread_mutex_init(&mutex_samples, NULL);
   if (sample_count < MAXSAMPLES)
   {

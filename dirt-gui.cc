@@ -39,7 +39,7 @@
 extern "C"
 {
 #include "common.h"
-extern int audio_init(const char *output, compressor_t compressor, bool autoconnect, bool late_trigger, int polyphony, unsigned int num_workers, const char *sampleroot, bool shape_gain_comp, bool preload_flag, bool output_time_flag);
+extern int audio_init(const char *output, compressor_t compressor, bool autoconnect, bool late_trigger, int polyphony, unsigned int num_workers, const char *sampleroot, bool allow_unsafe_sample_paths, bool shape_gain_comp, bool preload_flag, bool output_time_flag);
 extern int server_init(const char *osc_port);
 };
 
@@ -515,6 +515,7 @@ int main(int argc, char **argv)
           , polyphony_value[polyphony_index]
           , num_workers
           , strdup(samples_path.string().c_str()) // FIXME unicode issues, small memory leak
+          , false /* allow unsafe sample paths */
           , shape_gain_comp_flag
           , preload_flag
           , output_time_flag

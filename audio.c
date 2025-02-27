@@ -1096,12 +1096,12 @@ void thread_send_rms() {
 }
 #endif
 
-extern int audio_init(const char *output, compressor_t compressor, bool autoconnect, bool late_trigger, int polyphony, unsigned int num_workers, const char *sroot, bool shape_gain_comp, bool preload_flag, bool output_time_flag) {
+extern int audio_init(const char *output, compressor_t compressor, bool autoconnect, bool late_trigger, int polyphony, unsigned int num_workers, const char *sroot, bool allow_unsafe_sample_paths, bool shape_gain_comp, bool preload_flag, bool output_time_flag) {
   struct timeval tv;
 
   atexit(audio_close);
 
-  file_init();
+  file_init(allow_unsafe_sample_paths);
 
   gettimeofday(&tv, NULL);
   sampleroot = sroot;

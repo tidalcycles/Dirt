@@ -24,6 +24,7 @@ static int late_trigger_flag = 1;
 static int shape_gain_comp_flag = 0;
 static int preload_flag = 0;
 static int output_time_flag = 1;
+static int allow_unsafe_sample_paths = 0;
 
 #ifdef linux
 void sigint_handler(int sig) {
@@ -71,6 +72,8 @@ int main (int argc, char **argv) {
       {"late-trigger",          no_argument, &late_trigger_flag, 1},
       {"no-late-trigger",       no_argument, &late_trigger_flag, 0},
       {"samples-root-path",     required_argument, 0, 's'},
+      {"allow-unsafe-sample-paths",    no_argument, &allow_unsafe_sample_paths, 1},
+      {"no-allow-unsafe-sample-paths", no_argument, &allow_unsafe_sample_paths, 0},
       {"workers",               required_argument, 0, 'w'},
       {"polyphony",             required_argument, 0, 'y'},
 
@@ -155,6 +158,8 @@ int main (int argc, char **argv) {
                "      --output-time                assume audio output reports time correctly (default)\n"
                "      --no-output-time             enable scheduling workaround for broken outputs\n"
                "  -s, --samples-root-path          set a samples root directory path\n"
+               "      --allow-unsafe-sample-paths  sample filenames can go outside samples root directory\n"
+               "      --no-allow-unsafe-sample-paths  samples can be loaded from samples root only (default)"
                "  -y, --polyphony                  number of simultaneous voices (default: %u)\n"
                "  -w, --workers                    number of sample-reading workers (default: %u)\n"
                "  -h, --help                       display this help and exit\n"
@@ -282,15 +287,19 @@ int main (int argc, char **argv) {
     log_printf(LOG_ERR, "late trigger disabled\n");
   }
 
-    if (preload_flag) {
+  if (preload_flag) {
     log_printf(LOG_ERR, "sample preloading enabled\n");
+  }
+
+  if (allow_unsafe_sample_paths) {
+    log_printf(LOG_ERR, "unsafe sample paths enabled\n");
   }
 
   log_printf(LOG_ERR, "polyphony: %d\n", polyphony);
   log_printf(LOG_ERR, "workers: %u\n", num_workers);
 
   log_printf(LOG_ERR, "init audio\n");
-  audio_init(output, use_compressor, jack_auto_connect_flag, late_trigger_flag, polyphony, num_workers, sampleroot, shape_gain_comp_flag, preload_flag, output_time_flag);
+  audio_init(output, use_compressor, jack_auto_connect_flag, late_trigger_flag, polyphony, num_workers, sampleroot, allow_unsafe_sample_paths, shape_gain_comp_flag, preload_flag, output_time_flag);
 
   log_printf(LOG_ERR, "init open sound control\n");
   server_init(osc_port);

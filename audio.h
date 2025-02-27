@@ -180,7 +180,7 @@ typedef struct {
 #endif
 
 extern int audio_callback(int frames, float *input, float **outputs);
-extern int audio_init(const char *output, compressor_t compressor, bool autoconnect, bool late_trigger, int polyphony, unsigned int num_workers, const char *sampleroot, bool shape_gain_comp, bool preload_flag, bool output_time_flag);
+extern int audio_init(const char *output, compressor_t compressor, bool autoconnect, bool late_trigger, int polyphony, unsigned int num_workers, const char *sampleroot, bool allow_unsafe_sample_paths, bool shape_gain_comp, bool preload_flag, bool output_time_flag);
 extern void audio_close(void);
 extern int audio_play(t_sound*);
 t_sound *new_sound();

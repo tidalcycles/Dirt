@@ -7,6 +7,7 @@
 #include <math.h>
 #include <sys/time.h>
 #include <assert.h>
+#include <libgen.h>
 
 #include "server.h"
 #include "audio.h"
@@ -177,9 +178,20 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   //log_printf(LOG_OUT, "orbit: %d\n", sound->orbit);
   sample_n = abs(sample_n);
   if (sample_name[0]) {
-    snprintf(sound->samplename, MAXPATHSIZE, "%s:%d", sample_name, sample_n);
+    char base[MAXPATHSIZE];
+    strncpy(base, sample_name, sizeof(base) - 1);
+    const char *basep = basename(base); // either GNU basename or POSIX basename is fine at this point
+    if (0 == strcmp(basep, sample_name)) {
+      // name has no path component
+      // add :n
+      snprintf(sound->samplename, MAXPATHSIZE, "%s:%d", basep, sample_n);
+    } else {
+      // name has a path component (either relative or absolute)
+      // allowability will be checked in file.c
+      strncpy(sound->samplename, sample_name, sizeof(sound->samplename) - 1);
+    }
   } else {
-    sound->samplename[0] = 0;
+    sound->samplename[0] = 0; // silence
   }
   sound->attack = attack;
   sound->hold = hold;
@@ -310,4 +322,3 @@ extern void osc_send_play(double when, int lowchunk, float pitch, float flux, fl
           );
   
 }
-
