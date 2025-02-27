@@ -52,8 +52,20 @@ t_sample *find_sample (char *samplename) {
   return(sample);
 }
 
+#ifdef _WIN32
+#include <shlwapi.h>
+#define realpath(name, resolved) _fullpath((resolved), (name), PATH_MAX)
+#define SEPARATOR '\\'
+#else
+#define SEPARATOR '/'
+#endif
+
 int is_absolute_path(const char *name) {
-  return name[0] == '/'; // FIXME windows path separator, windows drives?
+#ifdef _WIN32
+  return ! PathIsRelative(name);
+#else
+  return name[0] == '/';
+#endif
 }
 
 int path_inside(const char *haystack, const char *needle)
@@ -64,7 +76,8 @@ int path_inside(const char *haystack, const char *needle)
     haystack_path &&
     needle_path &&
     0 == strncmp(haystack_path, needle_path, strlen(haystack_path)) &&
-    (needle_path[strlen(haystack_path)] == '/') ; // FIXME windows path separator?
+    (needle_path[strlen(haystack_path)] == '/' ||
+     needle_path[strlen(haystack_path)] == SEPARATOR) ;
   free(haystack_path);
   free(needle_path);
   return allowed;
