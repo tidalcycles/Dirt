@@ -58,7 +58,7 @@ static int pa_callback(const void *inputBuffer, void *outputBuffer,
   }
 
   float **buffers = (float **) outputBuffer;
-  for (int i=0; i < framesPerBuffer; ++i) {
+  for (unsigned long i=0; i < framesPerBuffer; ++i) {
     double framenow = start + i / (double) g_samplerate;
     playback(buffers, i, framenow);
     dequeue(framenow);
