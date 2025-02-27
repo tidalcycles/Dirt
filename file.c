@@ -109,7 +109,9 @@ extern int file_count_samples(char *set, const char *sampleroot) {
 }
 
 extern t_sample *file_get(char *samplename, const char *sampleroot) {
-  static int warned = 0; // only print the too-many-samples message once
+  static int warned_samples_count = 0; // only print the too-many-samples message once
+  static int warned_samples_error = 0; // only print the too-many-errors message once
+  static char warned_samples[1024] = {0}; // failed-to-load sample names (without :n)
   t_sample* sample;
   sample = find_sample(samplename);
 
@@ -123,10 +125,10 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
     pthread_mutex_unlock(&mutex_samples);
     if (! worth_trying)
     {
-      if (! warned)
+      if (! warned_samples_count)
       {
+        warned_samples_count = 1;
         log_printf(LOG_ERR, "too many samples, not loading any more\n");
-        warned = 1;
       }
       return NULL;
     }
@@ -168,8 +170,35 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
     //log_printf(LOG_OUT, "opening %s.\n", path);
 
     if ((sndfile = (SNDFILE *) sf_open(path, SFM_READ, info)) == NULL) {
-      // FIXME should this only print the message once per path to avoid flood?
-      log_printf(LOG_OUT, "could not open sound file %s for sample %s\n", path, samplename);
+      // only print the message once per sample
+      char samplebase[MAXPATHSIZE];
+      samplebase[0] = ' ';
+      strncpy(samplebase + 1, samplename, sizeof(samplebase) - 2);
+      char *colon = strchr(samplebase, ':');
+      if (colon) {
+        colon[0] = ' ';
+        colon[1] = 0;
+      }
+      int warn = 0;
+      pthread_mutex_lock(&mutex_samples);
+      if (! strstr(warned_samples, samplebase))
+      {
+        if (strlen(warned_samples) + strlen(samplebase) < sizeof(warned_samples) - 1) {
+          strncat(warned_samples, samplebase, sizeof(warned_samples) - 1);
+          warn = 1;
+        } else {
+          warn = 2;
+        }
+      }
+      pthread_mutex_unlock(&mutex_samples);
+      if (warn == 1) {
+        log_printf(LOG_ERR, "could not open sound file %s for sample %s\n", path, samplename);
+      } else if (warn == 2) {
+        if (! warned_samples_error) {
+          warned_samples_error = 1;
+          log_printf(LOG_ERR, "too many sound file errors, not printing any more\n");
+        }
+      }
       free(info);
     } else {
       items = (float *) calloc(1, sizeof(float) * info->frames * info->channels);
@@ -217,10 +246,10 @@ extern t_sample *file_get(char *samplename, const char *sampleroot) {
       pthread_mutex_unlock(&mutex_samples);
       if (failed)
       {
-        if (! warned)
+        if (! warned_samples_count)
         {
+          warned_samples_count = 1;
           log_printf(LOG_ERR, "too many samples, not loading any more\n");
-          warned = 1;
         }
         // don't leak the sample data
         free(sample->info);
