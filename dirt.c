@@ -265,6 +265,10 @@ int main (int argc, char **argv) {
     }
   }
 
+  if (optind < argc) {
+    log_printf(LOG_ERR, "warning: unexpected arguments\n");
+  }
+
   log_printf(LOG_ERR, "port: %s\n", osc_port);
   log_printf(LOG_ERR, "output: %s\n", output);
   log_printf(LOG_ERR, "channels: %u\n", g_num_channels);
