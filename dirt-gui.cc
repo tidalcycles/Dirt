@@ -107,6 +107,7 @@ std::filesystem::path samples_path = "./samples/";
 bool shape_gain_comp_flag = false;
 bool preload_flag = false;
 bool output_time_flag = true;
+bool allow_unsafe_sample_paths = false;
 int num_channels = DEFAULT_CHANNELS;
 int gain_db = DEFAULT_GAIN_DB;
 
@@ -304,6 +305,7 @@ bool display(bool server_running, bool audio_running, ImGui::FileBrowser *choose
     chooseDir->Open();
   }
   ImGui::Text("%s", samples_path.string().c_str());
+  ImGui::Checkbox("Allow Unsafe Sample Paths", &allow_unsafe_sample_paths);
 
   ImGui::EndDisabled();
 
@@ -515,7 +517,7 @@ int main(int argc, char **argv)
           , polyphony_value[polyphony_index]
           , num_workers
           , strdup(samples_path.string().c_str()) // FIXME unicode issues, small memory leak
-          , false /* allow unsafe sample paths */
+          , allow_unsafe_sample_paths
           , shape_gain_comp_flag
           , preload_flag
           , output_time_flag
