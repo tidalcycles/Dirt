@@ -52,75 +52,71 @@ int generic_handler(const char *path, const char *types, lo_arg **argv,
 
 /**/
 
-int play_handler(const char *path, const char *types, lo_arg **argv,
-                 int argc, void *data, void *user_data) {
+/*
+F, S, I macros will be redefined several times below,
+to avoid error prone manual duplication of all the field names.
+order and types must match positional arguments of /play
+(minus initial ii time stamp)
+default values are provided for both /play and /dirt/play
+(where later vs all fields are optional)
+this table was sourced (with regex replacement) from:
+<https://github.com/tidalcycles/Tidal/blob/02e5e3ac22abacaea5ed59472dbc34b7b975c4bb/src/Sound/Tidal/Stream/Target.hs#L171-L208>
+default for s is "" instead of NULL, to make it optional like all the rest
+*/
 
-  /* lo_timetag ts = lo_message_get_timestamp(data); */
+#define FIELDS \
+F(cps, 0) \
+S(s, "") \
+F(offset, 0) \
+F(begin, 0) \
+F(end, 1) \
+F(speed, 1) \
+F(pan, 0.5) \
+F(velocity, 0.5) \
+S(vowel, "") \
+F(cutoff, 0) \
+F(resonance, 0) \
+F(accelerate, 0) \
+F(shape, 0) \
+I(kriole, 0) \
+F(gain, 1) \
+I(cut, 0) \
+F(delay, 0) \
+F(delaytime, -1) \
+F(delayfeedback, -1) \
+F(crush, 0) \
+I(coarse, 0) \
+F(hcutoff, 0) \
+F(hresonance, 0) \
+F(bandf, 0) \
+F(bandq, 0) \
+S(unit, "rate") \
+F(loop, 0) \
+F(n, 0) \
+F(attack, -1) \
+F(hold, 0) \
+F(release, -1) \
+I(orbit, 0) \
+// I(id, 0)
 
-  double when = (double) argv[0]->i + (((double) argv[1]->i) / 1000000.0);
-#ifdef SUBLATENCY
-  when -= SUBLATENCY;
-#endif
-  int poffset = 2;
+/**/
 
-  float cps = argv[2]->f;
-  poffset = 3;
-  // log_printf(LOG_OUT, "timing info: when, cps = %f\t%f a %i b %i\n", when, cps, argv[0]->i, argv[1]->i);
+/* put fields into a sound and play it */
 
-  char *sample_name = (char *) argv[0+poffset];
-
-  float offset = argv[1+poffset]->f;
-  
-  //when += offset;
-
-  float start = argv[2+poffset]->f;
-  float end  = argv[3+poffset]->f;
-  float speed  = argv[4+poffset]->f;
-  float pan  = argv[5+poffset]->f;
-  float velocity  = argv[6+poffset]->f;
-  char *vowel_s = (char *) argv[7+poffset];
-  float cutoff = argv[8+poffset]->f;
-  float resonance = argv[9+poffset]->f;
-  float accelerate = argv[10+poffset]->f;
-  float shape = argv[11+poffset]->f;
-  
-  float gain = argc > (13+poffset) ? argv[13+poffset]->f : 0;
-  int cutgroup = argc > (14+poffset) ? argv[14+poffset]->i : 0;
-
-  float delay = argc > (15+poffset) ? argv[15+poffset]->f : 0;
-  float delaytime = argc > (16+poffset) ? argv[16+poffset]->f : 0;
-  float delayfeedback = argc > (17+poffset) ? argv[17+poffset]->f : 0;
-  
-  float crush = argc > (18+poffset) ? argv[18+poffset]->f : 0;
-  int coarse = argc > (19+poffset) ? argv[19+poffset]->i : 0;
-  float hcutoff = argc > (20+poffset) ? argv[20+poffset]->f : 0;
-  float hresonance = argc > (21+poffset) ? argv[21+poffset]->f : 0;
-  float bandf = argc > (22+poffset) ? argv[22+poffset]->f : 0;
-  float bandq = argc > (23+poffset) ? argv[23+poffset]->f : 0;
-
-  char *unit_name = argc > (24+poffset) ? (char *) argv[24+poffset] : "r";
-  int sample_loop = argc > (25+poffset) ? floor(argv[25+poffset]->f) : 0;
-  int sample_n = argc > (26+poffset) ? floor(argv[26+poffset]->f) : 0;
-
-  float attack = argc > (27+poffset) ? argv[27+poffset]->f : 0;
-  float hold = argc > (28+poffset) ? argv[28+poffset]->f : 0;
-  float release = argc > (29+poffset) ? argv[29+poffset]->f : 0;
-
-  int orbit = argc > (30+poffset) ? argv[30+poffset]->i : 0;
-  //log_printf(LOG_OUT, "orb: %d\n", orbit);
-  static bool extraWarned = false;
-  if (argc > 31+poffset && !extraWarned) {
-    log_printf(LOG_OUT, "play server unexpectedly received extra parameters, maybe update Dirt?\n");
-    extraWarned = true;
-  }
+#define F(field, defvalue) , float field
+#define I(field, defvalue) , int field
+#define S(field, defvalue) , const char *field
+int play_dispatch(double when FIELDS) {
+#undef F
+#undef I
+#undef S
 
   if (speed == 0) {
     return(0);
   }
 
   int vowelnum = -1;
-
-  switch(vowel_s[0]) {
+  switch(vowel[0]) {
   case 'a': case 'A': vowelnum = 0; break;
   case 'e': case 'E': vowelnum = 1; break;
   case 'i': case 'I': vowelnum = 2; break;
@@ -129,14 +125,14 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   }
   //log_printf(LOG_OUT, "vowel: %s num: %d\n", vowel_s, vowelnum);
 
-  int unit = -1;
-  switch(unit_name[0]) {
+  int unitnum = -1;
+  switch(unit[0]) {
     // rate
-  case 'r': case 'R': unit = 'r'; break;
+  case 'r': case 'R': unitnum = 'r'; break;
     // sec
-  case 's': case 'S': unit = 's'; break;
+  case 's': case 'S': unitnum = 's'; break;
     // cycle
-  case 'c': case 'C': unit = 'c'; break;
+  case 'c': case 'C': unitnum = 'c'; break;
   }
 
   t_sound *sound = new_sound();
@@ -147,7 +143,7 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   sound->active = 1;
   sound->speed = speed;
   sound->pan = pan;
-  sound->start = start;
+  sound->start = begin;
   sound->end = end;
   sound->velocity = velocity;
   sound->formant_vowelnum = vowelnum;
@@ -155,40 +151,40 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   sound->resonance = resonance;
   sound->accelerate = accelerate;
   sound->shape = (shape != 0);
-  shape = fabs(shape);
+  shape = fabsf(shape);
   shape = (shape > 0.99f)?0.99f:shape;
   sound->shape_k = (2.0f * shape) / (1.0f - shape);
   sound->delay = delay;
   sound->delaytime = delaytime;
   sound->delayfeedback = delayfeedback;
   sound->gain = powf(gain/2, 4);
-  sound->cutgroup = cutgroup;
+  sound->cutgroup = cut;
   sound->crush = crush;
   sound->coarse = coarse;
   sound->hcutoff = hcutoff;
   sound->hresonance = hresonance;
   sound->bandf = bandf;
   sound->bandq = bandq;
-  sound->sample_loop = sample_loop;
-  sound->unit = unit;
+  sound->sample_loop = loop;
+  sound->unit = unitnum;
   sound->offset = offset;
   sound->cps = cps;
   sound->when = when;
   sound->orbit = (orbit <= MAX_ORBIT) ? orbit : MAX_ORBIT;
   //log_printf(LOG_OUT, "orbit: %d\n", sound->orbit);
-  sample_n = abs(sample_n);
-  if (sample_name[0]) {
+  n = fabsf(floorf(n));
+  if (s[0]) {
     char base[MAXPATHSIZE];
-    strncpy(base, sample_name, sizeof(base) - 1);
+    strncpy(base, s, sizeof(base) - 1);
     const char *basep = basename(base); // either GNU basename or POSIX basename is fine at this point
-    if (0 == strcmp(basep, sample_name)) {
+    if (0 == strcmp(basep, s)) {
       // name has no path component
       // add :n
-      snprintf(sound->samplename, MAXPATHSIZE, "%s:%d", basep, sample_n);
+      snprintf(sound->samplename, MAXPATHSIZE, "%s:%d", basep, (int) n);
     } else {
       // name has a path component (either relative or absolute)
       // allowability will be checked in file.c
-      strncpy(sound->samplename, sample_name, sizeof(sound->samplename) - 1);
+      strncpy(sound->samplename, s, sizeof(sound->samplename) - 1);
     }
   } else {
     sound->samplename[0] = 0; // silence
@@ -200,6 +196,184 @@ int play_handler(const char *path, const char *types, lo_arg **argv,
   audio_play(sound);
 
   return(0);
+}
+
+/**/
+
+/* handle positional arguments (/play message) */
+
+int play_handler(const char *path, const char *types, lo_arg **argv,
+                 int argc, void *data, void *user_data) {
+
+  /* lo_timetag ts = lo_message_get_timestamp(data); */
+
+  double when = (double) argv[0]->i + (((double) argv[1]->i) / 1000000.0);
+#ifdef SUBLATENCY
+  when -= SUBLATENCY;
+#endif
+
+  int arg = 2;
+
+#define F(field, defvalue) float field = arg < argc ? argv[arg]->f : defvalue; ++arg;
+#define I(field, defvalue) int   field = arg < argc ? argv[arg]->i : defvalue; ++arg;
+#define S(field, defvalue) const char *field = arg < argc ? &argv[arg]->s : defvalue; ++arg;
+  FIELDS
+#undef F
+#undef I
+#undef S
+
+  static bool extraWarned = false;
+  if (arg < argc && ! extraWarned) {
+    log_printf(LOG_OUT, "play server unexpectedly received extra parameters, maybe update Dirt?\n");
+    extraWarned = true;
+  }
+
+#define F(field, defvalue) , field
+#define I(field, defvalue) , field
+#define S(field, defvalue) , field
+  return play_dispatch(when FIELDS);
+#undef F
+#undef I
+#undef S
+
+}
+
+/**/
+
+/* handle key-value arguments (/dirt/play message) */
+
+int dirt_play_handler(const char *path, const char *types,
+        lo_arg **argv, int argc, lo_message msg, void *user_data) {
+
+  lo_timetag ts = lo_message_get_timestamp(msg);
+  const double epoch = 2208988800.0; // rfc868
+  double when = ts.sec + ts.frac / (double) (((int64_t) 1) << 32) - epoch;
+#ifdef SUBLATENCY
+  when -= SUBLATENCY;
+#endif
+
+  if (argc & 1)
+  {
+    static int warned = 0;
+    if (! warned)
+    {
+      warned = 1;
+      log_printf(LOG_ERR, "received /dirt/play with odd argument count %d\n", argc);
+    }
+    return 0;
+  }
+
+#define F(field,defvalue) float field = defvalue; bool has_##field = false;
+#define I(field,defvalue) int field = defvalue; bool has_##field = false;
+#define S(field,defvalue) const char *field = defvalue; bool has_##field = false;
+FIELDS
+#undef F
+#undef I
+#undef S
+
+  for (int arg = 0; arg < argc; arg += 2)
+  {
+    if (types[arg] != 's' && types[arg] != 'S') {
+      log_printf(LOG_ERR, "expected type s or S for field name, got %c\n", types[arg]);
+      return 0;
+    }
+
+#define N(field,defvalue,fromf,froms) \
+    if (0 == strcmp(&argv[arg]->s, #field)) { \
+      if (has_##field) { \
+        static int warned =0 ; \
+        if (! warned) { \
+          warned = 1; \
+          log_printf(LOG_ERR, "duplicate field %s\n", #field); \
+        } \
+      } \
+      has_##field = true; \
+      switch (types[arg + 1]) { \
+        case 'i': field = argv[arg + 1]->i; break; \
+        case 'f': field = fromf(argv[arg + 1]->f); break; \
+        case 'h': field = argv[arg + 1]->h; break; \
+        case 'd': field = fromf(argv[arg + 1]->d); break; \
+        case 's': field = froms(&argv[arg + 1]->s); break; \
+        case 'S': field = froms(&argv[arg + 1]->S); break; \
+        case 'T': field = true; break; \
+        case 'F': field = false; break; \
+        default: { \
+          static int warned = 0; \
+          if (! warned) { \
+            warned = 1; \
+            log_printf(LOG_ERR, "can't handle type %c for field %s\n", types[arg + 1], #field); \
+          } \
+          return 0; \
+        } \
+      } \
+    } else
+#define F(field,defvalue) N(field,defvalue,(float),atof)
+#define I(field,defvalue) N(field,defvalue,floor,atoi)
+
+#define S(field, defvalue) \
+    if (0 == strcmp(&argv[arg]->s, #field)) { \
+      if (has_##field) { \
+        static int warned =0 ; \
+        if (! warned) { \
+          warned = 1; \
+          log_printf(LOG_ERR, "duplicate field %s\n", #field); \
+        } \
+      } \
+      has_##field = true; \
+      switch (types[arg + 1]) { \
+        case 's': field = &argv[arg + 1]->s; break; \
+        case 'S': field = &argv[arg + 1]->S; break; \
+        default: { \
+          static int warned = 0; \
+          if (! warned) { \
+            warned = 1; \
+            log_printf(LOG_ERR, "can't handle type %c for field %s\n", types[arg + 1], #field); \
+          } \
+          return 0; \
+        } \
+      } \
+    } else
+
+FIELDS
+
+    {
+      // warn at most once about each unknown field
+      static int warned_overflow = 0;
+      static char warned_fields[1024] = {0};
+      char field_with_spaces[256];
+      snprintf(field_with_spaces, sizeof(field_with_spaces), " %s ", &argv[arg]->s);
+      if (! strstr(warned_fields, field_with_spaces))
+      {
+        int overflow = ! (strlen(warned_fields) + strlen(field_with_spaces) + 1 < sizeof(warned_fields));
+        if (! overflow)
+        {
+          strncat(warned_fields, field_with_spaces, sizeof(warned_fields) - 1);
+          log_printf(LOG_ERR, "unknown field %s\n", &argv[arg]->s);
+        }
+        else
+        {
+          if (! warned_overflow)
+          {
+            warned_overflow = 1;
+            log_printf(LOG_ERR, "too many unknown fields, not reporting any more\n");
+          }
+        }
+      }
+    }
+
+#undef N
+#undef F
+#undef I
+#undef S
+  }
+
+#define F(field, defvalue) , field
+#define I(field, defvalue) , field
+#define S(field, defvalue) , field
+  return play_dispatch(when FIELDS);
+#undef F
+#undef I
+#undef S
 }
 
 /**/
@@ -262,8 +436,11 @@ extern int server_init(const char *osc_port) {
   {
     return 0;
   }
+  // disable lo's bundle scheduler; we do our own scheduling
+  lo_server_enable_queue(lo_server_thread_get_server(st), 0, 0);
 
   lo_server_thread_add_method(st, "/play", NULL, play_handler, NULL);
+  lo_server_thread_add_method(st, "/dirt/play", NULL, dirt_play_handler, NULL);
 
   lo_server_thread_add_method(st, NULL, NULL, generic_handler, NULL);
   lo_server_thread_start(st);
