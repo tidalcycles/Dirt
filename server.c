@@ -147,7 +147,7 @@ int play_dispatch(double when FIELDS) {
   sound->end = end;
   sound->velocity = velocity;
   sound->formant_vowelnum = vowelnum;
-  sound->cutoff = cutoff / CUTOFFRATIO;
+  sound->cutoff = cutoff / CUTOFFRATIO * 44100.0f/g_samplerate;
   sound->resonance = resonance;
   sound->accelerate = accelerate;
   sound->shape = (shape != 0);
@@ -161,9 +161,9 @@ int play_dispatch(double when FIELDS) {
   sound->cutgroup = cut;
   sound->crush = crush;
   sound->coarse = coarse;
-  sound->hcutoff = hcutoff;
+  sound->hcutoff = hcutoff / CUTOFFRATIO * 44100.0f/g_samplerate;
   sound->hresonance = hresonance;
-  sound->bandf = bandf;
+  sound->bandf = bandf / CUTOFFRATIO * 44100.0f/g_samplerate;
   sound->bandq = bandq;
   sound->sample_loop = loop;
   sound->unit = unitnum;
